@@ -32,6 +32,9 @@ def test_missing_required_setting_names_the_variable(monkeypatch: pytest.MonkeyP
     assert "database_url" in str(exc.value).lower()
 
 
-def test_migration_dsn_falls_back_to_database_url() -> None:
+def test_migration_dsn_falls_back_to_database_url(monkeypatch: pytest.MonkeyPatch) -> None:
+    # _env_file=None only silences the file; pydantic-settings still reads the
+    # process environment, and CI exports MIGRATION_DATABASE_URL as a job var.
+    monkeypatch.delenv("MIGRATION_DATABASE_URL", raising=False)
     s = Settings(_env_file=None, database_url="postgresql://x/y")  # type: ignore[call-arg]
     assert s.migration_dsn == "postgresql://x/y"
