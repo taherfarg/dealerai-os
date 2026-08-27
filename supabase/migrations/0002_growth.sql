@@ -243,5 +243,17 @@ begin
   end loop;
 end $$;
 
-grant select, insert, update, delete on all tables in schema public to authenticated;
-grant usage, select on all sequences in schema public to authenticated;
+-- Grant this migration's tables explicitly, never "on all tables in schema
+-- public". A blanket grant here would silently re-grant events and
+-- webhook_deliveries to authenticated and undo the revoke at the end of
+-- 0001_init — those two are isolated by reachability, not by RLS, so that
+-- would be a real hole. tests/test_tenant_isolation.py catches it.
+grant select, insert, update, delete on
+  ad_entities, ad_metrics_daily, ad_changes, competitors,
+  competitor_observations, market_signals, experiments
+  to authenticated;
+
+grant usage, select on sequence
+  ad_metrics_daily_id_seq, ad_changes_id_seq,
+  competitor_observations_id_seq, market_signals_id_seq
+  to authenticated;

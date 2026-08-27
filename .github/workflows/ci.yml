@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  api:
+    runs-on: ubuntu-latest
+
+    services:
+      db:
+        image: pgvector/pgvector:pg15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: dealerai
+        ports:
+          - 54332:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d dealerai"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+
+    env:
+      ENV: local
+      LOG_LEVEL: warning
+      DATABASE_URL: postgresql://dealerai_app:dealerai_app@localhost:54332/dealerai
+      MIGRATION_DATABASE_URL: postgresql://postgres:postgres@localhost:54332/dealerai
+      DB_POOL_MIN: 1
+      DB_POOL_MAX: 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install
+        working-directory: apps/api
+        run: uv sync --all-extras --dev
+
+      - name: Lint
+        working-directory: apps/api
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+
+      - name: Typecheck
+        working-directory: apps/api
+        run: uv run mypy src
+
+      # Runs from empty every time, so a migration that only works on an
+      # already-populated database fails here rather than in production.
+      - name: Migrate from empty
+        working-directory: apps/api
+        run: uv run python -m dealerai.scripts.migrate
+
+      - name: Test
+        working-directory: apps/api
+        run: uv run pytest -q

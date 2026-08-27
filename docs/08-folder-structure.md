@@ -20,7 +20,7 @@ dealerai-os/
 ├── scripts/                  one-off ops scripts
 ├── .github/workflows/
 ├── docker-compose.yml        local: postgres+pgvector, minio, playwright
-└── Makefile                  dev, test, migrate, seed, eval
+└── package.json               task runner (npm scripts) + web workspace
 ```
 
 ---
@@ -168,7 +168,7 @@ both open in two tabs, and every link is unambiguous about which workspace it be
 **`packages/api-client` is generated**, never hand-written:
 
 ```bash
-make api-types   # OpenAPI from FastAPI → TypeScript client
+npm run api-types   # OpenAPI from FastAPI → TypeScript client
 ```
 
 Hand-written API types drift from the server within one sprint and the drift is silent.
@@ -197,7 +197,7 @@ apps/api/tests/
     └── judge.py                   LLM-judge scoring for sales replies
 ```
 
-`make test` runs unit and integration. `make eval` runs the model-dependent suites — they
+`npm test` runs unit and integration. `npm run eval` runs the model-dependent suites — they
 cost money and run on PRs that touch `agents/`, `ai/`, or `prompts/`.
 
 ---

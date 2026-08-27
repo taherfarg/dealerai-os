@@ -19,29 +19,33 @@ create extension if not exists vector;
 
 create schema if not exists app;
 
+-- dealerai_app is the role the FastAPI service and the worker connect as.
+-- NOBYPASSRLS is the entire point: if application code forgets to scope a
+-- query, the database returns zero rows instead of another dealer's customers.
+-- The service NEVER connects as service_role — that is for migrations only.
+--
+-- Created NOLOGIN so no password is ever committed. One ops step per
+-- environment, with the secret from the secret manager:
+--
+--   alter role dealerai_app login password '<secret>';
+--
+-- Grants and default privileges are at the bottom of this file, in version
+-- control where a review can see them.
+do $$
+begin
+  if not exists (select 1 from pg_roles where rolname = 'dealerai_app') then
+    create role dealerai_app nologin noinherit nobypassrls;
+  end if;
+end $$;
+
 -- -----------------------------------------------------------------------------
 -- Tenancy helpers
 -- -----------------------------------------------------------------------------
 
--- Backend path: FastAPI connects as role dealerai_app (NOBYPASSRLS) and issues
---   SET LOCAL app.tenant_id = '<uuid>';
--- at the start of every transaction.
--- Browser path: supabase-js sends the user JWT; auth.uid() resolves membership.
--- Both paths go through this one function.
-create or replace function app.has_tenant_access(t uuid)
-returns boolean
-language sql
-stable
-security definer
-set search_path = public, pg_temp
-as $$
-  select
-    coalesce(nullif(current_setting('app.tenant_id', true), '')::uuid = t, false)
-    or exists (
-      select 1 from public.memberships m
-      where m.tenant_id = t and m.user_id = auth.uid()
-    );
-$$;
+-- NOTE: app.has_tenant_access() is defined further down, immediately before the
+-- RLS section. It is a LANGUAGE sql function, and Postgres parses and resolves
+-- SQL function bodies at CREATE time — so it cannot be declared here, above the
+-- memberships table it reads.
 
 create or replace function app.touch_updated_at()
 returns trigger
@@ -797,6 +801,32 @@ end $$;
 -- table-specific variations — a variation is how a leak gets introduced.
 -- =============================================================================
 
+-- Backend path: FastAPI connects as role dealerai_app (NOBYPASSRLS) and issues
+--   SET LOCAL app.tenant_id = '<uuid>';
+-- at the start of every transaction.
+-- Browser path: supabase-js sends the user JWT; auth.uid() resolves membership.
+-- Both paths go through this one function, so there is exactly one predicate to
+-- audit.
+--
+-- SECURITY DEFINER is required: the policy on memberships would otherwise
+-- recurse when this function queries memberships.
+create or replace function app.has_tenant_access(t uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+  select
+    coalesce(nullif(current_setting('app.tenant_id', true), '')::uuid = t, false)
+    or exists (
+      select 1 from public.memberships m
+      where m.tenant_id = t and m.user_id = auth.uid()
+    );
+$$;
+
+grant execute on function app.has_tenant_access(uuid) to authenticated, anon, dealerai_app;
+
 do $$
 declare t text;
 begin
@@ -876,20 +906,20 @@ create policy profile_self on profiles for all using (id = auth.uid());
 -- (the actual REVOKE runs at the bottom of this file, after the blanket GRANTs)
 
 -- =============================================================================
--- ROLES AND GRANTS
---
--- OPS STEP, run once per project with elevated privileges:
---
---   create role dealerai_app login password '<from secret manager>' nobypassrls;
---   grant usage on schema public, app to dealerai_app;
---   grant select, insert, update, delete on all tables in schema public to dealerai_app;
---   grant usage, select on all sequences in schema public to dealerai_app;
---   alter default privileges in schema public
---     grant select, insert, update, delete on tables to dealerai_app;
---
--- The FastAPI service connects as dealerai_app and NEVER as service_role.
--- service_role bypasses RLS and exists only for migrations.
+-- GRANTS
+-- The dealerai_app role itself is created at the top of this file, because the
+-- has_tenant_access grant above needs it to already exist.
 -- =============================================================================
+
+grant usage on schema public, app to dealerai_app;
+grant select, insert, update, delete on all tables in schema public to dealerai_app;
+grant usage, select on all sequences in schema public to dealerai_app;
+
+-- covers tables added by later migrations (0002_growth and beyond)
+alter default privileges in schema public
+  grant select, insert, update, delete on tables to dealerai_app;
+alter default privileges in schema public
+  grant usage, select on sequences to dealerai_app;
 
 grant usage on schema app to authenticated, anon;
 grant select, insert, update, delete on all tables in schema public to authenticated;

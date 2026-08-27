@@ -30,7 +30,7 @@ on a fresh checkout.
 ## Milestone M0 — Foundation (weeks 1–2)
 
 ### T0.1 — Repository skeleton
-**Files:** `pyproject.toml`, `apps/api/`, `apps/web/`, `Makefile`, `docker-compose.yml`,
+**Files:** `package.json`, `apps/api/`, `apps/web/`, `docker-compose.yml`,
 `.env.example`, `.gitignore`
 
 Monorepo per [08-folder-structure.md](08-folder-structure.md). `docker-compose.yml` brings
@@ -38,16 +38,16 @@ up Postgres 15 with pgvector, MinIO (Storage stand-in), and a Playwright image.
 `apps/api/src/dealerai/config.py` holds every environment variable as a
 `pydantic-settings` model; `.env.example` is generated from it.
 
-**Acceptance:** `make dev` starts Postgres, API, and web; `curl localhost:8000/internal/health`
+**Acceptance:** `npm run dev` starts Postgres, migrates, and serves the API; `curl localhost:8000/internal/health`
 returns 200; a missing required env var fails startup with the variable's name.
 
 ---
 
 ### T0.2 — Apply the schema
 **Files:** `supabase/migrations/0001_init.sql` (already written), `supabase/config.toml`,
-`Makefile` targets `migrate` and `reset`
+npm scripts `db:migrate` and `db:reset`
 
-**Acceptance:** `make reset && make migrate` runs clean against an empty database.
+**Acceptance:** `npm run db:reset` runs clean against an empty database.
 `select count(*) from pg_policies where schemaname='public'` returns a policy for every
 table in the RLS loop. Every view reports `security_invoker=on` in `pg_class.reloptions`.
 
@@ -112,7 +112,7 @@ and take `.get_final_message()`. Check `stop_reason == "refusal"` before reading
 Write an `agent_traces` row with tokens, cache read/write, cost, and latency on every call.
 Refuse the call when the tenant is over `monthly_ai_budget_usd`.
 
-**Acceptance:** `make eval-gateway` issues the same request twice and asserts the second
+**Acceptance:** `npm run eval:gateway` issues the same request twice and asserts the second
 reports `cache_read_input_tokens > 0`. A stubbed refusal response surfaces as a typed error,
 not a crash. A tenant seeded over budget gets `BudgetExceeded` before any HTTP call is made.
 

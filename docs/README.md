@@ -64,14 +64,39 @@ partner. Every MVP feature must be usable by them in week one, or it is not MVP.
 
 ---
 
+## Local development
+
+```bash
+cp .env.example .env
+npm run db:up        # Postgres 15 + pgvector on :54332
+npm run db:migrate
+npm run check        # lint + typecheck + tests
+npm run api          # http://localhost:8000/internal/health
+```
+
+Requires Docker, Node 22+, and [uv](https://docs.astral.sh/uv/). Python 3.12 is pinned in
+`apps/api/.python-version`; uv fetches it.
+
+Three things about the local setup that are not obvious:
+
+- **Port 54332, not 54322.** The Supabase CLI default is often already taken by another
+  project's stack on the same machine.
+- **`0000_local_shim.sql` runs only when `ENV=local`.** It creates `auth.users`,
+  `auth.uid()`, and the `anon` / `authenticated` / `service_role` roles that Supabase
+  provides for real. The migrate script skips it in every other environment.
+- **npm scripts, not a Makefile.** `make` is not present on a stock Windows box, and the
+  repo already needs Node and uv. Adding a third task runner to save typing is not worth
+  an install step.
+
 ## Status
 
 | Area | State |
 |---|---|
 | Documentation | Complete — this set |
-| Code | Not started |
-| Schema | Written, not applied |
-| Meta / WhatsApp / TikTok app review | Not started — **long lead time, start in M0** |
+| Schema | Applied and tested locally (39 tables, RLS verified) |
+| M0 Foundation | T0.1–T0.4 and T0.8 (CI) done · T0.5 events, T0.6 gateway, T0.7 connectors next |
+| Tests | 40 passing, including the cross-tenant isolation suite |
+| Meta / WhatsApp / TikTok app review | Not started — **long lead time, start now** |
 
 ---
 
