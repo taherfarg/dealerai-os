@@ -54,6 +54,10 @@ class Settings(BaseSettings):
     #: at call time rather than blocking startup for someone doing schema work.
     anthropic_api_key: str | None = None
 
+    #: HS256 secret Supabase Auth signs user tokens with. Also signs invitation
+    #: links, so they are invalidated by the same rotation.
+    supabase_jwt_secret: str | None = None
+
     #: Fernet keys for channels.credentials, comma-separated, newest first.
     #: Rotation: prepend a new key, redeploy, re-save channels, drop the old one.
     credentials_keys: str | None = None

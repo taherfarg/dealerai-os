@@ -12,6 +12,7 @@ dependencies = [
     "structlog>=24.4",
     "anthropic>=1.2.0",
     "cryptography>=50.0.1",
+    "pyjwt>=2.13.0",
 ]
 
 [dependency-groups]

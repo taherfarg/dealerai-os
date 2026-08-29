@@ -137,6 +137,29 @@ async def _seed_tenant(
     )
 
 
+async def reseed() -> None:
+    """Reset to two tenants, on a connection of its own.
+
+    Callable from sync tests via asyncio.run — route tests drive TestClient,
+    which is synchronous and therefore cannot consume an async fixture.
+    """
+    conn = await asyncpg.connect(get_settings().migration_dsn)
+    try:
+        await _wipe(conn)
+        await _seed_tenant(conn, TENANT_A, USER_A, "alpha")
+        await _seed_tenant(conn, TENANT_B, USER_B, "beta")
+    finally:
+        await conn.close()
+
+
+async def wipe_all() -> None:
+    conn = await asyncpg.connect(get_settings().migration_dsn)
+    try:
+        await _wipe(conn)
+    finally:
+        await conn.close()
+
+
 @pytest.fixture
 async def seeded(su: asyncpg.Connection) -> AsyncIterator[None]:
     await _wipe(su)

@@ -121,6 +121,35 @@ every subsequent statement inside `tenant_session(tenant_id)`. The claim query i
 place in the codebase that touches `events` without a tenant context, and it lives in
 `events/worker.py`. Everything downstream of it is scoped.
 
+### Two rules learned the hard way
+
+**A policy on table X may only read X through a SECURITY DEFINER function.**
+`0001` wrote the admin check on `memberships` as an inline
+`exists (select 1 from memberships ...)`. That subquery re-invokes the policy,
+and Postgres raises `infinite recursion detected in policy for relation
+"memberships"`. `app.has_tenant_access()` never hit this because it is SECURITY
+DEFINER — its inner read runs as the function owner and skips RLS. Fixed in
+`0004`, which also collapses the duplicated predicate into `app.is_tenant_admin()`.
+
+**Anything that runs before a tenant context exists needs a SECURITY DEFINER
+helper with a narrow signature.** Creating a workspace, accepting an invitation,
+listing your own workspaces, and resolving your role in one are all
+chicken-and-egg: you are not yet a member, so every policy correctly refuses.
+The tempting fix — an INSERT policy with `with check (true)` on `memberships` —
+would let any authenticated user insert themselves into any tenant as owner.
+Instead `0003` and `0004` expose exactly four functions, each scoped to one
+operation, granted only to `dealerai_app`:
+
+| Function | Used by |
+|---|---|
+| `app.create_tenant_with_owner(...)` | `POST /v1/tenants` |
+| `app.accept_invite(tenant, user, role)` | `POST /v1/invites/accept` |
+| `app.tenants_for_user(user)` | `GET /v1/tenants` |
+| `app.member_role(tenant, user)` | the `tenant_ctx` dependency |
+
+The same reasoning covers the worker's event claim, which is why `events` has no
+RLS at all — see above.
+
 ### The CI test that must exist
 
 Seed tenants A and B with a row in every table. Under A's context, assert each table

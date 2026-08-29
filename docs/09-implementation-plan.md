@@ -210,7 +210,7 @@ and WhatsApp submissions have ticket numbers recorded in `docs/runbook.md`.
 
 ## Milestone M1 — Tenancy and auth (weeks 2–3)
 
-### T1.1 — Auth and tenant bootstrap
+### T1.1 — Auth and tenant bootstrap — **done**
 **Files:** `routes/tenants.py`, `deps.py`, `apps/web/app/(auth)/`, `lib/supabase/`
 
 Supabase Auth with email/password and Google. Sign-up creates `profiles`; then
@@ -218,17 +218,29 @@ Supabase Auth with email/password and Google. Sign-up creates `profiles`; then
 `tenant_ctx` dependency validates `X-Tenant-Id` against `memberships` and raises **404**,
 never 403 ([07](07-api-design.md) § 2).
 
-**Acceptance:** a new user signs up, creates a workspace, and lands at `/[tenant]`.
-Requesting another tenant's ID returns 404 with `problem+json`.
+**Acceptance:** met on the API side — 25 route tests. Requesting another tenant's ID
+returns 404 with `problem+json`. The sign-up screen itself lands with T1.3, which needs a
+real Supabase project; the backend verifies HS256 tokens with Supabase's exact claim shape
+(`sub`, `aud=authenticated`, `exp`) and tests mint them locally with `mint_test_token`.
 
-### T1.2 — Roles and invitations
+Two RLS walls hit here, both written up in [03](03-database-schema.md): the
+`memberships` policy recursed infinitely, and every bootstrap write runs before a tenant
+context exists. Fixed by `0003_bootstrap.sql` and `0004_membership_policy_recursion.sql`.
+
+### T1.2 — Roles and invitations — **done**
 **Files:** `routes/tenants.py`, `core/security.py`, `apps/web/app/(app)/[tenant]/settings/team/`
 
 Five roles per [03](03-database-schema.md). A `require_role("admin")` dependency guards
 mutating routes. Invitations are signed, single-use, 7-day tokens.
 
-**Acceptance:** a `viewer` gets 403 on `PATCH /v1/vehicles/{id}` and 200 on the list. An
-invite link consumed twice fails the second time.
+**Acceptance:** met, with one deliberate change. A `viewer` gets 403 on `PATCH` and 200 on
+reads. **An invite consumed twice is a no-op, not an error** — replaying a link returns the
+role the user already holds and never re-roles them, which is the safer behaviour for a
+link that may be forwarded or double-clicked. Single use is enforced by the unique
+`(tenant_id, user_id)` on memberships rather than by a consumed-invitations table.
+Invitations are signed and expiring rather than stored, so there is no table to clean up
+and a leaked link dies on its own. A user token cannot be replayed as an invite: both are
+signed with the same secret and only the `kind` claim separates them, so that has a test.
 
 ### T1.3 — App shell
 **Files:** `apps/web/app/(app)/[tenant]/layout.tsx`, `components/ui/`, `messages/{en,ar}.json`

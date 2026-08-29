@@ -89,12 +89,13 @@ never a formatted string, never a float.
 ### Tenants & members
 
 ```
-GET    /v1/tenants                       tenants the caller belongs to
+GET    /v1/tenants                       tenants the caller belongs to (no X-Tenant-Id)
 POST   /v1/tenants                       create (also creates owner membership)
 GET    /v1/tenants/{id}
 PATCH  /v1/tenants/{id}                  name, timezone, locales, autonomy_mode, autonomy_rules
 GET    /v1/tenants/{id}/members
-POST   /v1/tenants/{id}/invites          {email, role}
+POST   /v1/tenants/{id}/invites          {email, role} -> signed, 7-day, single-use token
+POST   /v1/invites/accept                {token} -> membership (idempotent)
 DELETE /v1/tenants/{id}/members/{uid}
 GET    /v1/tenants/{id}/usage            AI spend this period vs budget
 ```

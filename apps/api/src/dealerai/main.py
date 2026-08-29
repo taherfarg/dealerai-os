@@ -11,6 +11,7 @@ from .config import get_settings
 from .core.errors import install_error_handlers
 from .core.logging import configure_logging, install_request_context
 from .db import session
+from .routes import tenants
 
 log = structlog.get_logger()
 
@@ -37,6 +38,7 @@ def create_app() -> FastAPI:
     )
     install_request_context(app)
     install_error_handlers(app)
+    app.include_router(tenants.router)
 
     @app.get("/internal/health")
     async def health() -> dict[str, Any]:
