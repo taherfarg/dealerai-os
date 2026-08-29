@@ -94,8 +94,8 @@ Three things about the local setup that are not obvious:
 |---|---|
 | Documentation | Complete — this set |
 | Schema | Applied and tested locally (39 tables, RLS verified) |
-| M0 Foundation | T0.1–T0.4 and T0.8 (CI) done · T0.5 events, T0.6 gateway, T0.7 connectors next |
-| Tests | 40 passing, including the cross-tenant isolation suite |
+| M0 Foundation | T0.1–T0.5 and T0.8 (CI) done · T0.6 model gateway, T0.7 connectors next |
+| Tests | 53 passing, including the cross-tenant isolation and event-queue suites |
 | Meta / WhatsApp / TikTok app review | Not started — **long lead time, start now** |
 
 ---

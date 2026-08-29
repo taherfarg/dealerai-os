@@ -82,21 +82,36 @@ that appears in the log line for the same request. `Money` rejects a float argum
 
 ---
 
-### T0.5 — Event bus and worker
-**Files:** `events/bus.py`, `events/worker.py`, `events/scheduler.py`,
-`events/handlers/__init__.py`, `worker.py`
+### T0.5 — Event bus and worker — **done**
+**Files:** `events/bus.py`, `events/worker.py`, `worker.py`, `tests/test_events.py`
 
-`emit(conn, event_type, payload, *, dedupe_key=None, run_after=None)` inserts into `events`
-**on the caller's connection**, so the event and its cause commit together. Worker: claim
-with `FOR UPDATE SKIP LOCKED`, dispatch by name, exponential backoff (`2^attempts`
-minutes), dead-letter at `max_attempts`. A reaper releases rows stuck in `processing` for
-over 15 minutes. APScheduler registers the crons from [05](05-workflows.md) § 1 and only
-ever emits events.
+`emit(conn, event_type, payload, *, tenant_id=None, dedupe_key=None, run_after=None,
+priority=0)` inserts into `events` **on the caller's connection**, so the event and its
+cause commit together. Worker: claim with `FOR UPDATE SKIP LOCKED`, dispatch by name,
+exponential backoff (`2^attempts` minutes, capped), dead-letter once `attempts` reaches
+`max_attempts` (default 5). A reaper releases rows stuck in `processing` for over 15
+minutes.
 
-**Acceptance:** a test emits 100 events across 3 concurrent workers and asserts each is
-handled exactly once. A handler that raises is retried with growing `run_after` and
-dead-letters on attempt 6. A row force-set to `processing` with an old `locked_at` is
-reclaimed by the reaper.
+Two things the implementation settled that the plan had not:
+
+- **`UPDATE ... RETURNING` does not preserve the sub-select's `ORDER BY`.** Priority chose
+  which events were claimed but not the order they ran in, so a customer reply could sit
+  behind nineteen metric fetches inside one batch. The claimed batch is re-sorted in
+  Python.
+- **An unknown event type retries rather than dead-lettering immediately.** During a
+  rolling deploy an old worker briefly sees types it has no handler for; a few minutes of
+  backoff rides that out, and a genuinely unknown type still dead-letters at
+  `max_attempts`.
+
+> **Deferred: `events/scheduler.py` (APScheduler).** A scheduler is only useful once there
+> is a cron with a real handler behind it, and at M0 there is none — the reaper runs on
+> its own interval inside the worker loop. Add it with the first real cron in M2
+> (`vehicle.stale` nightly sweep), registering the table from [05](05-workflows.md) § 1.
+
+**Acceptance:** met — 100 events across 3 concurrent workers are each handled exactly
+once; a raising handler backs off with a growing `run_after` and dead-letters on the 5th
+attempt; a row force-set to `processing` with an old `locked_at` is reclaimed by the
+reaper and then processed.
 
 ---
 

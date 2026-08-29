@@ -18,7 +18,8 @@
     "test": "cd apps/api && uv run pytest",
     "lint": "cd apps/api && uv run ruff check . && uv run ruff format --check .",
     "typecheck": "cd apps/api && uv run mypy src",
-    "check": "npm run lint && npm run typecheck && npm run test"
+    "check": "npm run lint && npm run typecheck && npm run test",
+    "worker": "cd apps/api && uv run python -m dealerai.worker"
   },
   "engines": {
     "node": ">=22"
