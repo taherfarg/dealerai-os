@@ -54,6 +54,10 @@ class Settings(BaseSettings):
     #: at call time rather than blocking startup for someone doing schema work.
     anthropic_api_key: str | None = None
 
+    #: Fernet keys for channels.credentials, comma-separated, newest first.
+    #: Rotation: prepend a new key, redeploy, re-save channels, drop the old one.
+    credentials_keys: str | None = None
+
     @property
     def migration_dsn(self) -> str:
         return self.migration_database_url or self.database_url

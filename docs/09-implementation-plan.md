@@ -150,18 +150,44 @@ frames later instead of at the boundary.
 
 ---
 
-### T0.7 — Mock connector and the connector contract
-**Files:** `connectors/base.py`, `connectors/mock.py`, `connectors/registry.py`,
-`connectors/crypto.py`, `tests/connectors/test_contract.py`
+### T0.7 — Mock connector and the connector contract — **done**
+**Files:** `connectors/base.py`, `connectors/mock.py`, `connectors/crypto.py`,
+`tests/connectors/test_contract.py`, `tests/connectors/test_crypto.py`
 
 Protocols and DTOs from [01](01-system-architecture.md) § 4. `mock.py` implements every
-capability deterministically, including failure injection: rate limit, expired token, 5xx.
-`crypto.py` does envelope encryption for `channels.credentials`. `test_contract.py` is the
-shared suite that **every** connector must pass — Meta and WhatsApp are written against it
-in M4.
+capability deterministically, with failure injection for rate limits and expired tokens.
+`test_contract.py` is the shared suite that **every** connector must pass — Meta and
+WhatsApp are written against it in M4 by appending to its `FACTORIES` list. If a real
+connector needs the suite edited to go green, the change belongs in the connector.
 
-**Acceptance:** the contract suite passes against `mock`. A token round-trips through
-`crypto` and never appears in plaintext in `channels.credentials`.
+Three things the contract pins down that the plan had left implicit:
+
+- **Idempotency is part of the contract, not each connector's problem.** `PublishRequest`
+  and `MessageRequest` both require an `idempotency_key`, and replaying one returns the
+  original result without acting again. A retried worker posting the same car twice is a
+  public mistake; sending a customer the same WhatsApp twice gets the number blocked.
+- **Capabilities are declared, not assumed.** A connector publishes `supports:
+  frozenset[PublishKind]` and raises `NotSupported` otherwise, so no caller carries a
+  per-platform table.
+- **The failure vocabulary is typed.** `RateLimited` (with `retry_after_seconds`),
+  `TokenExpired` (not retryable — a human must reconnect), `NotSupported` (never retry),
+  `OutsideMessagingWindow` (the 24-hour WhatsApp rule the Follow-up Agent branches on).
+  Callers branch on type, never on a message string.
+
+> **Deviation: MultiFernet, not envelope encryption.** Envelope's payoff is re-wrapping
+> small data keys instead of re-encrypting large ciphertexts. These are 200-byte OAuth
+> tokens, so it buys nothing and costs a key hierarchy to get wrong. `MultiFernet`
+> decrypts with any configured key and encrypts with the first, so rotation is: prepend a
+> key, redeploy, re-save channels, drop the old one. Tested end to end.
+
+> **Deferred: `connectors/registry.py`.** A platform-to-connector registry with one
+> implementation is a premature abstraction. It arrives in M4 with the second connector,
+> where it also becomes the place credentials get decrypted.
+
+**Acceptance:** met — the contract suite passes against three mock shapes (generic,
+Instagram-like, WhatsApp-like). A token round-trips through `crypto` and
+`test_stored_credentials_are_unreadable_in_the_database` asserts it does not appear in
+`channels.credentials::text` read as superuser.
 
 ---
 

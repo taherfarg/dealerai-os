@@ -94,8 +94,8 @@ Three things about the local setup that are not obvious:
 |---|---|
 | Documentation | Complete — this set |
 | Schema | Applied and tested locally (39 tables, RLS verified) |
-| M0 Foundation | T0.1–T0.6 and T0.8 (CI) done · T0.7 connectors is the last one |
-| Tests | 76 passing · 1 eval deselected (needs `ANTHROPIC_API_KEY`, see T0.6) |
+| **M0 Foundation** | **complete** — T0.1–T0.8. M1 (tenancy and auth) is next |
+| Tests | 130 passing, 8 skipped · 1 eval deselected (needs `ANTHROPIC_API_KEY`, see T0.6) |
 | Meta / WhatsApp / TikTok app review | Not started — **long lead time, start now** |
 
 ---
