@@ -115,8 +115,9 @@ reaper and then processed.
 
 ---
 
-### T0.6 — Model gateway
-**Files:** `ai/gateway.py`, `ai/schemas.py`, `ai/prompts/_rules.md`, `tests/test_gateway.py`
+### T0.6 — Model gateway — **done (see caveat)**
+**Files:** `ai/models.py`, `ai/gateway.py`, `ai/prompts/_rules.md`, `tests/test_gateway.py`,
+`tests/evals/test_gateway_cache.py`
 
 `complete(task, *, tenant_id, run_id, system_layers, messages, tools, output_schema)`.
 Routing table from [01](01-system-architecture.md) § 5. Assemble the system prompt in cache
@@ -127,9 +128,25 @@ and take `.get_final_message()`. Check `stop_reason == "refusal"` before reading
 Write an `agent_traces` row with tokens, cache read/write, cost, and latency on every call.
 Refuse the call when the tenant is over `monthly_ai_budget_usd`.
 
-**Acceptance:** `npm run eval:gateway` issues the same request twice and asserts the second
-reports `cache_read_input_tokens > 0`. A stubbed refusal response surfaces as a typed error,
-not a crash. A tenant seeded over budget gets `BudgetExceeded` before any HTTP call is made.
+**Acceptance:** met against stubs — 23 tests. A refusal surfaces as `ModelRefusal` and is
+still traced (a refusal costs money, so it belongs in the bill). A tenant seeded over budget
+raises `BudgetExceeded` and the client is asserted never to have been called. Cost maths is
+tested against the cache multipliers directly.
+
+> **Caveat — not yet verified against the live API.** There is no `ANTHROPIC_API_KEY` in this
+> environment, so every request shape was checked against the installed SDK's type stubs
+> (`anthropic` 1.2.0) rather than a real round trip: `output_config.effort` accepts
+> `low|medium|high|xhigh|max`, `output_config.format` is `{type: "json_schema", schema: ...}`,
+> `ThinkingConfigAdaptiveParam` has no `budget_tokens` field, and `cache_control.ttl` accepts
+> `5m|1h`. **`npm run eval:gateway` is the outstanding check** — it makes two identical calls
+> and asserts the second reads from cache. It is marked `eval` and deselected from the default
+> run because it costs money. Run it as soon as a key exists; a cache regression is invisible
+> (nothing breaks, the bill quintuples), which is exactly why the stubs cannot substitute.
+
+One thing the implementation settled: `output_schema` is enforced server-side via
+`output_config.format` **and** re-validated locally with Pydantic, raising `ModelOutputInvalid`.
+Trusting the server alone means a schema drift shows up as an `AttributeError` three call
+frames later instead of at the boundary.
 
 ---
 

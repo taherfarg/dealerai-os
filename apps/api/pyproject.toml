@@ -10,6 +10,7 @@ dependencies = [
     "pydantic>=2.9",
     "pydantic-settings>=2.6",
     "structlog>=24.4",
+    "anthropic>=1.2.0",
 ]
 
 [dependency-groups]
@@ -46,3 +47,6 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+# Evals hit the real API and cost money; opt in with `npm run eval`.
+addopts = "-m 'not eval'"
+markers = ["eval: requires ANTHROPIC_API_KEY and spends money"]

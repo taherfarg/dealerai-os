@@ -50,6 +50,10 @@ class Settings(BaseSettings):
     db_pool_min: int = 1
     db_pool_max: int = 10
 
+    #: Optional so the app boots without it; the gateway raises MissingAPIKey
+    #: at call time rather than blocking startup for someone doing schema work.
+    anthropic_api_key: str | None = None
+
     @property
     def migration_dsn(self) -> str:
         return self.migration_database_url or self.database_url
