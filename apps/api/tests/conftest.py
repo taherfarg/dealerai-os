@@ -31,8 +31,11 @@ SEEDED_TABLES = (
 )
 
 
-@pytest.fixture(scope="session", autouse=True)
+@pytest.fixture(scope="session")
 def _migrated() -> None:
+    """Not autouse: the gate, money and contract suites are pure logic and must
+    stay runnable with no database at all. Only fixtures that touch Postgres
+    request this."""
     assert asyncio.run(run_migrations()) == 0, "migrations failed"
     asyncio.run(_grant_service_role())
 
@@ -55,7 +58,7 @@ async def _grant_service_role() -> None:
 
 
 @pytest.fixture
-async def su() -> AsyncIterator[asyncpg.Connection]:
+async def su(_migrated: None) -> AsyncIterator[asyncpg.Connection]:
     """Superuser connection. Bypasses RLS — used only to seed and to inspect."""
     conn = await asyncpg.connect(get_settings().migration_dsn)
     try:
@@ -65,7 +68,7 @@ async def su() -> AsyncIterator[asyncpg.Connection]:
 
 
 @pytest.fixture
-async def db() -> AsyncIterator[None]:
+async def db(_migrated: None) -> AsyncIterator[None]:
     """The real application pool, connected as the NOBYPASSRLS dealerai_app role."""
     await session.init_pool()
     try:

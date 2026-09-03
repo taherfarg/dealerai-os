@@ -245,6 +245,36 @@ Three modes, set per tenant, overridable per agent:
 The gate (step 4 of the loop) evaluates these **before** dispatch. An agent never
 discovers mid-run that it was not allowed to do the thing.
 
+### Two properties that matter more than the table
+
+**A breached numeric limit downgrades to NEEDS_APPROVAL, never to FORBIDDEN.** The dealer
+can still say yes. Turning "over budget" into a hard refusal trains people to widen the
+limits until they mean nothing.
+
+**A missing fact is a violation, not a zero.** If the caller does not say how many posts
+went out today, the gate does not assume none. Fail closed: an unnecessary approval prompt
+costs a click, the other mistake costs a dealer's ad budget.
+
+The Always-Human row is different from everything above it — those actions are
+**FORBIDDEN in every mode**, including Autopilot. The AI does not perform them and cannot
+request permission to; it escalates to a person.
+
+### Who may approve what
+
+An approval that only the owner can clear turns the queue into the owner's full-time job,
+and Assisted mode stops being usable. So approvals carry a required role:
+
+| Approval kind | Minimum role |
+|---|---|
+| `publish_content` | marketer |
+| `reply_comment`, `send_message` | sales |
+| `offer_discount`, `adjust_budget`, `launch_campaign`, `price_change` | admin |
+| anything not classified | **admin** — fail closed |
+
+Approvals expire (72h default) and expiry is computed on read, not swept by a job. A stale
+prompt about a car that may have sold since is not something anyone should be able to
+rubber-stamp three days later.
+
 ---
 
 ## 6. Prompt architecture

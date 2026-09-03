@@ -59,7 +59,7 @@ def _jwt_secret(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.fixture
-def client() -> Iterator[TestClient]:
+def client(_migrated: None) -> Iterator[TestClient]:
     asyncio.run(reseed())
     with TestClient(app) as c:
         yield c

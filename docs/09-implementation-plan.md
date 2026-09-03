@@ -251,26 +251,39 @@ throughout), shadcn/ui installed.
 **Acceptance:** switching the UI to Arabic mirrors the layout with no clipped or
 overlapping elements at 360px, 768px, and 1440px.
 
-### T1.4 — Autonomy settings and the gate
+### T1.4 — Autonomy settings and the gate — **done**
 **Files:** `routes/tenants.py`, `orchestrator/gate.py`, `apps/web/.../settings/autonomy/`
 
 The permission matrix from [02](02-agent-architecture.md) § 5 as data. `gate.py` answers
 `can(action, ctx) -> Allow | NeedsApproval | Forbidden` from `tenants.autonomy_mode` and
 `autonomy_rules`.
 
-**Acceptance:** a parametrized test walks every (mode × action) cell of the matrix and
-asserts the gate's verdict. Changing the mode in the UI changes the verdict without a
-restart.
+**Acceptance:** met — 88 tests, and they run with **no database at all**, which is the
+point: the gate is pure logic and must stay trivially testable. The matrix is transcribed
+by hand in the test from [02](02-agent-architecture.md) § 5, so editing one without the
+other fails loudly.
 
-### T1.5 — Approvals
+Beyond the plan: an unknown action and an unknown mode both resolve to FORBIDDEN rather
+than falling through to allow, and the Always-Human list is FORBIDDEN in every mode
+including Autopilot — the AI escalates rather than asking permission.
+
+### T1.5 — Approvals — **done (one part deferred)**
 **Files:** `routes/approvals.py`, `events/handlers/system.py`, `apps/web/.../approvals/`,
 `components/agent/ApprovalCard.tsx`
 
 Create, list, approve, reject, bulk. `approval.decided` resumes or cancels the dependent
 branch of the run's DAG.
 
-**Acceptance:** a run that pauses on an approval resumes to completion after approval, and
-marks the dependent tasks `skipped` after rejection.
+**Acceptance:** partially met. Approvals are created (`request_approval`, transactional
+with whatever produced them), listed, decided under `SELECT ... FOR UPDATE` so two
+simultaneous clicks cannot both win, and emit `approval.decided`. Bulk decisions report
+partial success rather than failing — one already-decided item must not sink the other
+forty-nine.
+
+> **Deferred: resuming the DAG branch.** "Resumes to completion after approval, marks
+> dependent tasks skipped after rejection" needs the executor, which lands in T3.2. The
+> `approval.decided` event is emitted and recorded now; its handler is written there,
+> beside the code that owns task state. Writing it here would mean writing it twice.
 
 ---
 

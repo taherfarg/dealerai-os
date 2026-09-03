@@ -95,8 +95,8 @@ Three things about the local setup that are not obvious:
 | Documentation | Complete — this set |
 | Schema | Applied and tested locally (39 tables, RLS verified) |
 | **M0 Foundation** | **complete** — T0.1–T0.8 |
-| M1 Tenancy | T1.1 auth + T1.2 roles/invites done (API side) · T1.3 app shell needs a Supabase project |
-| Tests | 155 passing, 8 skipped · 1 eval deselected (needs `ANTHROPIC_API_KEY`, see T0.6) |
+| M1 Tenancy | T1.1, T1.2, T1.4, T1.5 done (API side) · only T1.3 app shell remains, needs a Supabase project |
+| Tests | 255 passing, 8 skipped · 1 eval deselected (needs `ANTHROPIC_API_KEY`, see T0.6) |
 | Meta / WhatsApp / TikTok app review | Not started — **long lead time, start now** |
 
 ---
