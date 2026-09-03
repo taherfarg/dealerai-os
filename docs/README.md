@@ -81,12 +81,42 @@ Three things about the local setup that are not obvious:
 
 - **Port 54332, not 54322.** The Supabase CLI default is often already taken by another
   project's stack on the same machine.
+- **Postgres 17 locally, matching the Supabase project.** Testing on a different major
+  version than production is how you find out about a behaviour change at the worst
+  possible moment.
 - **`0000_local_shim.sql` runs only when `ENV=local`.** It creates `auth.users`,
   `auth.uid()`, and the `anon` / `authenticated` / `service_role` roles that Supabase
   provides for real. The migrate script skips it in every other environment.
 - **npm scripts, not a Makefile.** `make` is not present on a stock Windows box, and the
   repo already needs Node and uv. Adding a third task runner to save typing is not worth
   an install step.
+
+## Deploying the schema to Supabase
+
+Environment variables override `.env`, and the migrate script skips
+`0000_local_shim.sql` whenever `ENV` is not `local`, so deploying is one command
+with two overrides:
+
+```bash
+ENV=staging MIGRATION_DATABASE_URL="postgresql://postgres.<ref>:<db-password>@aws-0-<region>.pooler.supabase.com:5432/postgres" npm run db:migrate
+```
+
+Then the one ops step per environment, which is the only thing not in version
+control because it carries a secret:
+
+```sql
+alter role dealerai_app login password '<from your secret manager>';
+```
+
+Deliberately **not** using `supabase db push`: the CLI expects timestamped
+migration filenames, and our own runner already tracks applied migrations with
+checksums and refuses to re-run an edited one. Two migration systems over one
+directory is how a schema drifts.
+
+**Never point `DATABASE_URL` or `MIGRATION_DATABASE_URL` in `.env` at a real
+project.** The test suite issues `delete from tenants`, which cascades to every
+row a dealership owns. `tests/conftest.py` refuses to run unless both DSNs are
+localhost, but the discipline is the real protection.
 
 ## Status
 

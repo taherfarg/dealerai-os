@@ -1,11 +1,14 @@
 # Local development only. Staging and production run on Supabase.
+# Postgres 17 to match the Supabase project — testing on a different major
+# version than production is how you find out about a behaviour change at the
+# worst possible moment.
 # Port 54332, not the Supabase CLI default 54322: a Supabase stack for another
 # project may already hold that port, and two projects fighting over it is a
 # 20-minute debugging session nobody needs.
 
 services:
   db:
-    image: pgvector/pgvector:pg15
+    image: pgvector/pgvector:pg17
     environment:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: dealerai
