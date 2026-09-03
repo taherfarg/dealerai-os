@@ -66,3 +66,28 @@ jobs:
       - name: Test
         working-directory: apps/api
         run: uv run pytest -q
+
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # Placeholders: the build only needs these to be present and well-formed.
+      # Nothing in CI talks to the real project.
+      - name: Check web
+        working-directory: apps/web
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
+        run: |
+          npm run typecheck
+          npm run check:rtl
+          npm run lint
+          npm run build

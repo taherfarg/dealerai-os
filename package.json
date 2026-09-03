@@ -18,11 +18,13 @@
     "test": "cd apps/api && uv run pytest",
     "lint": "cd apps/api && uv run ruff check . && uv run ruff format --check .",
     "typecheck": "cd apps/api && uv run mypy src",
-    "check": "npm run lint && npm run typecheck && npm run test",
+    "check": "npm run lint && npm run typecheck && npm run test && npm run check:web",
     "worker": "cd apps/api && uv run python -m dealerai.worker",
     "eval": "cd apps/api && uv run pytest -m eval -v",
     "eval:gateway": "cd apps/api && uv run pytest tests/evals/test_gateway_cache.py -m eval -v",
-    "db:migrate:staging": "cd apps/api && uv run python -m dealerai.scripts.migrate --env-file .env.staging"
+    "db:migrate:staging": "cd apps/api && uv run python -m dealerai.scripts.migrate --env-file .env.staging",
+    "web": "npm run dev --workspace web",
+    "check:web": "npm run check --workspace web"
   },
   "engines": {
     "node": ">=22"
