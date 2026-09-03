@@ -245,9 +245,28 @@ never cache; real tenant prompts clear it easily.
 > **Revisit if** measured hit rates are poor - `agent_traces.cache_read_tokens` is
 > recorded on every call precisely so that is answerable.
 
+**Automatic function calling is disabled explicitly.** It is ON by default and
+would have the SDK execute tool callables inside the `generate_content` call,
+bypassing the autonomy gate, every guard, and the trace. The tool loop belongs to
+`orchestrator/executor.py`, which owns those. A test locks it off.
+
 `npm run eval:gateway` makes two identical calls and asserts the second reads
 from cache. A cache regression is invisible - nothing breaks, the prompt just
 costs 10x - so it is the only honest check.
+
+**Measured on `gemini-2.5-flash`**, ~16.8k-token prompt:
+
+| | cached tokens |
+|---|---|
+| cold call | 0 |
+| same prefix, immediately after | 0 |
+| same prefix, ~2s later | 16,372 of 16,850 (**97%**) |
+| still cached at 60s | 16,372 |
+
+Population is not instantaneous, so the eval waits 5 seconds between the two
+calls. At 97% cached and a tenth of the input rate, a repeated tenant prompt
+costs roughly an eighth of an uncached one — which is what the PRD's cost
+envelope assumes.
 
 ---
 

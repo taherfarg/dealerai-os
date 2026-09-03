@@ -15,6 +15,9 @@ mechanism, and makes this test the only thing that proves the ordering works.
 
 from __future__ import annotations
 
+import asyncio
+import uuid
+
 import pytest
 from google.genai import types
 
@@ -39,8 +42,13 @@ _BRAND = (
 
 
 async def test_second_identical_call_reads_from_cache(db: None, seeded: None) -> None:
+    # A per-run nonce at the very front makes this run's prefix unique, so the
+    # first call is genuinely cold. Without it a previous run leaves the prefix
+    # warm and both calls come back cached — which looks like a pass for the
+    # wrong reason, and makes the cold-vs-warm cost comparison meaningless.
+    nonce = uuid.uuid4().hex
     system = SystemLayers(
-        role="You are a terse assistant. Answer in at most five words.",
+        role=f"Session {nonce}. You are a terse assistant. Answer in at most five words.",
         tenant=_BRAND,
         context="",
     )
@@ -53,6 +61,12 @@ async def test_second_identical_call_reads_from_cache(db: None, seeded: None) ->
         messages=messages,
         trace_name="eval-cache-1",
     )
+    # Implicit cache population is not instantaneous. Measured on gemini-2.5-flash:
+    # a call issued immediately after a cold one still reports cached=0, while the
+    # same call ~2s later reports 16372 of 16850 tokens cached, and stays cached
+    # for at least a minute. Five seconds is margin, not superstition.
+    await asyncio.sleep(5)
+
     second = await complete(
         TaskKind.SALES_REPLY,
         tenant_id=TENANT_A,
@@ -61,6 +75,10 @@ async def test_second_identical_call_reads_from_cache(db: None, seeded: None) ->
         trace_name="eval-cache-2",
     )
 
+    assert first.cached_tokens == 0, (
+        "the first call with a fresh prefix should have cached nothing; if it did, "
+        "the nonce is not actually at the front of the prefix"
+    )
     assert second.cached_tokens > 0, (
         "the second identical call cached nothing. Either the prefix is below "
         "the implicit-caching minimum, or something above it varies between "
@@ -68,6 +86,11 @@ async def test_second_identical_call_reads_from_cache(db: None, seeded: None) ->
         "the role or tenant layer."
     )
     assert second.cost_usd < first.cost_usd
+
+    # The cost envelope in the PRD depends on most of a tenant prompt being
+    # cached, not a token or two of it.
+    cached_fraction = second.cached_tokens / second.input_tokens
+    assert cached_fraction > 0.8, f"only {cached_fraction:.0%} of the prompt cached"
 
 
 async def test_a_real_call_returns_usable_text(db: None, seeded: None) -> None:

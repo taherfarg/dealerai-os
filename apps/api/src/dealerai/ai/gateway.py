@@ -9,6 +9,7 @@ Provider: Google Gemini via google-genai.
 
 from __future__ import annotations
 
+import asyncio
 import time
 from dataclasses import dataclass
 from typing import Any
@@ -26,7 +27,17 @@ from .models import ModelSpec, TaskKind, cost_usd, spec_for
 
 log = structlog.get_logger()
 
+#: Explicit override. Tests monkeypatch this; nothing in production sets it.
 _client: genai.Client | None = None
+
+#: Real clients, keyed by the event loop that created them.
+#:
+#: The client holds an httpx connection pool bound to its loop. A single
+#: module-level singleton works in production, where one loop lives for the
+#: life of the process — but reuse it across two `asyncio.run()` calls and the
+#: second one closes sockets on a dead loop ("Event loop is closed"). Keying on
+#: the loop makes that impossible rather than merely unlikely.
+_loop_clients: dict[int, genai.Client] = {}
 
 #: Finish reasons that mean "the model declined", as opposed to a normal stop
 #: or hitting max_tokens. Each is a refusal with a different cause, and the
@@ -102,13 +113,38 @@ class Completion:
 
 
 def get_client() -> genai.Client:
-    global _client
-    if _client is None:
-        key = get_settings().google_api_key
-        if not key:
+    if _client is not None:
+        return _client
+
+    try:
+        loop_key = id(asyncio.get_running_loop())
+    except RuntimeError:
+        loop_key = 0
+
+    client = _loop_clients.get(loop_key)
+    if client is None:
+        api_key = get_settings().google_api_key
+        if not api_key:
             raise MissingAPIKey("GOOGLE_API_KEY is not set")
-        _client = genai.Client(api_key=key)
-    return _client
+        client = genai.Client(api_key=api_key)
+        _loop_clients[loop_key] = client
+    return client
+
+
+async def aclose_clients() -> None:
+    """Close the client belonging to the current loop.
+
+    Worth calling on shutdown and between tests; leaving sockets to be closed by
+    the garbage collector is what produces "Event loop is closed" long after the
+    code that opened them has finished.
+    """
+    try:
+        loop_key = id(asyncio.get_running_loop())
+    except RuntimeError:
+        loop_key = 0
+    client = _loop_clients.pop(loop_key, None)
+    if client is not None:
+        await client.aio.aclose()
 
 
 _BUDGET_SQL = """
@@ -239,6 +275,12 @@ async def complete(
         system_instruction=system_instruction,
         max_output_tokens=max_tokens or spec.max_tokens,
         thinking_config=types.ThinkingConfig(thinking_budget=spec.thinking_budget),
+        # Automatic function calling is ON by default and would have the SDK
+        # execute tool callables itself, inside this call. That bypasses the
+        # autonomy gate, every guard, and the trace — the entire safety model
+        # sits in orchestrator/executor.py, which owns the tool loop. The SDK
+        # must hand back function_call parts and do nothing with them.
+        automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
     )
 
     if tools:

@@ -140,7 +140,7 @@ localhost, but the discipline is the real protection.
 | **M1 Tenancy** | **complete** — T1.1–T1.5. Shell, auth gate, RTL, workspace switcher, approvals queue. |
 | Known gap | **A real sign-in has never been exercised.** Supabase email confirmation is ON and the built-in SMTP rate-limits immediately, so no test user could be created. The gate, redirect and session plumbing are verified; the credential round trip is not. Confirm a user (or disable confirmation on the dev project) and log in once. |
 | M2 Inventory | T2.1 vehicle CRUD + T2.6 stock report done · T2.2–T2.5 need Storage or a model key |
-| Tests | 282 passing, 8 skipped · 2 evals deselected (need `GOOGLE_API_KEY`, see T0.6) |
+| Tests | 283 passing, 8 skipped · 2 live evals green (`npm run eval:gateway`, deselected by default — they spend money) |
 | Supabase | Schema live. **Outstanding:** `alter role dealerai_app login password '…'` before the app can connect. |
 | Meta / WhatsApp / TikTok app review | Not started — **long lead time, start now** |
 

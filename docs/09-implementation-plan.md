@@ -115,7 +115,7 @@ reaper and then processed.
 
 ---
 
-### T0.6 — Model gateway — **done (see caveat)**
+### T0.6 — Model gateway — **done**
 **Files:** `ai/models.py`, `ai/gateway.py`, `ai/prompts/_rules.md`, `tests/test_gateway.py`,
 `tests/evals/test_gateway_cache.py`
 
@@ -133,11 +133,10 @@ still traced (a refusal costs money, so it belongs in the bill). A tenant seeded
 raises `BudgetExceeded` and the client is asserted never to have been called. Cost maths is
 tested against the cache multipliers directly.
 
-> **Caveat: not yet verified against the live API.** Every request shape was checked
-> against the installed SDK's type stubs (`google-genai` 2.22.0) rather than a real
-> round trip. **`npm run eval:gateway` is the outstanding check** - two identical calls
-> asserting the second reads from cache, plus a smoke test that a real call returns
-> usable text. Both are marked `eval` and deselected by default because they cost money.
+> **Verified against the live API.** `npm run eval:gateway` passes: a cold call caches
+> nothing, the same prefix ~5s later reads 16,372 of 16,850 tokens from cache (97%), and
+> a real call returns usable text with correct token and cost accounting. The evals stay
+> marked `eval` and deselected by default because they spend money on every run.
 
 One thing the implementation settled: `output_schema` is enforced server-side via
 `output_config.format` **and** re-validated locally with Pydantic, raising `ModelOutputInvalid`.

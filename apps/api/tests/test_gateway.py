@@ -387,3 +387,14 @@ async def test_thought_parts_are_excluded_from_the_answer(
     result = await complete(TaskKind.ORCHESTRATE, tenant_id=TENANT_A, system=ROLE, messages=USER)
     assert result.text == "the answer"
     assert "internal reasoning" not in result.text
+
+
+async def test_automatic_function_calling_is_disabled(
+    db: None, seeded: None, fake_client: FakeClient
+) -> None:
+    """AFC is ON by default and would have the SDK execute tool callables inside
+    the generate_content call — bypassing the autonomy gate, every guard, and the
+    trace. The tool loop belongs to orchestrator/executor.py, which owns them."""
+    await complete(TaskKind.SALES_REPLY, tenant_id=TENANT_A, system=ROLE, messages=USER)
+    afc = fake_client.calls[0]["config"].automatic_function_calling
+    assert afc is not None and afc.disable is True
