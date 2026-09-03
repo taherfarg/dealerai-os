@@ -66,8 +66,8 @@ Notes that matter:
   as the task result. No orphan events, no double-fires on retry.
 - `status="needs_approval"` is a first-class success, not an error. It writes an
   `approvals` row and pauses the branch of the DAG that depends on it.
-- Output is validated against `output_schema` via the API's structured-output mode
-  (`output_config={"format": ...}`), not by parsing prose.
+- Output is validated against `output_schema` via schema-constrained decoding
+  (`response_mime_type="application/json"` + `response_schema`), not by parsing prose.
 
 ---
 
@@ -86,7 +86,7 @@ Notes that matter:
         └─────────┬─────────┘   (SQL + retrieval — no model call yet)
                   ▼
         ┌───────────────────┐
-        │ 3. PLAN           │  claude-opus-5, effort=xhigh, structured output → task DAG
+        │ 3. PLAN           │  gemini-2.5-pro, dynamic thinking, structured output → task DAG
         └─────────┬─────────┘
                   ▼
         ┌───────────────────┐
@@ -175,11 +175,11 @@ async def search_inventory(
     Prices are in minor units (fils). Never quote a price not returned here."""
 ```
 
-Registration for the API uses the SDK's tool runner rather than a hand-written loop:
-`@beta_tool` decorated functions passed to `client.beta.messages.tool_runner(...)`. The
-runner's per-turn hook is where the approval gate, cost accounting, and trace writes hook
-in — that is why we use it instead of writing the `while stop_reason == "tool_use"` loop
-ourselves.
+Tools reach the model as `types.FunctionDeclaration` entries, generated from the
+signature and docstring. Gemini has no built-in agentic tool runner, so the
+`while` loop over `function_call` parts lives in `orchestrator/executor.py` — which
+is where the approval gate, cost accounting and trace writes belong anyway, since
+they are our concerns rather than the SDK's.
 
 ### Tool surface by group
 
@@ -315,40 +315,40 @@ Hard rules that appear in **every** agent's layer 1:
 
 | Agent | Trigger | Input → Output | Tools | Model | Default autonomy | M |
 |---|---|---|---|---|---|---|
-| **Growth Director** | User goal, weekly cron, underperformance event | Goal → task DAG | grounding reads only | `claude-opus-5` xhigh | Assisted | M6 |
-| **Brand Guardian** | Every artifact, pre-publish | Artifact → pass/fail + reasons | `brand`, `check_brand_rules` | `claude-haiku-4-5` + code rules | Auto | M3 |
+| **Growth Director** | User goal, weekly cron, underperformance event | Goal → task DAG | grounding reads only | `gemini-2.5-pro` | Assisted | M6 |
+| **Brand Guardian** | Every artifact, pre-publish | Artifact → pass/fail + reasons | `brand`, `check_brand_rules` | `gemini-2.5-flash-lite` + code rules | Auto | M3 |
 
 ### Content team
 
 | Agent | Trigger | Input → Output | Tools | Model | Default autonomy | M |
 |---|---|---|---|---|---|---|
-| **Content Strategist** | Director, weekly cron, `vehicle.stale` | Vehicles + goal → pillars, calendar slots, content briefs | `inventory`, `memory`, `analytics`, `content` | `claude-sonnet-5` | Assisted | M3 |
-| **Creative Director** | Content brief | Brief + photos → chosen photo, angle, template, variant, visual direction | `inventory`, `brand`, vision | `claude-sonnet-5` vision | Auto | M3 |
-| **Copywriter** | Content brief | Brief → caption, hook, CTA, hashtags per language | `inventory`, `brand`, `memory` | `claude-sonnet-5` | Auto | M3 |
+| **Content Strategist** | Director, weekly cron, `vehicle.stale` | Vehicles + goal → pillars, calendar slots, content briefs | `inventory`, `memory`, `analytics`, `content` | `gemini-2.5-flash` | Assisted | M3 |
+| **Creative Director** | Content brief | Brief + photos → chosen photo, angle, template, variant, visual direction | `inventory`, `brand`, vision | `gemini-2.5-flash` vision | Auto | M3 |
+| **Copywriter** | Content brief | Brief → caption, hook, CTA, hashtags per language | `inventory`, `brand`, `memory` | `gemini-2.5-flash` | Auto | M3 |
 | **Image Agent** | Creative direction + copy | Direction → rendered assets at 1:1, 4:5, 9:16, 16:9 | `render_creative`, media pipeline | none (deterministic) | Auto | M3 |
-| **Video Agent** | Content brief of type reel | Photos + script → MP4 with captions | media pipeline, FFmpeg | `claude-sonnet-5` for script | Auto | M5 |
+| **Video Agent** | Content brief of type reel | Photos + script → MP4 with captions | media pipeline, FFmpeg | `gemini-2.5-flash` for script | Auto | M5 |
 | **Publisher** | Schedule due, `content.approved` | Content item → publications with external IDs | `publish` | none (deterministic) | Per mode | M4 |
-| **Community Manager** | `comment.received` | Comment → classification + reply or escalation | `message`, `inventory`, `memory`, `crm` | `claude-haiku-4-5` classify, `claude-sonnet-5` reply | Assisted | M4 |
+| **Community Manager** | `comment.received` | Comment → classification + reply or escalation | `message`, `inventory`, `memory`, `crm` | `gemini-2.5-flash-lite` classify, `gemini-2.5-flash` reply | Assisted | M4 |
 
 ### Sales team
 
 | Agent | Trigger | Input → Output | Tools | Model | Default autonomy | M |
 |---|---|---|---|---|---|---|
-| **Sales Agent** | `message.received` on any channel | Message + customer history → reply, recommendation, or handoff | `inventory`, `crm`, `memory`, `message` | `claude-sonnet-5` | Assisted | M5 |
-| **Intent Classifier** | Every inbound message | Text → intent, language, urgency, spam flag | none | `claude-haiku-4-5` low | Auto | M4 |
-| **Lead Intelligence** | `lead.created`, `conversation.updated` | Conversation + profile → score, band, reasoning | `crm`, `analytics` | `claude-sonnet-5` | Auto | M5 |
-| **Follow-up Agent** | `lead.no_response_48h` cron | Lead → follow-up message or drop, respecting the WhatsApp window | `crm`, `message`, `inventory` | `claude-sonnet-5` | Assisted | M5 |
+| **Sales Agent** | `message.received` on any channel | Message + customer history → reply, recommendation, or handoff | `inventory`, `crm`, `memory`, `message` | `gemini-2.5-flash` | Assisted | M5 |
+| **Intent Classifier** | Every inbound message | Text → intent, language, urgency, spam flag | none | `gemini-2.5-flash-lite`, thinking off | Auto | M4 |
+| **Lead Intelligence** | `lead.created`, `conversation.updated` | Conversation + profile → score, band, reasoning | `crm`, `analytics` | `gemini-2.5-flash` | Auto | M5 |
+| **Follow-up Agent** | `lead.no_response_48h` cron | Lead → follow-up message or drop, respecting the WhatsApp window | `crm`, `message`, `inventory` | `gemini-2.5-flash` | Assisted | M5 |
 
 ### Growth team — Phase 2
 
 | Agent | Trigger | Input → Output | Tools | Model | Default autonomy | M |
 |---|---|---|---|---|---|---|
-| **Ads Manager** | Daily cron, `campaign.underperforming` | Campaign state → budget and status changes, new creative requests | `ads`, `analytics`, `content` | `claude-opus-5` | Assisted, hard caps | M7 |
-| **Market Intelligence** | Daily cron | Sources → market signals, demand shifts, price movements | `research` | `claude-sonnet-5` | Auto (read-only) | M8 |
-| **Competitor Intelligence** | Daily cron | Competitor set → their content, offers, ad creative | `research` | `claude-sonnet-5` | Auto (read-only) | M8 |
-| **Inventory Intelligence** | Nightly, on stock change | Inventory → aging, gaps, pricing pressure, what to push | `inventory`, `analytics` | `claude-sonnet-5` | Auto | M6 |
-| **Analytics Agent** | Daily cron, on request | Raw metrics → funnel, attribution, plain-language insights | `analytics` | `claude-sonnet-5` | Auto | M6 |
-| **Learning Agent** | Weekly cron | Content plus outcomes → playbook proposals with evidence | `analytics`, `memory` | `claude-opus-5` | **Always approval** | M9 |
+| **Ads Manager** | Daily cron, `campaign.underperforming` | Campaign state → budget and status changes, new creative requests | `ads`, `analytics`, `content` | `gemini-2.5-pro` | Assisted, hard caps | M7 |
+| **Market Intelligence** | Daily cron | Sources → market signals, demand shifts, price movements | `research` | `gemini-2.5-flash` | Auto (read-only) | M8 |
+| **Competitor Intelligence** | Daily cron | Competitor set → their content, offers, ad creative | `research` | `gemini-2.5-flash` | Auto (read-only) | M8 |
+| **Inventory Intelligence** | Nightly, on stock change | Inventory → aging, gaps, pricing pressure, what to push | `inventory`, `analytics` | `gemini-2.5-flash` | Auto | M6 |
+| **Analytics Agent** | Daily cron, on request | Raw metrics → funnel, attribution, plain-language insights | `analytics` | `gemini-2.5-flash` | Auto | M6 |
+| **Learning Agent** | Weekly cron | Content plus outcomes → playbook proposals with evidence | `analytics`, `memory` | `gemini-2.5-pro` | **Always approval** | M9 |
 
 **The Learning Agent never writes the playbook directly.** It proposes a diff with the
 sample size and the measured effect; a human accepts or rejects. Rationale in

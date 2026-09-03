@@ -234,7 +234,7 @@ comment.received (Meta webhook, signature verified)
    ↓
 persist raw → resolve channel → resolve/create contact → return 200   [<1s]
    ↓
-[Intent Classifier]  claude-haiku-4-5, effort=low
+[Intent Classifier]  gemini-2.5-flash-lite, thinking off
    → {intent, language, urgency, is_spam}
    ↓
    ├─ spam / bot        → hide or ignore, no reply
@@ -277,7 +277,7 @@ if conversation.ai_paused → notify assigned human, stop
 CONTEXT ASSEMBLY (04 § 4)
    customer 360 · last 20 messages · matching inventory · policy chunks · playbook
    ↓
-[Sales Agent]  claude-sonnet-5
+[Sales Agent]  gemini-2.5-flash
    tools: search_inventory, get_vehicle, get_customer_360, search_knowledge,
           create_lead, log_activity, escalate_to_human
    ↓
@@ -350,7 +350,7 @@ Daily 08:00 → sync yesterday's metrics into ad_metrics_daily
 JOIN OUR FUNNEL: platform "leads" is replaced with our own
    leads.source_content_item_id → ad_entities → real qualified leads and deals
    ↓
-[Ads Manager]  claude-opus-5
+[Ads Manager]  gemini-2.5-pro
    per campaign, evaluates: CPL vs target, frequency, CTR trend, spend pacing
    ↓
    proposes actions:

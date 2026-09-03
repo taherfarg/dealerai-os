@@ -32,6 +32,7 @@ jobs:
       LOG_LEVEL: warning
       DATABASE_URL: postgresql://dealerai_app:dealerai_app@localhost:54332/dealerai
       MIGRATION_DATABASE_URL: postgresql://postgres:postgres@localhost:54332/dealerai
+      GOOGLE_API_KEY: ""
       SUPABASE_JWT_SECRET: super-secret-jwt-token-with-at-least-32-characters-long
       DB_POOL_MIN: 1
       DB_POOL_MAX: 5

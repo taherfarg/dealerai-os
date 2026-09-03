@@ -13,6 +13,8 @@ SRC = Path(__file__).resolve().parents[1] / "src" / "dealerai"
 
 ACQUIRE = re.compile(r"\.acquire\(\)")
 CONNECT = re.compile(r"asyncpg\.(connect|create_pool)\(")
+#: Any route from a guard into the model layer, whatever the provider is called.
+MODEL_IMPORT = re.compile(r"^\s*(from|import)\s+.*(ai|google\.genai|genai)", re.M)
 
 
 def _python_files(root: Path) -> list[Path]:
@@ -56,6 +58,8 @@ def test_guards_stay_model_free() -> None:
     offenders = [
         str(p.relative_to(SRC))
         for p in _python_files(guards)
-        if re.search(r"^\s*(from|import)\s+.*\b(ai|anthropic)\b", p.read_text("utf-8"), re.M)
+        if re.search(
+            r"^\s*(from|import)\s+.*\b(ai|google\.genai|genai)\b", p.read_text("utf-8"), re.M
+        )
     ]
     assert not offenders, f"guards depending on the model layer: {offenders}"

@@ -50,9 +50,10 @@ class Settings(BaseSettings):
     db_pool_min: int = 1
     db_pool_max: int = 10
 
-    #: Optional so the app boots without it; the gateway raises MissingAPIKey
-    #: at call time rather than blocking startup for someone doing schema work.
-    anthropic_api_key: str | None = None
+    #: Gemini. Optional so the app boots without it; the gateway raises
+    #: MissingAPIKey at call time rather than blocking startup for someone
+    #: doing schema work.
+    google_api_key: str | None = None
 
     #: Project URL, e.g. https://<ref>.supabase.co. Needed for Storage in T2.2.
     supabase_url: str | None = None

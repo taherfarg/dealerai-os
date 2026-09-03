@@ -10,9 +10,9 @@ dependencies = [
     "pydantic>=2.9",
     "pydantic-settings>=2.6",
     "structlog>=24.4",
-    "anthropic>=1.2.0",
     "cryptography>=50.0.1",
     "pyjwt>=2.13.0",
+    "google-genai>=2.22.0",
 ]
 
 [dependency-groups]
@@ -43,7 +43,7 @@ strict = true
 files = ["src"]
 
 [[tool.mypy.overrides]]
-module = "asyncpg.*"
+module = ["asyncpg.*", "google.genai.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

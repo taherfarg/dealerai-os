@@ -52,9 +52,10 @@ These are settled. Changing one invalidates several documents — say so explici
 | UI | **Next.js 16 (App Router) + TypeScript** | Dashboard-heavy product; Next is the right tool. Scaffolds at 16.3.4 — note the middleware file convention is deprecated, so the auth gate is `proxy.ts`. |
 | Datastore | **Supabase** — Postgres 17 + pgvector + Auth + Storage | RLS on `tenant_id` from line one; auth and storage solved |
 | Tenant isolation | **Row Level Security, always on, no exceptions** | Tenant leakage is the one bug that kills the company |
-| Reasoning model | `claude-opus-5` | Orchestrator, strategy, ads decisions |
-| Workhorse model | `claude-sonnet-5` | Copy, analysis, sales replies |
-| Cheap model | `claude-haiku-4-5` | Intent classification, spam, routing |
+| Model provider | **Google Gemini** (`google-genai`) | Single provider. `ai.gateway.complete()` is the only seam, so swapping again is 2 files. |
+| Reasoning model | `gemini-2.5-pro` | Orchestrator, strategy, ads decisions. **GA only** - `gemini-3-pro-preview` was shut down while still the newest Pro. |
+| Workhorse model | `gemini-2.5-flash` | Copy, analysis, sales replies |
+| Cheap model | `gemini-2.5-flash-lite` | Intent classification, spam, routing. Thinking disabled. |
 | Job system | **Postgres `events` outbox + Python worker** (`SKIP LOCKED`) | Redis deferred until throughput demands it — see 01 |
 | Creative rendering | **Deterministic compositor, not text-to-image** | Generative models hallucinate badges, grilles, and proportions. Dealers sell *this* car. See 01. |
 | Doc language | English | Product surfaces are trilingual (AR/EN/FR); engineering docs are not |
@@ -139,7 +140,7 @@ localhost, but the discipline is the real protection.
 | **M1 Tenancy** | **complete** — T1.1–T1.5. Shell, auth gate, RTL, workspace switcher, approvals queue. |
 | Known gap | **A real sign-in has never been exercised.** Supabase email confirmation is ON and the built-in SMTP rate-limits immediately, so no test user could be created. The gate, redirect and session plumbing are verified; the credential round trip is not. Confirm a user (or disable confirmation on the dev project) and log in once. |
 | M2 Inventory | T2.1 vehicle CRUD + T2.6 stock report done · T2.2–T2.5 need Storage or a model key |
-| Tests | 276 passing, 8 skipped · 1 eval deselected (needs `ANTHROPIC_API_KEY`, see T0.6) |
+| Tests | 282 passing, 8 skipped · 2 evals deselected (need `GOOGLE_API_KEY`, see T0.6) |
 | Supabase | Schema live. **Outstanding:** `alter role dealerai_app login password '…'` before the app can connect. |
 | Meta / WhatsApp / TikTok app review | Not started — **long lead time, start now** |
 

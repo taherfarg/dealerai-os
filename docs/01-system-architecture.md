@@ -9,7 +9,7 @@
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
 │  BROWSER                                                             │
-│  Next.js 15 (App Router, TS, Tailwind, shadcn/ui)                    │
+│  Next.js 16 (App Router, TS, Tailwind)                    │
 │  Command Center · Calendar · Inbox · Inventory · Leads · Analytics   │
 └───────────────┬──────────────────────────────┬───────────────────────┘
                 │ supabase-js (RLS via JWT)    │ fetch → /api/*
@@ -17,7 +17,7 @@
                 ▼                              ▼
      ┌──────────────────────┐        ┌────────────────────────────────┐
      │ SUPABASE             │◄───────┤ FASTAPI  (api.dealerai)        │
-     │ Postgres 15          │  asyncpg│ ├── /v1/*   tenant REST       │
+     │ Postgres 17          │  asyncpg│ ├── /v1/*   tenant REST       │
      │ + pgvector           │        │ ├── /v1/runs/{id}/stream (SSE) │
      │ + Auth (JWT)         │        │ ├── /webhooks/*  inbound       │
      │ + Storage (media)    │        │ └── /internal/* svc-to-svc     │
@@ -179,47 +179,75 @@ cost, latency, cache hit rate), and enforces the tenant's monthly cost ceiling.
 
 ### Routing table
 
-| Task kind | Model | Price in/out per MTok | Why |
-|---|---|---|---|
-| `orchestrate`, `strategy`, `ads_decision` | `claude-opus-5` | $5 / $25 | Multi-step planning with money attached |
-| `copywrite`, `sales_reply`, `analysis`, `creative_direction` | `claude-sonnet-5` | $2 / $10 | The workhorse. Most calls land here. |
-| `classify_intent`, `spam_filter`, `route`, `tag` | `claude-haiku-4-5` | $1 / $5 | High volume, trivial decisions |
-| `vision` (photo QA, angle detection) | `claude-sonnet-5` | $2 / $10 | Vision is native; no separate provider |
-| `embed` | multilingual embedding model, 1024-dim | — | **Must be multilingual — AR/EN/FR.** See [04](04-memory-architecture.md) § 3 |
-| `image_edit` (background removal, cleanup) | `rembg` locally, hosted matting for hero shots | — | Deterministic beats generative here |
-| `video` | FFmpeg compositor | — | See § 6 |
+| Task kind | Model | In / Out per MTok | Cached in | Why |
+|---|---|---|---|---|
+| `orchestrate`, `strategy`, `ads_decision`, `learning` | `gemini-2.5-pro` | $1.25 / $10.00 | $0.125 | Multi-step planning with money attached |
+| `copywrite`, `sales_reply`, `analysis`, `creative_direction`, `vision` | `gemini-2.5-flash` | $0.30 / $2.50 | $0.03 | The workhorse. Most calls land here. |
+| `classify_intent`, `spam_filter`, `route`, `tag` | `gemini-2.5-flash-lite` | $0.10 / $0.40 | $0.01 | High volume, trivial decisions. Thinking disabled. |
+| `embed` | multilingual embedding model, 1024-dim | - | - | **Must be multilingual (AR/EN/FR).** See [04](04-memory-architecture.md) SS 3 |
+| `image_edit` | `rembg` locally, hosted matting for hero shots | - | - | Deterministic beats generative here |
+| `video` | FFmpeg compositor | - | - | See SS 6 |
 
-Conventions for every Claude call (these are current-API, not legacy patterns):
+**GA models only.** `gemini-3-pro-preview` was deprecated and shut down while it
+was still the newest Pro, and `gemini-3.1-pro-preview` is preview today. A model
+that disappears mid-quarter is an outage on the path where agents spend a
+dealer's ad budget. `test_no_preview_models_are_routed` enforces it. Moving up
+when 3.x Pro reaches GA is a one-line change - nothing outside `ai/models.py`
+names a model.
 
-- **Model IDs are exact strings, never date-suffixed.** `claude-opus-5`, not
-  `claude-opus-5-20260101`.
-- **Adaptive thinking:** `thinking={"type": "adaptive"}`. Do **not** pass `budget_tokens`
-  — it is rejected with a 400 on the 5-family.
-- **Effort:** `output_config={"effort": "low"|"medium"|"high"|"xhigh"|"max"}`. Default
-  `high`; `low` for classification; `xhigh` for the orchestrator's planning call.
-- **Stream** anything with a large `max_tokens` and use `.get_final_message()`.
-- **Structured output:** `output_config={"format": {...}}` plus `strict: true` on tool
-  schemas. Never parse prose into a dataclass.
-- **Refusal handling:** check `stop_reason == "refusal"` before reading `content`.
+Conventions for every call:
+
+- **Thinking is a token budget, not an effort label.** `-1` lets the model
+  decide, `0` disables it. Flash-Lite runs with `0`: thinking on a spam check is
+  pure latency and cost on the critical path of a customer reply.
+- **Structured output** uses `response_mime_type="application/json"` plus
+  `response_schema=<pydantic model>`. That is schema-constrained decoding, so the
+  model cannot emit anything that fails to parse; the local
+  `model_validate_json` is a contract check, not a parser.
+- **Check the finish reason before reading content.** A `SAFETY`,
+  `PROHIBITED_CONTENT` or `RECITATION` candidate has no text part at all, and
+  `response.text` raises from a property access rather than returning empty.
+- **Thought parts are filtered out of the answer.** A thought summary must never
+  reach a customer.
+
+### Two cost details that are easy to get backwards
+
+**`prompt_token_count` includes `cached_content_token_count`.** The cached
+portion is a discount on part of the same total, not a separate bucket added on
+top. Adding them - which Anthropic's API shape would require - bills the cached
+tokens twice and overstates every invoice.
+
+**Thinking tokens are billed at the output rate and reported separately** from
+`candidates_token_count`. Dropping them makes reasoning-heavy calls look far
+cheaper than they are.
 
 ### Prompt caching is a cost feature, not an optimization
 
-Render order is `tools` → `system` → `messages`, and caching is a **prefix match** — one
-changed byte invalidates everything after it. So every agent prompt is built in this
-order, with the cache breakpoint after layer 3:
+Gemini caches **implicitly**: it finds the common prefix across calls itself and
+bills those tokens at roughly a tenth of the input rate. There is no breakpoint
+to place, which makes ordering the entire mechanism rather than a hint:
 
 1. Agent role and rules (frozen per deploy)
 2. Tool definitions (sorted deterministically)
-3. Tenant Brand Brain + playbook (changes maybe weekly) ← **`cache_control` breakpoint**
+3. Tenant Brand Brain + playbook (changes maybe weekly)
 4. Retrieved context for this request (varies)
 5. The actual request
 
-Never put `datetime.now()`, a request ID, or an unsorted dict above the breakpoint. CI
-asserts `usage.cache_read_input_tokens > 0` on the second call of the agent test suite —
-a silent cache regression is a silent 5x bill.
+A `datetime.now()`, a request ID, or an unsorted dict anywhere in layers 1-3 does
+not merely move a boundary - it destroys the shared prefix and caches **nothing
+at all**. Implicit caching also has a minimum prefix length, so short prompts
+never cache; real tenant prompts clear it easily.
 
-Bulk, non-interactive generation (a month of captions, a re-embed of the catalogue) goes
-through the **Batch API** at 50% cost.
+> **Deliberately not using explicit `CachedContent` objects.** They guarantee the
+> discount, but cost storage per hour ($1.00/MTok for Flash, $4.50 for Pro) and
+> require a cache lifecycle per tenant plus invalidation whenever the brand brain
+> changes. Implicit caching reaches the same cached-input rate with no machinery.
+> **Revisit if** measured hit rates are poor - `agent_traces.cache_read_tokens` is
+> recorded on every call precisely so that is answerable.
+
+`npm run eval:gateway` makes two identical calls and asserts the second reads
+from cache. A cache regression is invisible - nothing breaks, the prompt just
+costs 10x - so it is the only honest check.
 
 ---
 

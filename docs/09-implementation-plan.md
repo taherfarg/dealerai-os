@@ -17,7 +17,7 @@ worker runs an agent orchestrator that dispatches a DAG of specialist agents ove
 tenant-scoped tool layer, with guards enforced in code before anything reaches a customer.
 
 **Tech stack:** Python 3.12 · FastAPI · asyncpg · Pydantic v2 · APScheduler · Playwright ·
-FFmpeg · Anthropic SDK (`claude-opus-5` / `claude-sonnet-5` / `claude-haiku-4-5`) ·
+FFmpeg · Google GenAI SDK (`gemini-2.5-pro` / `gemini-2.5-flash` / `gemini-2.5-flash-lite`) ·
 Next.js 15 · TypeScript · Tailwind · shadcn/ui · Supabase (Postgres 15, pgvector, Auth,
 Storage) · uv · ruff · mypy · pytest.
 
@@ -133,15 +133,11 @@ still traced (a refusal costs money, so it belongs in the bill). A tenant seeded
 raises `BudgetExceeded` and the client is asserted never to have been called. Cost maths is
 tested against the cache multipliers directly.
 
-> **Caveat — not yet verified against the live API.** There is no `ANTHROPIC_API_KEY` in this
-> environment, so every request shape was checked against the installed SDK's type stubs
-> (`anthropic` 1.2.0) rather than a real round trip: `output_config.effort` accepts
-> `low|medium|high|xhigh|max`, `output_config.format` is `{type: "json_schema", schema: ...}`,
-> `ThinkingConfigAdaptiveParam` has no `budget_tokens` field, and `cache_control.ttl` accepts
-> `5m|1h`. **`npm run eval:gateway` is the outstanding check** — it makes two identical calls
-> and asserts the second reads from cache. It is marked `eval` and deselected from the default
-> run because it costs money. Run it as soon as a key exists; a cache regression is invisible
-> (nothing breaks, the bill quintuples), which is exactly why the stubs cannot substitute.
+> **Caveat: not yet verified against the live API.** Every request shape was checked
+> against the installed SDK's type stubs (`google-genai` 2.22.0) rather than a real
+> round trip. **`npm run eval:gateway` is the outstanding check** - two identical calls
+> asserting the second reads from cache, plus a smoke test that a real call returns
+> usable text. Both are marked `eval` and deselected by default because they cost money.
 
 One thing the implementation settled: `output_schema` is enforced server-side via
 `output_config.format` **and** re-validated locally with Pydantic, raising `ModelOutputInvalid`.
@@ -322,7 +318,7 @@ object is not obtainable from tenant A's session.
 ### T2.3 — Photo QA and angle detection
 **Files:** `media/vision.py`, `events/handlers/inventory.py`, `tests/media/test_vision.py`
 
-Vision pass with `claude-sonnet-5` and a strict output schema: rejection reason, angle from
+Vision pass with `gemini-2.5-flash` and a strict output schema: rejection reason, angle from
 the 12-class enum, quality score 0–1. Ranks per angle and sets one hero.
 
 **Acceptance:** a labelled fixture set of 40 photos reaches 85%+ angle accuracy and rejects
@@ -488,7 +484,7 @@ burst.
 **Files:** `agents/sales/intent.py`, `tests/evals/golden_messages.jsonl`,
 `tests/evals/test_intent.py`
 
-`claude-haiku-4-5`, `effort=low`, strict output schema. Build the 200-message golden set
+`gemini-2.5-flash-lite`, `effort=low`, strict output schema. Build the 200-message golden set
 from the design partner's real history, Arabic and English.
 
 **Acceptance:** accuracy above 95% on the golden set; spam recall above 90%.
