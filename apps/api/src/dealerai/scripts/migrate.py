@@ -31,6 +31,24 @@ create table if not exists schema_migrations (
 )
 """
 
+# This table is created by the runner, not by a file in supabase/migrations, so
+# it never passes through the grants in 0001. On Supabase, new tables in public
+# inherit default privileges for anon and authenticated — which handed INSERT,
+# UPDATE, DELETE and TRUNCATE on the migration ledger to anyone holding the
+# public anon key. Truncating it makes this runner replay every migration and
+# fail. Revoked on every run, so it cannot drift back.
+LOCK_DOWN_TRACKING = """
+do $$
+begin
+  if exists (select 1 from pg_roles where rolname = 'anon') then
+    execute 'revoke all on public.schema_migrations from anon';
+  end if;
+  if exists (select 1 from pg_roles where rolname = 'authenticated') then
+    execute 'revoke all on public.schema_migrations from authenticated';
+  end if;
+end $$;
+"""
+
 
 def migrations_dir() -> Path:
     return repo_root() / "supabase" / "migrations"
@@ -66,6 +84,7 @@ async def run() -> int:
     conn = await asyncpg.connect(settings.migration_dsn)
     try:
         await conn.execute(TRACKING_TABLE)
+        await conn.execute(LOCK_DOWN_TRACKING)
         applied = {
             r["filename"]: r["checksum"]
             for r in await conn.fetch("select filename, checksum from schema_migrations")
