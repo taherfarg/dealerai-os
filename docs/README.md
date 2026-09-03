@@ -98,8 +98,19 @@ Environment variables override `.env`, and the migrate script skips
 with two overrides:
 
 ```bash
-ENV=staging MIGRATION_DATABASE_URL="postgresql://postgres.<ref>:<db-password>@aws-0-<region>.pooler.supabase.com:5432/postgres" npm run db:migrate
+cp .env.staging.example .env.staging   # fill in the pooler DSN, then:
+npm run db:migrate:staging
 ```
+
+`.env.staging` is gitignored. The credential lives in a file, never in a shell
+command, a chat message, or a commit — anywhere it lands in a scrollback is
+somewhere it can be read later. If one has been exposed, rotate it in
+**Settings → Database → Reset database password** before doing anything else.
+
+Note there is no `DATABASE_URL` in `.env.staging`, only
+`MIGRATION_DATABASE_URL`. Only the migration runner should reach staging from a
+laptop; the application connects as `dealerai_app` from its own deployment with
+its own secret.
 
 Then the one ops step per environment, which is the only thing not in version
 control because it carries a secret:

@@ -9,8 +9,10 @@ from an ORM model we do not have.
 
 from __future__ import annotations
 
+import argparse
 import asyncio
 import hashlib
+import os
 import sys
 from pathlib import Path
 
@@ -32,6 +34,25 @@ create table if not exists schema_migrations (
 
 def migrations_dir() -> Path:
     return repo_root() / "supabase" / "migrations"
+
+
+def load_env_file(path: Path) -> None:
+    """Load an alternate dotenv before settings are read.
+
+    Deploying to staging means pointing this one script at a different database
+    without touching .env — because a .env edit that outlives the deploy is how
+    someone later runs the destructive test suite against production.
+    Values here override the process environment on purpose: an explicit
+    --env-file is a deliberate act.
+    """
+    if not path.is_file():
+        raise FileNotFoundError(f"no env file at {path}")
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        os.environ[key.strip()] = value.strip()
 
 
 async def run() -> int:
@@ -90,6 +111,15 @@ async def run() -> int:
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description="Apply supabase/migrations in order.")
+    parser.add_argument(
+        "--env-file",
+        help="dotenv to load first, e.g. .env.staging. Relative to the repo root.",
+    )
+    args = parser.parse_args()
+    if args.env_file:
+        path = Path(args.env_file)
+        load_env_file(path if path.is_absolute() else repo_root() / path)
     sys.exit(asyncio.run(run()))
 
 
