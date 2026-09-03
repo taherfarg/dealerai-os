@@ -49,8 +49,8 @@ These are settled. Changing one invalidates several documents — say so explici
 | Decision | Choice | Why |
 |---|---|---|
 | Agent runtime | **Python 3.12 + FastAPI** service | Long-running jobs, best AI/vision/eval ecosystem, clean worker story |
-| UI | **Next.js 15 (App Router) + TypeScript** | Dashboard-heavy product; Next is the right tool |
-| Datastore | **Supabase** — Postgres 15 + pgvector + Auth + Storage | RLS on `tenant_id` from line one; auth and storage solved |
+| UI | **Next.js 16 (App Router) + TypeScript** | Dashboard-heavy product; Next is the right tool. Scaffolds at 16.3.4 — note the middleware file convention is deprecated, so the auth gate is `proxy.ts`. |
+| Datastore | **Supabase** — Postgres 17 + pgvector + Auth + Storage | RLS on `tenant_id` from line one; auth and storage solved |
 | Tenant isolation | **Row Level Security, always on, no exceptions** | Tenant leakage is the one bug that kills the company |
 | Reasoning model | `claude-opus-5` | Orchestrator, strategy, ads decisions |
 | Workhorse model | `claude-sonnet-5` | Copy, analysis, sales replies |
@@ -136,7 +136,8 @@ localhost, but the discipline is the real protection.
 | Documentation | Complete — this set |
 | Schema | Applied locally **and to Supabase** (`fqajkmjrwbthmpendojj`, ap-northeast-1, PG 17.6). RLS forced on all 35 tenant tables, all 3 views `security_invoker`, security linter clean except one documented warning. |
 | **M0 Foundation** | **complete** — T0.1–T0.8 |
-| M1 Tenancy | T1.1, T1.2, T1.4, T1.5 done (API side) · only T1.3 app shell remains, needs a Supabase project |
+| **M1 Tenancy** | **complete** — T1.1–T1.5. Shell, auth gate, RTL, workspace switcher, approvals queue. |
+| Known gap | **A real sign-in has never been exercised.** Supabase email confirmation is ON and the built-in SMTP rate-limits immediately, so no test user could be created. The gate, redirect and session plumbing are verified; the credential round trip is not. Confirm a user (or disable confirmation on the dev project) and log in once. |
 | M2 Inventory | T2.1 vehicle CRUD + T2.6 stock report done · T2.2–T2.5 need Storage or a model key |
 | Tests | 276 passing, 8 skipped · 1 eval deselected (needs `ANTHROPIC_API_KEY`, see T0.6) |
 | Supabase | Schema live. **Outstanding:** `alter role dealerai_app login password '…'` before the app can connect. |
