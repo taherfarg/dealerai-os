@@ -259,7 +259,10 @@ async def complete(
     *,
     tenant_id: UUID,
     system: SystemLayers,
-    messages: list[types.ContentDict] | list[Any],
+    # The SDK's own alias. list[Content] does not satisfy it because list is
+    # invariant, and hand-writing the union would drift the moment the SDK
+    # widens it.
+    messages: types.ContentListUnion,
     run_id: UUID | None = None,
     task_id: UUID | None = None,
     tools: list[types.Tool] | None = None,

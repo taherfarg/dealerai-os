@@ -314,14 +314,34 @@ private, signed URLs for display. Emits `vehicle.media_uploaded`.
 **Acceptance:** 20 photos upload in one request; a signed URL expires; a URL for tenant B's
 object is not obtainable from tenant A's session.
 
-### T2.3 — Photo QA and angle detection
+### T2.3 — Photo QA and angle detection — **done (accuracy eval pending photos)**
 **Files:** `media/vision.py`, `events/handlers/inventory.py`, `tests/media/test_vision.py`
 
 Vision pass with `gemini-2.5-flash` and a strict output schema: rejection reason, angle from
 the 12-class enum, quality score 0–1. Ranks per angle and sets one hero.
 
-**Acceptance:** a labelled fixture set of 40 photos reaches 85%+ angle accuracy and rejects
-every deliberately blurred image. Exactly one `is_hero` per vehicle.
+**Acceptance:** partially met, and the gap is data rather than code.
+
+Met: exactly one `is_hero` per vehicle, enforced in code with 18 tests over the ranking
+rules. Live evals confirm the image path works end to end and that the model rejects a
+non-vehicle image while returning `angle: unknown` rather than guessing.
+
+**Outstanding: the 85%-on-40-photos accuracy bar.** That needs real dealer photographs
+with known angles, which this repo has none of. The harness is written and skips itself:
+drop labelled JPEGs into `tests/evals/fixtures/photos/<angle>/` and
+`test_angle_accuracy_on_real_photographs` turns on with no code change. Pollux's catalogue
+is the obvious source.
+
+Three decisions worth keeping:
+
+- **`is_hero` is chosen in code, never asked of the model.** A per-photo call cannot see
+  the other photos, and two heroes or none is a broken vehicle page.
+- **Every exterior angle outranks every interior one**, regardless of score. A listing
+  that leads with a photo of the steering wheel is a listing nobody clicks. The first
+  version omitted plain `rear` from the preference list, which let a 0.99 dashboard shot
+  beat a 0.4 exterior — caught by a test.
+- **A vehicle whose photos are all rejected gets no hero at all.** Promoting the
+  least-bad blurry shot is exactly the outcome the module exists to prevent.
 
 ### T2.4 — CSV import
 **Files:** `routes/vehicles.py`, `events/handlers/inventory.py`, `apps/web/.../inventory/import/`
