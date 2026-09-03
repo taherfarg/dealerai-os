@@ -6,6 +6,7 @@ from uuid import UUID
 
 import structlog
 
+from ...agents.content import enrichment
 from ...db.session import tenant_session
 from ...media import storage, vision
 from ..bus import Event, emit, handler
@@ -106,3 +107,34 @@ async def on_media_uploaded(event: Event) -> None:
         rejected=sum(1 for p in ranked if p.assessment.rejected),
         hero=next((str(p.media_id) for p in ranked if p.is_hero), None),
     )
+
+
+@handler("vehicle.created")
+async def on_vehicle_created(event: Event) -> None:
+    """Normalise, enrich from the tenant's documents, extract selling points.
+
+    Emits `vehicle.ready` whatever the enrichment found — including nothing.
+    A car with a thin record is still a car the dealer wants marketed; the
+    downstream strategist reads what is there and works with it. Blocking
+    `vehicle.ready` on a full spec sheet would silently strand every vehicle
+    imported from a messy CSV, which is most of them.
+    """
+    tenant_id = event.tenant_id
+    if tenant_id is None:
+        raise ValueError("vehicle.created requires a tenant")
+    vehicle_id = UUID(event.payload["vehicle_id"])
+
+    verified = await enrichment.enrich(tenant_id=tenant_id, vehicle_id=vehicle_id)
+
+    async with tenant_session(tenant_id) as conn:
+        await emit(
+            conn,
+            "vehicle.ready",
+            {
+                "vehicle_id": str(vehicle_id),
+                "filled": sorted(verified.updates),
+                "usps": len(verified.usps),
+            },
+            tenant_id=tenant_id,
+            dedupe_key=f"vehicle.ready:{vehicle_id}",
+        )

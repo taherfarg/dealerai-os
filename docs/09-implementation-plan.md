@@ -353,15 +353,24 @@ creation. Errors are reported per row; a partial import is a valid outcome.
 maps correctly after one confirmation, and three deliberately broken rows are reported
 without aborting the other 47.
 
-### T2.5 — Enrichment and USP extraction
+### T2.5 — Enrichment and USP extraction — **done**
 **Files:** `agents/content/enrichment.py`, `tools/inventory.py`, `ai/prompts/enrichment.md`
 
 Normalize names and units. Fill missing specs **only** from the tenant's documents. Extract
 3–5 USPs grounded in the record.
 
-**Acceptance:** a vehicle with no horsepower in its record and no document mentioning it
-still has `power_hp IS NULL` after enrichment, and no USP references horsepower. This test
-is the codified form of "never invent a fact about a car."
+**Acceptance:** met — `test_an_unsourced_fact_never_reaches_the_vehicle`, run against a
+stubbed model that deliberately states the correct real-world figure for that car.
+
+Grounding is enforced in code, not asked for in the prompt. Each proposed value arrives with
+the sentence the model read it in; `verify()` checks that sentence appears in the text the
+model was actually shown, that the value appears inside its own quote, and that the field was
+blank to begin with. Anything else is dropped and logged. Prices, mileage and VIN are outside
+the enrichable set entirely, so a price list in the tenant's library cannot become a back door
+around the price endpoint.
+
+`tools/inventory.py` is not part of this — enrichment is one schema-constrained call, not a
+tool loop. It lands with the orchestrator's executor, which is what needs tool declarations.
 
 ### T2.6 — Stock report — **done (API side)**
 **Files:** `apps/web/.../inventory/`, `routes/vehicles.py` route `/stock-report`
