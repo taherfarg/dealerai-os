@@ -289,16 +289,26 @@ forty-nine.
 
 ## Milestone M2 — Inventory (weeks 3–5)
 
-### T2.1 — Vehicle CRUD
+### T2.1 — Vehicle CRUD — **done**
 **Files:** `routes/vehicles.py`, `db/queries/vehicles.py`, `apps/web/.../inventory/`
 
 List with filters, create, update, status transitions, price changes writing
 `vehicle_price_history`. `min_price_minor` is excluded from every response model that a
 customer-facing surface can reach.
 
-**Acceptance:** `POST /v1/vehicles/{id}/price` writes a history row and emits
-`vehicle.price_changed`. The `VehicleSummary` schema has no `min_price_minor` field —
-asserted by a test against the generated OpenAPI schema.
+**Acceptance:** met. `VehicleSummary` — the shape a customer-facing agent sees — has no
+discount-floor field *in the model at all*, asserted directly and again as a strict-subset
+check against `VehicleOut`. Omitting it at the call site would be one forgotten
+`exclude` away from a leak.
+
+Three behaviours settled here:
+
+- **Selling emits `vehicle.sold` at raised priority**, not a generic status event. Its
+  handler cancels every scheduled item referencing the car; marketing a vehicle that is
+  gone is the most visible way this product can embarrass a dealer.
+- **A price change always writes history, but only emits when the number actually moved.**
+  The audit row is always wanted; waking every downstream handler for a no-op is not.
+- **Marketers publish, admins price.** A marketer changing a list price gets 403.
 
 ### T2.2 — Media upload and storage
 **Files:** `media/storage.py`, `routes/vehicles.py`, `apps/web/components/inventory/Uploader.tsx`
@@ -338,13 +348,14 @@ Normalize names and units. Fill missing specs **only** from the tenant's documen
 still has `power_hp IS NULL` after enrichment, and no USP references horsepower. This test
 is the codified form of "never invent a fact about a car."
 
-### T2.6 — Inventory UI and stock report
+### T2.6 — Stock report — **done (API side)**
 **Files:** `apps/web/.../inventory/`, `routes/vehicles.py` route `/stock-report`
 
 Grid and table views, aging highlight, content-coverage column from `v_vehicle_stock`.
 
-**Acceptance:** the stock report flags vehicles over the tenant's aging threshold with zero
-published content, matching a hand-written SQL check.
+**Acceptance:** met on the API side — `GET /v1/vehicles/stock-report?min_days&uncovered_only`
+over `v_vehicle_stock`, covering available stock only, ordered by age. The UI lands with
+T1.3, which needs a Supabase project.
 
 ---
 

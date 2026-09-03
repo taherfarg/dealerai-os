@@ -54,6 +54,14 @@ class Settings(BaseSettings):
     #: at call time rather than blocking startup for someone doing schema work.
     anthropic_api_key: str | None = None
 
+    #: Project URL, e.g. https://<ref>.supabase.co. Needed for Storage in T2.2.
+    supabase_url: str | None = None
+
+    #: Publishable/anon key. Safe to expose — RLS is what protects the data.
+    #: The service_role key is deliberately NOT a setting: it bypasses RLS and
+    #: must never be reachable from a request path. See docs/03 § 2.
+    supabase_anon_key: str | None = None
+
     #: HS256 secret Supabase Auth signs user tokens with. Also signs invitation
     #: links, so they are invalidated by the same rotation.
     supabase_jwt_secret: str | None = None

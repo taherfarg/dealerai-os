@@ -96,7 +96,8 @@ Three things about the local setup that are not obvious:
 | Schema | Applied and tested locally (39 tables, RLS verified) |
 | **M0 Foundation** | **complete** — T0.1–T0.8 |
 | M1 Tenancy | T1.1, T1.2, T1.4, T1.5 done (API side) · only T1.3 app shell remains, needs a Supabase project |
-| Tests | 255 passing, 8 skipped · 1 eval deselected (needs `ANTHROPIC_API_KEY`, see T0.6) |
+| M2 Inventory | T2.1 vehicle CRUD + T2.6 stock report done · T2.2–T2.5 need Storage or a model key |
+| Tests | 276 passing, 8 skipped · 1 eval deselected (needs `ANTHROPIC_API_KEY`, see T0.6) |
 | Meta / WhatsApp / TikTok app review | Not started — **long lead time, start now** |
 
 ---

@@ -31,11 +31,37 @@ SEEDED_TABLES = (
 )
 
 
+LOCAL_HOSTS = ("localhost", "127.0.0.1", "@db:", "@db/")
+
+
+def assert_database_is_local() -> None:
+    """Refuse to run the suite against anything but a local database.
+
+    conftest's _wipe() issues `delete from tenants`, which cascades to every
+    row a dealership owns. Pointed at a real Supabase project — one stray
+    DATABASE_URL edit — that is the whole customer's data, gone, from a
+    command someone ran to check a test.
+    """
+    settings = get_settings()
+    for dsn in (settings.database_url, settings.migration_dsn):
+        if not any(h in dsn for h in LOCAL_HOSTS):
+            raise RuntimeError(
+                "REFUSING TO RUN: the test suite deletes every tenant, and "
+                f"{dsn.split('@')[-1]} is not a local database. "
+                "Point DATABASE_URL and MIGRATION_DATABASE_URL at the docker "
+                "container (localhost:54332). A Supabase project belongs in "
+                "staging config, never in test config."
+            )
+    if settings.env != "local":
+        raise RuntimeError(f"REFUSING TO RUN: ENV is {settings.env!r}, expected 'local'")
+
+
 @pytest.fixture(scope="session")
 def _migrated() -> None:
     """Not autouse: the gate, money and contract suites are pure logic and must
     stay runnable with no database at all. Only fixtures that touch Postgres
     request this."""
+    assert_database_is_local()
     assert asyncio.run(run_migrations()) == 0, "migrations failed"
     asyncio.run(_grant_service_role())
 
