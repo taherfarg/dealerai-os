@@ -408,7 +408,7 @@ confirmation**.
 **Acceptance:** ingesting the design partner's assets produces a palette within ΔE 5 of the
 real brand colours, and the profile cannot reach a confirmed state without a human action.
 
-### T3.2 — Agent runtime
+### T3.2 — Agent runtime — **done**
 **Files:** `agents/base.py`, `agents/registry.py`, `orchestrator/planner.py`,
 `orchestrator/executor.py`, `routes/runs.py`
 
@@ -417,9 +417,26 @@ real brand colours, and the profile cannot reach a confirmed state without a hum
 parallel, resolves `from_task` from `agent_tasks.output`, and commits the result and its
 emitted events in one transaction.
 
-**Acceptance:** a run with a diamond DAG (t1 → t2, t3 → t4) executes t2 and t3 in parallel
-and t4 once. Killing the worker mid-run and restarting resumes without repeating a
-completed task.
+**Acceptance:** met — `test_a_diamond_runs_its_middle_in_parallel_and_its_tip_once` asserts
+t2 and t3 start within 50ms of each other while each sleeps 100ms, so serial execution fails
+it. Resumption is covered twice: re-entering a finished run repeats no task, and a run whose
+first task is already `completed` in the database finishes the rest without re-running it.
+
+**No second worker.** A run is driven by an `agent_run.started` event on the existing queue,
+so it inherits the lock, backoff, dead-letter and reaper that already work. Resumability is
+therefore the database, not memory — every task result commits the moment it is produced.
+
+Deviations from the sketch above, all deliberate:
+
+* `agents/registry.py` is folded into `agents/base.py`. It is one dict and three functions.
+* `AgentContext` carries `tenant_id`, not a `TenantContext`. A scheduled run has no user, and
+  docs/02 § 2 assumed one always exists.
+* The `Agent` protocol has no `tools` (lands with T3.3, which is what needs declarations) and
+  no `default_autonomy` (a run's autonomy comes from the run row).
+
+Approval resumes the exact branch that paused. A task the gate stopped goes back to `pending`
+carrying `_approved`, which is what stops the gate pausing it again; a task that ran and asked
+about its own output is simply completed, so nobody pays for a second draft.
 
 ### T3.3 — Tool layer
 **Files:** `tools/registry.py`, `tools/inventory.py`, `tools/brand.py`, `tools/memory.py`,

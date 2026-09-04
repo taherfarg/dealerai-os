@@ -51,7 +51,7 @@ class BulkResult(BaseModel):
 
 
 _COLUMNS = """
-    id, kind, summary, payload, status, entity_type, entity_id, run_id,
+    id, kind, summary, payload, status, entity_type, entity_id, run_id, task_id,
     expires_at, created_at, decided_at, decision_note
 """
 
@@ -138,9 +138,9 @@ async def _decide(
             ctx.user.id,
             note,
         )
-        # Emitted in the same transaction as the decision. The handler that
-        # resumes or cancels the dependent branch of the run's DAG lands with
-        # the executor in T3.2; until then this is an auditable record of intent.
+        # Emitted in the same transaction as the decision, and carrying the
+        # task id: events/handlers/runs.py resumes exactly that branch of the
+        # run's DAG, and an approval that names no task simply resumes nothing.
         await emit(
             conn,
             "approval.decided",
@@ -149,7 +149,7 @@ async def _decide(
                 "kind": current["kind"],
                 "decision": outcome,
                 "run_id": str(current["run_id"]) if current["run_id"] else None,
-                "task_id": None,
+                "task_id": str(current["task_id"]) if current["task_id"] else None,
             },
             tenant_id=ctx.tenant_id,
             dedupe_key=f"approval-decided:{approval_id}",

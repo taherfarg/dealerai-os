@@ -15,6 +15,9 @@ import structlog
 from .config import get_settings
 from .core.logging import configure_logging
 from .db import session
+
+# Imported for its side effects: this is what registers the handlers.
+from .events import handlers as _handlers  # noqa: F401
 from .events.worker import Worker
 
 log = structlog.get_logger()
