@@ -343,15 +343,27 @@ Three decisions worth keeping:
 - **A vehicle whose photos are all rejected gets no hero at all.** Promoting the
   least-bad blurry shot is exactly the outcome the module exists to prevent.
 
-### T2.4 — CSV import
+### T2.4 — CSV import — **done (API side)**
 **Files:** `routes/vehicles.py`, `events/handlers/inventory.py`, `apps/web/.../inventory/import/`
 
 Upload, then an LLM-assisted column mapping proposal, then **human confirmation**, then row
 creation. Errors are reported per row; a partial import is a valid outcome.
 
-**Acceptance:** a 50-row messy CSV (mixed headers, Arabic column names, prices with commas)
-maps correctly after one confirmation, and three deliberately broken rows are reported
-without aborting the other 47.
+**Acceptance:** met on the API side — `test_fifty_messy_rows_import_with_three_reported`
+imports 47 of 50 and reports rows 10, 20 and 30 by number and reason. The live eval
+(`npm run eval:csv`) covers the mapping half: a bilingual header row maps correctly, the
+internal "Net" column is not mistaken for the advertised price, and columns with no field
+are left null rather than guessed.
+
+Human confirmation is structural, not documented: `/preview` returns a proposal and
+`POST /v1/vehicles/import` requires a `mapping` in the request body. There is no code path
+from a model's guess to a written row.
+
+The routes live in `routes/imports.py`, not `routes/vehicles.py` — `inventory` imports
+`VehicleCreate` from the latter, and putting them together makes the cycle.
+
+The import screen is still to build. It needs a working browser sign-in, which is the gap
+recorded in docs/README.md.
 
 ### T2.5 — Enrichment and USP extraction — **done**
 **Files:** `agents/content/enrichment.py`, `tools/inventory.py`, `ai/prompts/enrichment.md`

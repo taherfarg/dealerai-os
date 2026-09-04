@@ -51,6 +51,15 @@ class Conflict(AppError):
     title = "Conflict"
 
 
+class Unusable(AppError):
+    """The request was well-formed and its content was not — a CSV with no
+    header row, a mapping naming a column that does not exist."""
+
+    status = 422
+    slug = "unusable-input"
+    title = "The submitted content cannot be used"
+
+
 class GuardRejected(AppError):
     status = 422
     slug = "guard-rejected"

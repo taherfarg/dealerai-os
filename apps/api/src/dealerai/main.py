@@ -11,7 +11,7 @@ from .config import get_settings
 from .core.errors import install_error_handlers
 from .core.logging import configure_logging, install_request_context
 from .db import session
-from .routes import approvals, tenants, vehicles
+from .routes import approvals, imports, tenants, vehicles
 
 log = structlog.get_logger()
 
@@ -41,6 +41,7 @@ def create_app() -> FastAPI:
     app.include_router(tenants.router)
     app.include_router(approvals.router)
     app.include_router(vehicles.router)
+    app.include_router(imports.router)
 
     @app.get("/internal/health")
     async def health() -> dict[str, Any]:

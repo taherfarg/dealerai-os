@@ -26,7 +26,8 @@
     "web": "npm run dev --workspace web",
     "check:web": "npm run check --workspace web",
     "eval:vision": "cd apps/api && uv run pytest tests/evals/test_vision_live.py -m eval -v",
-    "eval:enrichment": "cd apps/api && uv run pytest tests/evals/test_enrichment_live.py -m eval -v"
+    "eval:enrichment": "cd apps/api && uv run pytest tests/evals/test_enrichment_live.py -m eval -v",
+    "eval:csv": "cd apps/api && uv run pytest tests/evals/test_csv_mapping_live.py -m eval -v"
   },
   "engines": {
     "node": ">=22"
