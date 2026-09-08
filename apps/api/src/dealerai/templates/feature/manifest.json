@@ -1,0 +1,18 @@
+{
+  "key": "feature",
+  "name": "Feature",
+  "kind": "feature",
+  "aspect_ratios": [
+    "1:1",
+    "4:5",
+    "9:16"
+  ],
+  "slots": {
+    "photo_url": "an interior or detail photograph",
+    "eyebrow": "the feature area",
+    "headline": "the feature",
+    "subhead": "why it matters to a buyer",
+    "logo_url": "brand logo",
+    "disclaimer": "legal wording"
+  }
+}

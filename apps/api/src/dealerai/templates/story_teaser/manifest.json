@@ -1,0 +1,16 @@
+{
+  "key": "story_teaser",
+  "name": "Story teaser",
+  "kind": "story",
+  "aspect_ratios": [
+    "9:16"
+  ],
+  "slots": {
+    "photo_url": "the hero photograph",
+    "headline": "one short line",
+    "price": "formatted, with currency",
+    "cta": "swipe up / DM",
+    "logo_url": "brand logo",
+    "disclaimer": "legal wording"
+  }
+}

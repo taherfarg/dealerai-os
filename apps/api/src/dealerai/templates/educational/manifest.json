@@ -1,0 +1,16 @@
+{
+  "key": "educational",
+  "name": "Educational",
+  "kind": "educational",
+  "aspect_ratios": [
+    "1:1",
+    "4:5"
+  ],
+  "slots": {
+    "eyebrow": "the topic",
+    "headline": "the question or claim",
+    "body": "the explanation",
+    "logo_url": "brand logo",
+    "disclaimer": "legal wording"
+  }
+}

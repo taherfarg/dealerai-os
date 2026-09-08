@@ -1,0 +1,171 @@
+/*
+ * Reset, safe areas, and the direction handling every template inherits.
+ *
+ * Physical directions are banned here for the same reason they are banned in
+ * apps/web: `dir="rtl"` has to be the only change between an English render and
+ * an Arabic one. `margin-left` in a template is an Arabic poster with its price
+ * on the wrong side, and nobody notices until a customer does.
+ */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  background: var(--brand-bg);
+  color: var(--brand-text);
+  font-family: var(--font-body);
+  /* Rendering happens at a fixed device pixel ratio, so a fixed root size in
+     px is deterministic. Everything else is relative to it. */
+  font-size: 16px;
+  line-height: 1.25;
+  -webkit-font-smoothing: antialiased;
+}
+
+body[dir="rtl"] {
+  font-family: var(--font-arabic);
+}
+
+.frame {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.safe {
+  padding: var(--safe);
+}
+
+.photo {
+  position: absolute;
+  inset: 0;
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+/* Text over a photograph is unreadable on a light car and fine on a dark one,
+   which is exactly the kind of "usually fine" that ships a bad poster. The
+   scrim makes it never depend on the photo. */
+.scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to top,
+    rgb(0 0 0 / 78%) 0%,
+    rgb(0 0 0 / 45%) 38%,
+    rgb(0 0 0 / 0%) 70%
+  );
+}
+
+.stack {
+  position: relative;
+  margin-block-start: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4em;
+  text-align: start;
+}
+
+.headline {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 2.6em;
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+  color: #fff;
+  /* Two lines, then ellipsis. A headline that grows past its box pushes the
+     price off the canvas, and a render nobody looks at is a render that
+     ships. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.sub {
+  font-size: 1.1em;
+  color: rgb(255 255 255 / 82%);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.price {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 1.9em;
+  color: var(--brand-secondary);
+  /* Latin digits stay Latin in an Arabic caption: a dealer's price list, the
+     database and the poster must read the same. */
+  font-variant-numeric: lining-nums tabular-nums;
+  unicode-bidi: plaintext;
+}
+
+.cta {
+  align-self: start;
+  padding: 0.5em 1.1em;
+  border-radius: 999px;
+  background: var(--brand-accent);
+  color: var(--brand-on-primary);
+  font-weight: 600;
+  font-size: 0.95em;
+}
+
+.logo {
+  position: absolute;
+  inset-block-start: var(--safe);
+  inset-inline-start: var(--safe);
+  height: 7%;
+  max-width: 34%;
+  object-fit: contain;
+}
+
+.disclaimer {
+  position: absolute;
+  inset-block-end: 1.6%;
+  inset-inline-start: var(--safe);
+  inset-inline-end: var(--safe);
+  font-size: 0.62em;
+  color: rgb(255 255 255 / 62%);
+  text-align: start;
+}
+
+.badge {
+  align-self: start;
+  padding: 0.35em 0.8em;
+  border-radius: 999px;
+  background: var(--brand-primary);
+  color: var(--brand-on-primary);
+  font-size: 0.8em;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* Tall formats get more vertical room and less type; wide ones the reverse.
+   One breakpoint each rather than a per-ratio stylesheet — the layout is the
+   same layout, and four copies of it drift. */
+@media (max-aspect-ratio: 3/5) {
+  .frame { font-size: 1.35em; }
+  .stack { padding-block-end: 8%; }
+}
+
+@media (min-aspect-ratio: 5/4) {
+  .frame { font-size: 0.9em; }
+  .headline { -webkit-line-clamp: 1; }
+}

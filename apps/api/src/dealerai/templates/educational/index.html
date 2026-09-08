@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="{{lang}}" dir="{{dir}}">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../_tokens.css">
+<link rel="stylesheet" href="../_base.css">
+<style>
+.wash { position: absolute; inset: 0; background: linear-gradient(160deg,
+         var(--brand-primary), color-mix(in srgb, var(--brand-primary) 62%, #000)); }
+.stack.centre { margin-block: auto; gap: 0.7em; }
+.headline { font-size: 2.2em; -webkit-line-clamp: 3; }
+.body { font-size: 1em; color: rgb(255 255 255 / 82%); display: -webkit-box;
+        -webkit-line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden; }
+.badge { background: var(--brand-secondary); color: var(--brand-text); }
+</style>
+</head>
+<body dir="{{dir}}">
+<div class="frame">
+<div class="wash"></div>
+    <img class="logo" src="{{logo_url}}" alt="">
+    <div class="stack safe centre">
+      <span class="badge">{{eyebrow}}</span>
+      <h1 class="headline">{{headline}}</h1>
+      <p class="body">{{body}}</p>
+    </div>
+    <p class="disclaimer">{{disclaimer}}</p>
+</div>
+</body>
+</html>

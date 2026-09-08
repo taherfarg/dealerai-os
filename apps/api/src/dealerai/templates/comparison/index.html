@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="{{lang}}" dir="{{dir}}">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../_tokens.css">
+<link rel="stylesheet" href="../_base.css">
+<style>
+.split { position: absolute; inset: 0; display: grid; grid-template-rows: 1fr 1fr; }
+.side { position: relative; overflow: hidden; }
+.label { position: absolute; inset-block-end: 6%; inset-inline-start: var(--safe);
+         display: flex; flex-direction: column; gap: 0.3em; align-items: start; }
+.badge.alt { background: var(--brand-secondary); color: var(--brand-text); }
+.stack { justify-content: center; align-items: center; margin-block: auto; }
+.headline { font-size: 1.9em; text-align: center; }
+</style>
+</head>
+<body dir="{{dir}}">
+<div class="frame">
+<div class="split">
+      <div class="side">
+        <div class="photo" style="background-image:url({{left_photo_url}})"></div>
+        <div class="scrim"></div>
+        <div class="label">
+          <span class="badge">{{left_label}}</span>
+          <p class="price">{{left_value}}</p>
+        </div>
+      </div>
+      <div class="side">
+        <div class="photo" style="background-image:url({{right_photo_url}})"></div>
+        <div class="scrim"></div>
+        <div class="label">
+          <span class="badge alt">{{right_label}}</span>
+          <p class="price">{{right_value}}</p>
+        </div>
+      </div>
+    </div>
+    <img class="logo" src="{{logo_url}}" alt="">
+    <div class="stack safe"><h1 class="headline">{{headline}}</h1></div>
+    <p class="disclaimer">{{disclaimer}}</p>
+</div>
+</body>
+</html>

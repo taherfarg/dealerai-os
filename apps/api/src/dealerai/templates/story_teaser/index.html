@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="{{lang}}" dir="{{dir}}">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../_tokens.css">
+<link rel="stylesheet" href="../_base.css">
+<style>
+/* Instagram puts its own controls over the top and bottom eighths of a
+   story, so nothing that matters goes there. */
+.frame { --safe: 9%; }
+.stack { padding-block-end: 16%; }
+.scrim.tall { background: linear-gradient(to top, rgb(0 0 0 / 82%) 0%,
+              rgb(0 0 0 / 40%) 46%, rgb(0 0 0 / 0%) 74%); }
+</style>
+</head>
+<body dir="{{dir}}">
+<div class="frame">
+<div class="photo" style="background-image:url({{photo_url}})"></div>
+    <div class="scrim tall"></div>
+    <img class="logo" src="{{logo_url}}" alt="">
+    <div class="stack safe">
+      <h1 class="headline">{{headline}}</h1>
+      <p class="price">{{price}}</p>
+      <span class="cta">{{cta}}</span>
+    </div>
+    <p class="disclaimer">{{disclaimer}}</p>
+</div>
+</body>
+</html>

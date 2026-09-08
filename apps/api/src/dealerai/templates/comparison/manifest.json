@@ -1,0 +1,20 @@
+{
+  "key": "comparison",
+  "name": "Comparison",
+  "kind": "comparison",
+  "aspect_ratios": [
+    "1:1",
+    "4:5"
+  ],
+  "slots": {
+    "left_photo_url": "the first car",
+    "right_photo_url": "the second car",
+    "left_label": "the first car's name",
+    "right_label": "the second car's name",
+    "headline": "what is being compared",
+    "left_value": "the first car's figure",
+    "right_value": "the second car's figure",
+    "logo_url": "brand logo",
+    "disclaimer": "legal wording"
+  }
+}

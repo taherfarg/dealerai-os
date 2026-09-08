@@ -1,0 +1,4 @@
+{
+  "platform": "windows-amd64",
+  "note": "Regenerate with `npm run creative:goldens` after a template change."
+}

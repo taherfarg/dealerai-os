@@ -48,6 +48,14 @@ jobs:
         working-directory: apps/api
         run: uv sync --all-extras --dev
 
+      # The compositor renders with a real browser, so the creative tests need
+      # one. --with-deps because a bare runner has none of the shared libraries
+      # Chromium links against, and the failure is a linker error rather than
+      # anything that names a browser.
+      - name: Install Chromium
+        working-directory: apps/api
+        run: uv run playwright install --with-deps chromium
+
       - name: Lint
         working-directory: apps/api
         run: |

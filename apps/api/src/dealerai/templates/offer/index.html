@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="{{lang}}" dir="{{dir}}">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../_tokens.css">
+<link rel="stylesheet" href="../_base.css">
+<style>
+.prices { display: flex; align-items: baseline; gap: 0.6em; flex-wrap: wrap; }
+.was { font-size: 1.1em; color: rgb(255 255 255 / 60%); text-decoration: line-through;
+       font-variant-numeric: lining-nums; unicode-bidi: plaintext; }
+</style>
+</head>
+<body dir="{{dir}}">
+<div class="frame">
+<div class="photo" style="background-image:url({{photo_url}})"></div>
+    <div class="scrim"></div>
+    <img class="logo" src="{{logo_url}}" alt="">
+    <div class="stack safe">
+      <span class="badge">{{badge}}</span>
+      <h1 class="headline">{{headline}}</h1>
+      <p class="prices">
+        <span class="was">{{was_price}}</span>
+        <span class="price">{{price}}</span>
+      </p>
+      <span class="cta">{{cta}}</span>
+    </div>
+    <p class="disclaimer">{{disclaimer}}</p>
+</div>
+</body>
+</html>

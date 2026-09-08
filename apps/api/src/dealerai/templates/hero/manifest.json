@@ -1,0 +1,20 @@
+{
+  "key": "hero",
+  "name": "Hero shot",
+  "kind": "hero",
+  "aspect_ratios": [
+    "1:1",
+    "4:5",
+    "9:16",
+    "16:9"
+  ],
+  "slots": {
+    "photo_url": "the hero photograph",
+    "headline": "one line, the car",
+    "subhead": "optional supporting line",
+    "price": "formatted, with currency",
+    "cta": "call to action",
+    "logo_url": "brand logo",
+    "disclaimer": "legal wording"
+  }
+}

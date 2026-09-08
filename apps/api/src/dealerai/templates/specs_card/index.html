@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="{{lang}}" dir="{{dir}}">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../_tokens.css">
+<link rel="stylesheet" href="../_base.css">
+<style>
+.photo.half { inset-block-end: 52%; }
+.card { margin-block-start: auto; height: 52%; background: var(--brand-bg);
+        display: flex; flex-direction: column; gap: 0.6em; }
+.headline.dark { color: var(--brand-primary); font-size: 1.8em; -webkit-line-clamp: 2; }
+.specs { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5em 1em; }
+.specs dt { font-size: 0.72em; letter-spacing: 0.06em; text-transform: uppercase;
+            color: color-mix(in srgb, var(--brand-text) 55%, transparent); }
+.specs dd { font-family: var(--font-heading); font-weight: 700; font-size: 1.05em;
+            color: var(--brand-text); unicode-bidi: plaintext; }
+.disclaimer.dark { color: color-mix(in srgb, var(--brand-text) 50%, transparent); }
+</style>
+</head>
+<body dir="{{dir}}">
+<div class="frame">
+<div class="photo half" style="background-image:url({{photo_url}})"></div>
+    <img class="logo" src="{{logo_url}}" alt="">
+    <div class="card safe">
+      <h1 class="headline dark">{{headline}}</h1>
+      <dl class="specs">
+        <div><dt>{{spec_1_label}}</dt><dd>{{spec_1_value}}</dd></div>
+        <div><dt>{{spec_2_label}}</dt><dd>{{spec_2_value}}</dd></div>
+        <div><dt>{{spec_3_label}}</dt><dd>{{spec_3_value}}</dd></div>
+        <div><dt>{{spec_4_label}}</dt><dd>{{spec_4_value}}</dd></div>
+      </dl>
+    </div>
+    <p class="disclaimer dark">{{disclaimer}}</p>
+</div>
+</body>
+</html>

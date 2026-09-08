@@ -1,0 +1,17 @@
+{
+  "key": "carousel_spec",
+  "name": "Carousel card",
+  "kind": "carousel",
+  "aspect_ratios": [
+    "1:1",
+    "4:5"
+  ],
+  "slots": {
+    "photo_url": "the card's photograph",
+    "index": "e.g. 2/5",
+    "headline": "the card's point",
+    "subhead": "supporting line",
+    "logo_url": "brand logo",
+    "disclaimer": "legal wording"
+  }
+}

@@ -1,0 +1,28 @@
+/*
+ * Brand tokens. Every value here is supplied by the compositor from the
+ * tenant's confirmed brand profile — nothing in a template hard-codes a colour.
+ *
+ * The defaults are a neutral placeholder, not a house style. They exist so a
+ * template opens in a browser while a designer works on it, and so a missing
+ * token produces something legible rather than a black rectangle.
+ */
+:root {
+  --brand-primary: #0a2540;
+  --brand-secondary: #c8a15a;
+  --brand-accent: #e5484d;
+  --brand-bg: #ffffff;
+  --brand-text: #0a0a0a;
+  --brand-on-primary: #ffffff;
+
+  --font-heading: "Inter", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Inter", "Segoe UI", system-ui, sans-serif;
+  /* A separate stack because Latin faces have no Arabic glyphs, and the
+     fallback a browser picks on its own varies by machine. */
+  --font-arabic: "IBM Plex Sans Arabic", "Segoe UI", "Tahoma", sans-serif;
+
+  --radius: 18px;
+  --gap: 4%;
+  /* Nothing important is placed outside this. Instagram crops a 4:5 post to a
+     square in the grid, and a price in the corner is a price nobody sees. */
+  --safe: 6%;
+}

@@ -1,0 +1,21 @@
+{
+  "key": "offer",
+  "name": "Offer",
+  "kind": "offer",
+  "aspect_ratios": [
+    "1:1",
+    "4:5",
+    "9:16",
+    "16:9"
+  ],
+  "slots": {
+    "photo_url": "the hero photograph",
+    "badge": "e.g. THIS MONTH",
+    "headline": "the offer",
+    "price": "the offer price",
+    "was_price": "the price before",
+    "cta": "call to action",
+    "logo_url": "brand logo",
+    "disclaimer": "legal wording"
+  }
+}
