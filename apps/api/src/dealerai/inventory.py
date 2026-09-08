@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import csv
 import io
-import unicodedata
 from decimal import Decimal, InvalidOperation
 from typing import Any, Literal
 from uuid import UUID
@@ -25,6 +24,7 @@ from .ai.gateway import SystemLayers, complete
 from .ai.models import TaskKind
 from .ai.prompts import load
 from .core.money import Money
+from .core.text import ascii_digits
 from .routes.vehicles import VehicleCreate
 
 #: Beyond this the request stops being a request. A dealer with a bigger file
@@ -149,16 +149,6 @@ def read_rows(text: str) -> tuple[list[str], list[dict[str, str]]]:
 # --------------------------------------------------------------------------
 
 
-def _ascii_digits(text: str) -> str:
-    """Arabic-Indic and Eastern Arabic numerals to ASCII.
-
-    A UAE dealer's export really does contain ١٦٥٠٠٠, and int() does accept it —
-    but the surrounding cleanup does not, so normalising first is what makes
-    "١٦٥٬٠٠٠ درهم" parse at all.
-    """
-    return "".join(str(unicodedata.digit(c)) if c.isdigit() else c for c in text)
-
-
 def _number(raw: str) -> Decimal:
     """A number out of whatever the spreadsheet had in the cell.
 
@@ -174,7 +164,7 @@ def _number(raw: str) -> Decimal:
     # ponytail: this misreads a genuine 3-decimal KWD amount as thousands. No
     # car costs 1.5 KWD, so the trade is right; revisit if fils-level prices
     # ever appear in an import.
-    text = _ascii_digits(raw).strip()
+    text = ascii_digits(raw).strip()
     kept = "".join(c for c in text if c.isdigit() or c in ",.-")
     if not any(c.isdigit() for c in kept):
         raise ValueError(f"no number in {raw!r}")

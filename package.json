@@ -18,7 +18,7 @@
     "test": "cd apps/api && uv run pytest",
     "lint": "cd apps/api && uv run ruff check . && uv run ruff format --check .",
     "typecheck": "cd apps/api && uv run mypy src",
-    "check": "npm run lint && npm run typecheck && npm run test && npm run check:web",
+    "check": "npm run lint && npm run typecheck && npm run test && npm run test:guards && npm run check:web",
     "worker": "cd apps/api && uv run python -m dealerai.worker",
     "eval": "cd apps/api && uv run pytest -m eval -v",
     "eval:gateway": "cd apps/api && uv run pytest tests/evals/test_gateway_cache.py -m eval -v",
@@ -27,6 +27,7 @@
     "check:web": "npm run check --workspace web",
     "eval:vision": "cd apps/api && uv run pytest tests/evals/test_vision_live.py -m eval -v",
     "eval:enrichment": "cd apps/api && uv run pytest tests/evals/test_enrichment_live.py -m eval -v",
+    "test:guards": "cd apps/api && uv run pytest tests/guards --cov=dealerai.guards --cov=dealerai.core.text --cov-branch --cov-report=term-missing --cov-fail-under=100",
     "eval:csv": "cd apps/api && uv run pytest tests/evals/test_csv_mapping_live.py -m eval -v"
   },
   "engines": {

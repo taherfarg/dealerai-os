@@ -450,15 +450,28 @@ that records traces and enforces the gate.
 tenant B receives an empty result and reports that it cannot find the vehicle — it does not
 fabricate one.
 
-### T3.4 — Guards
+### T3.4 — Guards — **done**
 **Files:** `guards/inventory.py`, `guards/price.py`, `guards/brand.py`, `guards/pii.py`,
 `tests/guards/`
 
 Pure functions over generated output. The price guard extracts every currency figure and
 requires each to match a `vehicles.price_minor` or an approved offer row.
 
-**Acceptance:** 100% branch coverage on `guards/`. A caption containing "starting at
-64,000" for a vehicle priced 66,000 is rejected with the offending figure named.
+**Acceptance:** met, and enforced rather than measured once — `npm run test:guards` runs with
+`--cov-branch --cov-fail-under=100` and is part of `npm run check`, so the bar cannot rot.
+`test_a_discounted_figure_is_rejected_and_named` is the caption case.
+
+The price guard's rule is not "check the price is right" but **every price-shaped figure must
+be one we can point at a database row for**. A monthly instalment nobody approved, a "starting
+from" the agent rounded down, a figure copied out of last month's campaign — all rejected by
+the same rule, none needing to be anticipated. Model years, mileage, horsepower and seat counts
+are excluded by unit and magnitude, because a guard that rejects every caption mentioning
+mileage gets switched off within a week and then protects nothing.
+
+Guards take facts rather than importing `db/`: the caller has already loaded the vehicle it is
+writing about, and a guard that cannot be exercised from a unit test is a guard nobody
+verifies. `budget.py` and `rate.py` are not here — they guard ads and publishing, and land with
+those.
 
 ### T3.5 — Creative templates and the compositor
 **Files:** `templates/`, `media/compositor.py`, `tests/media/test_compositor.py`
