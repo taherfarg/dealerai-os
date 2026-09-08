@@ -28,6 +28,7 @@
     "eval:vision": "cd apps/api && uv run pytest tests/evals/test_vision_live.py -m eval -v",
     "eval:enrichment": "cd apps/api && uv run pytest tests/evals/test_enrichment_live.py -m eval -v",
     "test:guards": "cd apps/api && uv run pytest tests/guards --cov=dealerai.guards --cov=dealerai.core.text --cov-branch --cov-report=term-missing --cov-fail-under=100",
+    "eval:tools": "cd apps/api && uv run pytest tests/evals/test_tools_live.py -m eval -v",
     "eval:csv": "cd apps/api && uv run pytest tests/evals/test_csv_mapping_live.py -m eval -v"
   },
   "engines": {

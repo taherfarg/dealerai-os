@@ -7,6 +7,7 @@ from typing import Any
 import structlog
 from fastapi import FastAPI
 
+from . import tools as _tools  # noqa: F401  registers the agent tools
 from .config import get_settings
 from .core.errors import install_error_handlers
 from .core.logging import configure_logging, install_request_context

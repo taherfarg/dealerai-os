@@ -52,7 +52,8 @@ select
       and listed_at < now() - interval '60 days') as stale,
   (select count(*) from content_items
     where tenant_id = $1 and created_at > now() - interval '14 days') as recent_content,
-  (select coalesce(brand_profile->>'name', '') from tenants where id = $1) as brand
+  (select b.display_name is not null from brand_profiles b where b.tenant_id = $1)
+    as brand_confirmed
 """
 
 
