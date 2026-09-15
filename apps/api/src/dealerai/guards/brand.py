@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
+from typing import Any
 
 from . import Finding, Findings
 
@@ -51,6 +52,28 @@ class BrandRules:
     max_hashtags: int = MAX_HASHTAGS
     allow_unsupportable_claims: bool = False
     banned_emoji: tuple[str, ...] = field(default=())
+
+
+def ctas_for(profile: dict[str, Any], locale: str) -> tuple[str, ...]:
+    """The approved calls to action that apply to this language.
+
+    A dealer configures "DM to book a viewing" and the Arabic copywriter
+    correctly writes an Arabic CTA, which matches none of them — so a
+    language-blind check blocks every Arabic piece the system will ever
+    produce. An entry may declare its locale; one that does not applies to
+    every language, because a dealer who set up one list meant it for
+    everything.
+    """
+    language = locale.split("-")[0].lower()
+    out: list[str] = []
+    for entry in profile.get("cta_styles") or []:
+        if isinstance(entry, str):
+            out.append(entry)
+        elif isinstance(entry, dict) and entry.get("text"):
+            declared = str(entry.get("locale") or "").split("-")[0].lower()
+            if not declared or declared == language:
+                out.append(str(entry["text"]))
+    return tuple(out)
 
 
 def _contains(haystack: str, needle: str) -> bool:

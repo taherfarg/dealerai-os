@@ -21,6 +21,8 @@ import json
 import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
+from datetime import date, datetime
+from decimal import Decimal
 from typing import Any, get_type_hints
 
 import structlog
@@ -146,10 +148,31 @@ def declarations(names_wanted: list[str]) -> list[types.Tool]:
     return [types.Tool(function_declarations=declared)] if declared else []
 
 
+def _encode(value: Any) -> Any:
+    """JSON for the types asyncpg hands back.
+
+    Numeric columns arrive as Decimal and datetimes as datetime, and neither is
+    JSON. The model never sees the difference; what it saw before this existed
+    was the whole task failing after the tool had already succeeded.
+    """
+    if isinstance(value, Decimal):
+        # int when it is one: a model reading "days_in_stock: 75.0" starts
+        # writing "75.0 days".
+        return int(value) if value == value.to_integral_value() else float(value)
+    if isinstance(value, datetime | date):
+        return value.isoformat()
+    return str(value)
+
+
+def jsonable(value: Any) -> Any:
+    """The same value, made of things JSON has."""
+    return json.loads(json.dumps(value, default=_encode))
+
+
 def _truncate(value: Any) -> str:
     try:
-        text = json.dumps(value, default=str)
-    except (TypeError, ValueError):  # pragma: no cover - default=str covers ~everything
+        text = json.dumps(value, default=_encode)
+    except (TypeError, ValueError):  # pragma: no cover - _encode covers ~everything
         text = repr(value)
     return text[:MAX_TRACE_CHARS]
 

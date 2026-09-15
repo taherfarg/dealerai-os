@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from dealerai.guards.brand import BrandRules, check
+from dealerai.guards.brand import BrandRules, check, ctas_for
 
 VAT = "Prices include VAT."
 
@@ -85,3 +85,39 @@ def test_every_violation_is_reported_not_just_the_first() -> None:
 
 def test_a_configured_emoji_that_is_absent_passes() -> None:
     assert check("A calm and tasteful caption.", BrandRules(banned_emoji=("🔥",))) == []
+
+
+# --------------------------------------------------------------------------
+# calls to action are per language
+# --------------------------------------------------------------------------
+
+
+def test_a_cta_with_no_locale_applies_to_every_language() -> None:
+    """A dealer who configured one list meant it for everything."""
+    profile = {"cta_styles": ["DM to book", {"text": "Visit us"}]}
+    assert ctas_for(profile, "ar") == ("DM to book", "Visit us")
+
+
+def test_a_cta_declaring_a_locale_applies_only_to_that_language() -> None:
+    """The bug this exists for: a dealer sets English CTAs, the Arabic
+    copywriter correctly writes an Arabic one, and a language-blind check blocks
+    every Arabic piece the system will ever produce."""
+    profile = {
+        "cta_styles": [
+            {"text": "DM to book a viewing", "locale": "en"},
+            {"text": "راسلنا لحجز معاينة", "locale": "ar"},
+        ]
+    }
+    assert ctas_for(profile, "en") == ("DM to book a viewing",)
+    assert ctas_for(profile, "ar-AE") == ("راسلنا لحجز معاينة",)
+
+
+def test_a_language_with_no_configured_cta_is_not_checked() -> None:
+    """Empty means no preference, not "block everything"."""
+    profile = {"cta_styles": [{"text": "DM to book", "locale": "en"}]}
+    assert ctas_for(profile, "fr") == ()
+    assert check("Une belle voiture.", BrandRules(allowed_ctas=ctas_for(profile, "fr"))) == []
+
+
+def test_a_malformed_cta_entry_is_ignored_rather_than_crashing() -> None:
+    assert ctas_for({"cta_styles": [None, {}, 42, {"text": "Visit us"}]}, "en") == ("Visit us",)

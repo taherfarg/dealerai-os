@@ -519,13 +519,32 @@ no template contains a physical direction property.
 install them; until it does, a render falls back to whatever the host has. That is also why
 the goldens are platform-bound, and fixing one fixes the other.
 
-### T3.6 — Content agents
+### T3.6 — Content agents — **done**
 **Files:** `agents/content/strategist.py`, `creative_director.py`, `copywriter.py`, `image.py`
 
 Wire the W3 flow from [05](05-workflows.md) § 4.
 
-**Acceptance:** `POST /v1/content/generate` for one vehicle with 8 good photos produces at
-least 8 content items, each with AR and EN copy, four aspect ratios, and all guards passed.
+**Acceptance:** met — `npm run eval:content`, one real run against Gemini, every assertion
+reading the same result because twenty-five model calls is not something to repeat per test.
+
+One deviation, stated plainly: **not four fixed aspect ratios.** A story teaser at 16:9 is
+nonsense, so each template declares what it supports and every declared ratio is produced.
+`hero` and `offer` declare four; the rest declare what makes sense for them.
+
+The run starts as a single strategist task. How many pieces a vehicle deserves is not knowable
+when the run is planned, so the strategist *spawns* the rest of the DAG —
+`AgentResult.spawns`, committed in the same transaction as the result that produced them. The
+same mechanism the Director's one permitted re-plan will use.
+
+Three tasks per brief: direct, write, render. Copy depends on direction because a carousel card
+and a story teaser want different words; the render depends on every language's copy, so a
+piece is never composited half-written. Briefs never depend on each other, so one bad brief
+does not take the batch — partial success is a normal outcome.
+
+The guards run in the image agent, the last place before an asset exists, over the exact words
+that will publish and against the database as it is *now* rather than as it was when the run
+started. A car that sold mid-run is caught there; a caption quoting a price the record does not
+hold is caught there. A rejected piece keeps its copy and its reasons.
 
 ### T3.7 — Content UI and approvals
 **Files:** `apps/web/.../content/`, `components/content/`, `components/agent/RunStream.tsx`

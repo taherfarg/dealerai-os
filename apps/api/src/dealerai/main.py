@@ -7,13 +7,14 @@ from typing import Any
 import structlog
 from fastapi import FastAPI
 
+from . import agents as _agents  # noqa: F401  registers the agents
 from . import tools as _tools  # noqa: F401  registers the agent tools
 from .config import get_settings
 from .core.errors import install_error_handlers
 from .core.logging import configure_logging, install_request_context
 from .db import session
 from .events import handlers as _handlers  # noqa: F401  registers the event handlers
-from .routes import approvals, imports, runs, tenants, vehicles
+from .routes import approvals, content, imports, runs, tenants, vehicles
 
 log = structlog.get_logger()
 
@@ -45,6 +46,7 @@ def create_app() -> FastAPI:
     app.include_router(vehicles.router)
     app.include_router(imports.router)
     app.include_router(runs.router)
+    app.include_router(content.router)
 
     @app.get("/internal/health")
     async def health() -> dict[str, Any]:

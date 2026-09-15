@@ -61,9 +61,14 @@ async def _run_tool(call: types.FunctionCall, ctx: TenantContext, ids: dict[str,
     giving it tools instead of letting it remember.
     """
     try:
-        return await registry.call(call.name or "", ctx, dict(call.args or {}), **ids)
+        result = await registry.call(call.name or "", ctx, dict(call.args or {}), **ids)
     except registry.ToolError as exc:
         return {"error": str(exc)}
+    # Made of JSON before it goes back to the SDK. A numeric column arrives as a
+    # Decimal, and handing one to a FunctionResponse fails the whole task after
+    # the tool has already done its work — which reads as a tool failure and is
+    # not one.
+    return registry.jsonable(result)
 
 
 async def converse(

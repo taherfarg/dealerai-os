@@ -13,6 +13,7 @@ import signal
 import structlog
 
 # Imported for its side effects: this is what registers the handlers.
+from . import agents as _agents  # noqa: F401  registers the agents
 from . import tools as _tools  # noqa: F401  registers the agent tools
 from .config import get_settings
 from .core.logging import configure_logging
