@@ -295,3 +295,21 @@ create policy tenant_visibility on activities
     )
   )
   with check (app.has_tenant_access(tenant_id));
+
+-- =============================================================================
+-- THE BROWSER NO LONGER READS TABLES
+-- docs/sales/README.md records this as a change to DealerAI OS 01 § 2 path A:
+-- every read goes through FastAPI, where the scope is set and the visibility
+-- policies apply. Leaving PostgREST open would be a second, weaker door.
+--
+-- On Supabase, tables created later inherit default privileges for anon and
+-- authenticated (see 0005_harden.sql), so every later Sales migration repeats
+-- the table revoke for the tables it adds.
+-- =============================================================================
+revoke all on all tables in schema public from anon, authenticated;
+revoke all on all sequences in schema public from anon, authenticated;
+alter default privileges in schema public revoke all on tables from anon, authenticated;
+alter default privileges in schema public revoke all on sequences from anon, authenticated;
+
+-- The browser called this directly while it still had a path; nothing does now.
+revoke execute on function app.tenants_for_user(uuid) from authenticated;

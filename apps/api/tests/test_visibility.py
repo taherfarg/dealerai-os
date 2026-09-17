@@ -151,3 +151,28 @@ async def test_the_worker_still_sees_everything(db: None, visibility_seed: dict[
     """Handlers act on rows already routed; a scoped worker would silently skip work."""
     async with tenant_session(TENANT_A) as conn:
         assert await conn.fetchval("select count(*) from contacts") >= 6
+
+
+# --------------------------------------------------------------------------
+# the browser path is closed
+# --------------------------------------------------------------------------
+
+
+async def test_browser_roles_cannot_read_any_table(su: asyncpg.Connection) -> None:
+    """The API is the only data path, so anon and authenticated have no business
+    reaching tables directly. Visibility is enforced where the API sets the
+    scope; leaving PostgREST open would be a second, weaker door."""
+    tables = [
+        r["tablename"]
+        for r in await su.fetch("select tablename from pg_tables where schemaname = 'public'")
+    ]
+    assert tables, "no tables found — did migrations run?"
+    leaks = []
+    for table in tables:
+        for role in ("anon", "authenticated"):
+            for privilege in ("SELECT", "INSERT", "UPDATE", "DELETE"):
+                if await su.fetchval(
+                    "select has_table_privilege($1, $2, $3)", role, f"public.{table}", privilege
+                ):
+                    leaks.append(f"{role} can {privilege} {table}")
+    assert not leaks, "browser roles still reach tables directly: " + ", ".join(leaks)
