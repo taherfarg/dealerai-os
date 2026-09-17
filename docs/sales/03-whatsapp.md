@@ -165,7 +165,7 @@ Meta's send API takes no idempotency key, so the guarantee is ours:
    "Delivery unknown — check the conversation before resending". Guessing on a customer-facing double
    send is the wrong default; a person decides.
 
-(`sending` is added to the `messages.status` check in `0006_sales.sql`.)
+(`sending` is added to the `messages.status` check by the S1 migration.)
 
 ---
 

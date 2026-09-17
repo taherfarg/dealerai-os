@@ -2,9 +2,11 @@
 
 **Status:** Draft · **Depends on:** DealerAI OS [03](../03-database-schema.md) (tenancy rules), [01](01-architecture.md)
 
-This is the specification for `supabase/migrations/0006_sales.sql`. Once the migration exists, **the
-SQL is the source of truth** and this document explains it — the DealerAI OS rule, for the same
-reason: a schema described in two places drifts in one of them.
+This is the specification for the Sales migrations. There is one per slice, because an applied
+migration is never edited — the runner refuses a changed checksum: `0006_sales_core.sql` (S0: teams,
+identities, ownership, visibility), then the inbox, CRM and copilot migrations as those slices start.
+Once a migration exists, **the SQL is the source of truth** and this document explains it — the
+DealerAI OS rule, for the same reason: a schema described in two places drifts in one of them.
 
 Every rule in DealerAI OS 03 still applies: `tenant_id` on every row, RLS enabled and forced, the
 policy generated in a loop, money as `*_minor bigint` + `currency`, `text` + `CHECK` instead of enums,

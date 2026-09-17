@@ -241,7 +241,7 @@ The DealerAI OS 04 §3 design, pulled forward from T5.2:
   fusion; top 8 retrieved, 4 used. Always pre-filtered by tenant.
 - The embedding model must be genuinely multilingual (an Arabic question against an English policy).
   It is chosen at implementation with a 50-question recall check. `doc_chunks.embedding` is empty
-  today, so `0006` may change its dimension to fit the chosen model at no cost.
+  today, so the S4 migration may change its dimension to fit the chosen model at no cost.
 - Inventory is never embedded. Prices and stock are SQL only (DealerAI OS 04 §1).
 
 ---

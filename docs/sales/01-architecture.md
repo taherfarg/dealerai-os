@@ -241,6 +241,9 @@ Everything in Phase 1 except coexistence onboarding is buildable and testable of
   WhatsApp webhook payload, signs it with the local app secret, and POSTs it to
   `/webhooks/whatsapp`. It exercises the real path — signature, persistence, routing, events —
   not a shortcut around it. Local environment only; the route refuses unsigned bodies everywhere.
+- **Sign-in:** `/dev-login` signs in as any seeded person with a locally minted token. It exists only
+  when the API runs with `ENV=local` and the web app is a non-production build with
+  `NEXT_PUBLIC_DEV_AUTH=1` — checked on both sides.
 - **Outbound:** the mock connector records sends and emits the status webhooks a real send would.
 - **Staging:** Meta's test phone number (up to five recipient numbers) for real sends before approval.
 

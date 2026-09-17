@@ -20,7 +20,6 @@ export type Role = "owner" | "admin" | "manager" | "sales" | "marketer" | "viewe
 export type Scope = "all" | "team" | "own";
 
 export type Permission =
-  | "inbox.view_all"
   | "inbox.assign"
   | "inbox.send"
   | "contacts.reassign"

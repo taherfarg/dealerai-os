@@ -35,14 +35,14 @@ French). Every Phase 1 feature must be usable by their sales team in week one of
 |---|---|---|
 | 00 | [PRD](00-prd.md) | The problem, personas, phases, success criteria, non-goals, compliance |
 | 01 | [Architecture](01-architecture.md) | What is added to DealerAI OS, request paths, live updates, visibility, failure modes |
-| 02 | [Data model](02-data-model.md) | Every new and changed table for `0006_sales.sql`, visibility RLS, the test matrix |
+| 02 | [Data model](02-data-model.md) | Every new and changed table for the Sales migrations (one per slice), visibility RLS, the test matrix |
 | 03 | [WhatsApp](03-whatsapp.md) | Cloud API, coexistence, Embedded Signup, every webhook, identity, templates, Meta onboarding |
 | 04 | [AI copilot](04-ai-copilot.md) | Drafts, guards, profile, summaries, scoring, follow-ups, evals, cost |
 | 05 | [Workflows](05-workflows.md) | Event catalogue additions and every end-to-end flow with failure handling |
 | 06 | [API contract](06-api-contract.md) | Routes, shapes, permissions, live events, errors |
 | 07 | [Frontend](07-frontend.md) | `apps/web` architecture: data access, live updates, i18n and RTL, PWA, tests |
 | 08 | [Screens](08-screens.md) | Every screen: purpose, data, states, actions, roles, mobile, "done when" |
-| 09 | Implementation plan | Written after 00–08 are reviewed |
+| 09 | [Implementation plan](09-implementation-plan.md) | Slices S0–S7, the Meta track, definition of done; step-by-step plans in [`plans/`](plans/) |
 
 ---
 
