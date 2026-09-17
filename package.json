@@ -13,6 +13,8 @@
     "db:reset": "docker compose down -v && npm run db:up && npm run db:migrate",
     "db:migrate": "cd apps/api && uv run python -m dealerai.scripts.migrate",
     "db:seed": "cd apps/api && uv run python -m dealerai.scripts.seed_sales",
+    "api-types": "cd apps/api && uv run python -m dealerai.scripts.export_openapi && cd ../web && npx openapi-typescript lib/api/openapi.json -o lib/api/schema.ts",
+    "check:openapi": "npm run api-types && git diff --exit-code -- apps/web/lib/api/openapi.json apps/web/lib/api/schema.ts",
     "db:psql": "docker compose exec db psql -U postgres -d dealerai",
     "api": "cd apps/api && uv run uvicorn dealerai.main:app --reload --port 8000",
     "dev": "npm run db:up && npm run db:migrate && npm run api",
