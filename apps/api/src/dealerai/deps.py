@@ -16,7 +16,7 @@ from uuid import UUID
 from fastapi import Depends, Header, Request
 
 from .core.errors import Forbidden, NotFound
-from .core.permissions import ROLES, permissions_for, scope_for  # routes import ROLES from here
+from .core.permissions import ROLES, permissions_for, scope_for
 from .core.security import AuthedUser, Unauthenticated, decode_supabase_jwt
 from .db.session import system_session
 

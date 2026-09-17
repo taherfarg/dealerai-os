@@ -11,9 +11,10 @@ from pydantic import BaseModel, Field
 
 from ..config import get_settings
 from ..core.errors import Conflict, Forbidden, NotFound
+from ..core.permissions import ROLES
 from ..core.security import AuthUnavailable, Unauthenticated
 from ..db.session import system_session, tenant_session
-from ..deps import ROLES, Ctx, CurrentUser, TenantContext, require_role
+from ..deps import Ctx, CurrentUser, TenantContext, require_role
 
 router = APIRouter(prefix="/v1", tags=["tenants"])
 
@@ -99,8 +100,8 @@ async def list_my_tenants(user: CurrentUser) -> list[Any]:
 
     Runs before any tenant context exists, so it goes through a SECURITY
     DEFINER function scoped to one user id — see 0003_bootstrap.sql. The
-    browser reads this straight from Supabase under RLS instead; this endpoint
-    exists for the generated API client and for service callers.
+    browser has no direct table access since 0006_sales_core.sql, so this
+    endpoint is how every client learns its workspaces.
     """
     async with system_session() as conn:
         rows = await conn.fetch("select * from app.tenants_for_user($1)", user.id)
