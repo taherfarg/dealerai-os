@@ -17,7 +17,7 @@ from ..deps import ROLES, Ctx, CurrentUser, TenantContext, require_role
 
 router = APIRouter(prefix="/v1", tags=["tenants"])
 
-Role = Literal["viewer", "sales", "marketer", "admin", "owner"]
+Role = Literal["viewer", "sales", "marketer", "manager", "admin", "owner"]
 AutonomyMode = Literal["copilot", "assisted", "autopilot"]
 
 INVITE_TTL_DAYS = 7

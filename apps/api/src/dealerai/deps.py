@@ -16,11 +16,9 @@ from uuid import UUID
 from fastapi import Depends, Header, Request
 
 from .core.errors import Forbidden, NotFound
+from .core.permissions import ROLES, permissions_for, scope_for  # routes import ROLES from here
 from .core.security import AuthedUser, Unauthenticated, decode_supabase_jwt
 from .db.session import system_session
-
-#: Ordered least to most privileged. require_role compares by index.
-ROLES = ("viewer", "sales", "marketer", "admin", "owner")
 
 
 @dataclass(frozen=True, slots=True)
@@ -28,6 +26,18 @@ class TenantContext:
     tenant_id: UUID
     user: AuthedUser
     role: str
+
+    @property
+    def scope(self) -> str:
+        """What this caller may see: own, team or all. Passed to tenant_session."""
+        return scope_for(self.role)
+
+    @property
+    def permissions(self) -> frozenset[str]:
+        return permissions_for(self.role)
+
+    def may(self, permission: str) -> bool:
+        return permission in self.permissions
 
     def at_least(self, role: str) -> bool:
         return ROLES.index(self.role) >= ROLES.index(role)
@@ -78,6 +88,22 @@ def require_role(minimum: str) -> Callable[[TenantContext], Awaitable[TenantCont
     async def guard(ctx: Ctx) -> TenantContext:
         if not ctx.at_least(minimum):
             raise Forbidden(f"this action requires the {minimum} role or higher")
+        return ctx
+
+    return guard
+
+
+def require_permission(permission: str) -> Callable[[TenantContext], Awaitable[TenantContext]]:
+    """Guard a route by permission rather than by rank.
+
+    Rank is the wrong question for most sales actions: a manager may reassign a
+    customer, and an admin cannot do it any better. Usage:
+    `_: Annotated[TenantContext, Depends(require_permission("contacts.reassign"))]`
+    """
+
+    async def guard(ctx: Ctx) -> TenantContext:
+        if not ctx.may(permission):
+            raise Forbidden(f"this action requires the {permission} permission")
         return ctx
 
     return guard
