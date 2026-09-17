@@ -84,7 +84,7 @@ say so explicitly if you do.
 | Area | State |
 |---|---|
 | Documentation | Draft, 2026-09-16 — awaiting review |
-| Code | Not started. Foundation from DealerAI OS M0–M3 is reused |
+| Code | **S0 foundation complete** on `sales/phase-1`: visibility enforced in Postgres, `/v1/me`, members and teams, local sign-in, generated types, the sales shell. Next: S1, the WhatsApp channel |
 | Meta | Business verification and Tech Provider review not started (Pollux Motors). **Critical path** |
 | Supabase project | Schema live in ap-northeast-1 (Tokyo). Moving to Mumbai before real customer data is open question Q1 in [00](00-prd.md) |
 
