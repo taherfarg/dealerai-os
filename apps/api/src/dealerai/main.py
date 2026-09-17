@@ -14,7 +14,7 @@ from .core.errors import install_error_handlers
 from .core.logging import configure_logging, install_request_context
 from .db import session
 from .events import handlers as _handlers  # noqa: F401  registers the event handlers
-from .routes import approvals, content, imports, me, runs, tenants, vehicles
+from .routes import approvals, content, imports, me, runs, team, tenants, vehicles
 
 log = structlog.get_logger()
 
@@ -48,6 +48,7 @@ def create_app() -> FastAPI:
     app.include_router(runs.router)
     app.include_router(content.router)
     app.include_router(me.router)
+    app.include_router(team.router)
 
     @app.get("/internal/health")
     async def health() -> dict[str, Any]:
