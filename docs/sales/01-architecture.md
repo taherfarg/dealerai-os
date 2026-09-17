@@ -226,7 +226,8 @@ must pass. Instagram and Messenger (Phase 2) are new files against the same suit
 
 New configuration (declared in `config.py`, generated into `.env.example`):
 `WHATSAPP_APP_ID`, `WHATSAPP_APP_SECRET`, `WHATSAPP_VERIFY_TOKEN`, `WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID`,
-`WHATSAPP_GRAPH_VERSION`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, `APP_BASE_URL`.
+`WHATSAPP_GRAPH_VERSION`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, `APP_BASE_URL`,
+and `WEB_ORIGINS` — the browser origins allowed to call the API, since the web app calls it directly.
 
 ---
 

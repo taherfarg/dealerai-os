@@ -39,6 +39,10 @@ export async function createClient() {
  * of every customer reply, to re-check a signature it can check locally.
  */
 export async function getAccessToken(): Promise<string | null> {
+  // Local sign-in as a seeded person (lib/dev-auth.ts). Never in a production build.
+  if (process.env.NEXT_PUBLIC_DEV_AUTH === "1" && process.env.NODE_ENV !== "production") {
+    return (await cookies()).get("dev_token")?.value ?? null;
+  }
   const supabase = await createClient();
   const {
     data: { session },
