@@ -313,3 +313,19 @@ alter default privileges in schema public revoke all on sequences from anon, aut
 
 -- The browser called this directly while it still had a path; nothing does now.
 revoke execute on function app.tenants_for_user(uuid) from authenticated;
+
+-- =============================================================================
+-- NAMES ARE READABLE INSIDE THE WORKSPACE
+-- 0001 let a person read only their own profile, through auth.uid(), which
+-- exists only on the browser path that is now closed. On the API path a
+-- person's name must be readable by the people they work with: members of the
+-- tenant in context.
+-- =============================================================================
+create policy profile_tenant_read on profiles
+  for select using (
+    exists (
+      select 1 from public.memberships m
+      where m.user_id = profiles.id
+        and m.tenant_id = nullif(current_setting('app.tenant_id', true), '')::uuid
+    )
+  );

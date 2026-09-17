@@ -258,6 +258,12 @@ async def _seed_people(conn: asyncpg.Connection) -> None:
             "insert into auth.users (id, email) values ($1, $2)", user_id, f"{name}@example.test"
         )
         await conn.execute(
+            "insert into profiles (id, full_name, email) values ($1, $2, $3)",
+            user_id,
+            name,
+            f"{name}@example.test",
+        )
+        await conn.execute(
             "insert into memberships (tenant_id, user_id, role) values ($1, $2, $3)",
             TENANT_A,
             user_id,

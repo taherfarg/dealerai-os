@@ -176,3 +176,19 @@ async def test_browser_roles_cannot_read_any_table(su: asyncpg.Connection) -> No
                 ):
                     leaks.append(f"{role} can {privilege} {table}")
     assert not leaks, "browser roles still reach tables directly: " + ", ".join(leaks)
+
+
+async def test_names_are_readable_only_inside_the_workspace(
+    db: None, su: asyncpg.Connection, visibility_seed: dict[str, UUID]
+) -> None:
+    """profiles has no tenant_id; its policy reaches the tenant through memberships."""
+    from conftest import USER_B
+
+    await su.execute(
+        "insert into profiles (id, full_name) values ($1, 'beta person') on conflict do nothing",
+        USER_B,
+    )
+    async with tenant_session(TENANT_A, user_id=SALES_1, scope="own") as conn:
+        names = {r["full_name"] for r in await conn.fetch("select full_name from profiles")}
+    assert "sales1" in names, "a colleague's name should be readable"
+    assert "beta person" not in names, "LEAK: another dealership's staff names are readable"
