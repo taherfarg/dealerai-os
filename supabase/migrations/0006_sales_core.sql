@@ -131,3 +131,77 @@ end $$;
 
 create trigger teams_touch before update on teams
   for each row execute function app.touch_updated_at();
+
+-- =============================================================================
+-- VISIBILITY
+-- The same idea as tenancy, one level down: the session states who is asking
+-- and how wide they may see (db/session.py sets app.user_id and app.scope), and
+-- the policies enforce it. Call sites wrap each function in (select …) so
+-- Postgres evaluates it once per statement instead of once per row.
+-- =============================================================================
+
+create or replace function app.current_user_id()
+returns uuid
+language sql
+stable
+set search_path = public, pg_temp
+as $$
+  select nullif(current_setting('app.user_id', true), '')::uuid
+$$;
+
+create or replace function app.my_team_ids()
+returns uuid[]
+language sql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+  select coalesce(array_agg(tm.team_id), '{}')
+  from public.team_members tm
+  where tm.user_id = app.current_user_id()
+$$;
+
+-- NULL means "no owner filter": the scope is 'all'. An empty array would mean
+-- "sees nothing", which is a different thing, so the distinction is load-bearing.
+create or replace function app.visible_owner_ids()
+returns uuid[]
+language sql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+  select case coalesce(nullif(current_setting('app.scope', true), ''), 'all')
+    when 'own' then array[app.current_user_id()]
+    when 'team' then (
+      select coalesce(array_agg(distinct tm2.user_id), '{}') || array[app.current_user_id()]
+      from public.team_members tm1
+      join public.team_members tm2 on tm2.team_id = tm1.team_id
+      where tm1.user_id = app.current_user_id())
+    else null
+  end
+$$;
+
+-- Whether the unassigned queue of your teams is visible. Always for scope 'all';
+-- otherwise the tenant's setting, which defaults to visible.
+create or replace function app.pool_visible()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+  select case
+    when coalesce(nullif(current_setting('app.scope', true), ''), 'all') = 'all' then true
+    else coalesce(
+      (select (t.sales_settings->>'unassigned_visible_to_sales')::boolean
+       from public.tenants t
+       where t.id = nullif(current_setting('app.tenant_id', true), '')::uuid),
+      true)
+  end
+$$;
+
+revoke all on function app.my_team_ids(), app.visible_owner_ids(), app.pool_visible() from public;
+grant execute on function app.current_user_id() to dealerai_app, authenticated;
+grant execute on function app.my_team_ids() to dealerai_app, authenticated;
+grant execute on function app.visible_owner_ids() to dealerai_app, authenticated;
+grant execute on function app.pool_visible() to dealerai_app, authenticated;

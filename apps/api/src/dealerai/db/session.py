@@ -53,17 +53,39 @@ def _require_pool() -> asyncpg.Pool:
     return _pool
 
 
-@contextlib.asynccontextmanager
-async def tenant_session(tenant_id: UUID | str) -> AsyncIterator[asyncpg.Connection]:
-    """Open a transaction scoped to exactly one tenant.
+#: What a caller may see: their own rows, their teams' rows, or everything.
+SCOPES = ("own", "team", "all")
 
-    SET LOCAL (via set_config(..., true)) is transaction-scoped, so a pooled
-    connection cannot leak a tenant context into the next request. Plain SET
-    would, which is why it is never used here.
+
+@contextlib.asynccontextmanager
+async def tenant_session(
+    tenant_id: UUID | str,
+    *,
+    user_id: UUID | str | None = None,
+    scope: str = "all",
+) -> AsyncIterator[asyncpg.Connection]:
+    """Open a transaction scoped to one tenant, and optionally to one person.
+
+    `scope` is what that person may see — own, team or all — and the visibility
+    policies in 0006_sales_core.sql filter on it. The worker keeps the default:
+    it acts on rows that were already routed.
+
+    All three settings use SET LOCAL (set_config(..., true)), which is
+    transaction-scoped, so a pooled connection cannot carry a tenant *or a user*
+    into the next request. Plain SET would, which is why it is never used here.
     """
+    if scope not in SCOPES:
+        raise ValueError(f"unknown scope {scope!r}; expected one of {SCOPES}")
     async with _require_pool().acquire() as conn:
         async with conn.transaction():
-            await conn.execute("select set_config('app.tenant_id', $1, true)", str(tenant_id))
+            await conn.execute(
+                """select set_config('app.tenant_id', $1, true),
+                          set_config('app.user_id', $2, true),
+                          set_config('app.scope', $3, true)""",
+                str(tenant_id),
+                str(user_id) if user_id else "",
+                scope,
+            )
             yield conn
 
 
