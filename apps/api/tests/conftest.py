@@ -17,6 +17,16 @@ TENANT_B = uuid.UUID("bbbbbbbb-0000-4000-8000-000000000002")
 USER_A = uuid.UUID("aaaaaaaa-1111-4000-8000-000000000001")
 USER_B = uuid.UUID("bbbbbbbb-1111-4000-8000-000000000002")
 
+#: People and teams for the visibility matrix (tests/test_visibility.py).
+OWNER = uuid.UUID("cccccccc-1111-4000-8000-000000000001")
+MANAGER = uuid.UUID("cccccccc-1111-4000-8000-000000000002")
+SALES_1 = uuid.UUID("cccccccc-1111-4000-8000-000000000003")
+SALES_2 = uuid.UUID("cccccccc-1111-4000-8000-000000000004")
+SALES_X = uuid.UUID("cccccccc-1111-4000-8000-000000000005")
+TEAM_LOCAL = uuid.UUID("dddddddd-1111-4000-8000-000000000001")
+TEAM_EXPORT = uuid.UUID("dddddddd-1111-4000-8000-000000000002")
+PEOPLE_IDS = [OWNER, MANAGER, SALES_1, SALES_2, SALES_X]
+
 #: Tables the behavioural isolation tests seed and assert against. The
 #: structural test (test_every_tenant_table_has_forced_rls) covers the rest —
 #: it catches the real regression, which is "someone added a table and forgot".
@@ -105,7 +115,9 @@ async def db(_migrated: None) -> AsyncIterator[None]:
 
 async def _wipe(conn: asyncpg.Connection) -> None:
     await conn.execute("delete from tenants")
-    await conn.execute("delete from auth.users where id = any($1::uuid[])", [USER_A, USER_B])
+    await conn.execute(
+        "delete from auth.users where id = any($1::uuid[])", [USER_A, USER_B, *PEOPLE_IDS]
+    )
 
 
 async def _seed_tenant(
@@ -226,3 +238,118 @@ class jwt_session:
     async def __aexit__(self, *exc: object) -> None:
         assert self._tx is not None
         await self._tx.rollback()
+
+
+# --------------------------------------------------------------------------
+# people, teams and customers for the visibility matrix
+# --------------------------------------------------------------------------
+
+
+async def _seed_people(conn: asyncpg.Connection) -> None:
+    people = (
+        (OWNER, "owner", "owner"),
+        (MANAGER, "manager", "manager"),
+        (SALES_1, "sales1", "sales"),
+        (SALES_2, "sales2", "sales"),
+        (SALES_X, "salesx", "sales"),
+    )
+    for user_id, name, role in people:
+        await conn.execute(
+            "insert into auth.users (id, email) values ($1, $2)", user_id, f"{name}@example.test"
+        )
+        await conn.execute(
+            "insert into memberships (tenant_id, user_id, role) values ($1, $2, $3)",
+            TENANT_A,
+            user_id,
+            role,
+        )
+    for team_id, team_name in ((TEAM_LOCAL, "Local sales"), (TEAM_EXPORT, "Export")):
+        await conn.execute(
+            "insert into teams (id, tenant_id, name) values ($1, $2, $3)",
+            team_id,
+            TENANT_A,
+            team_name,
+        )
+    for team_id, user_id in (
+        (TEAM_LOCAL, MANAGER),
+        (TEAM_LOCAL, SALES_1),
+        (TEAM_LOCAL, SALES_2),
+        (TEAM_EXPORT, SALES_X),
+    ):
+        await conn.execute(
+            "insert into team_members (tenant_id, team_id, user_id) values ($1, $2, $3)",
+            TENANT_A,
+            team_id,
+            user_id,
+        )
+
+
+async def _seed_customer(
+    conn: asyncpg.Connection,
+    name: str,
+    owner_id: uuid.UUID | None,
+    team_id: uuid.UUID | None,
+    assigned_to: uuid.UUID | None = None,
+) -> uuid.UUID:
+    """One customer with one conversation and one lead, owned as stated."""
+    contact_id = uuid.uuid4()
+    await conn.execute(
+        """insert into contacts (id, tenant_id, full_name, owner_id, team_id)
+           values ($1, $2, $3, $4, $5)""",
+        contact_id,
+        TENANT_A,
+        name,
+        owner_id,
+        team_id,
+    )
+    await conn.execute(
+        """insert into conversations
+             (tenant_id, contact_id, surface, owner_id, team_id, assigned_to)
+           values ($1, $2, 'whatsapp', $3, $4, $5)""",
+        TENANT_A,
+        contact_id,
+        owner_id,
+        team_id,
+        assigned_to if assigned_to is not None else owner_id,
+    )
+    await conn.execute(
+        """insert into leads (tenant_id, contact_id, stage, owner_id, team_id)
+           values ($1, $2, 'new', $3, $4)""",
+        TENANT_A,
+        contact_id,
+        owner_id,
+        team_id,
+    )
+    return contact_id
+
+
+@pytest.fixture
+async def visibility_seed(su: asyncpg.Connection) -> AsyncIterator[dict[str, uuid.UUID]]:
+    """Five people, two teams and six customers with different owners."""
+    await _wipe(su)
+    await _seed_tenant(su, TENANT_A, USER_A, "alpha")
+    await _seed_tenant(su, TENANT_B, USER_B, "beta")
+    await _seed_people(su)
+    ids = {
+        "s1": await _seed_customer(su, "s1 customer", SALES_1, TEAM_LOCAL),
+        "s2": await _seed_customer(su, "s2 customer", SALES_2, TEAM_LOCAL),
+        # S2 owns the customer; S1 is covering the conversation.
+        "covered": await _seed_customer(su, "covered customer", SALES_2, TEAM_LOCAL, SALES_1),
+        "x": await _seed_customer(su, "x customer", SALES_X, TEAM_EXPORT),
+        "pool_local": await _seed_customer(su, "local pool", None, TEAM_LOCAL),
+        "pool_export": await _seed_customer(su, "export pool", None, TEAM_EXPORT),
+    }
+    yield ids
+    await _wipe(su)
+
+
+async def reseed_with_people() -> None:
+    """reseed() plus the visibility people, for synchronous route tests."""
+    conn = await asyncpg.connect(get_settings().migration_dsn)
+    try:
+        await _wipe(conn)
+        await _seed_tenant(conn, TENANT_A, USER_A, "alpha")
+        await _seed_tenant(conn, TENANT_B, USER_B, "beta")
+        await _seed_people(conn)
+    finally:
+        await conn.close()

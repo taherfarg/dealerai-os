@@ -137,7 +137,9 @@ create trigger teams_touch before update on teams
 -- The same idea as tenancy, one level down: the session states who is asking
 -- and how wide they may see (db/session.py sets app.user_id and app.scope), and
 -- the policies enforce it. Call sites wrap each function in (select …) so
--- Postgres evaluates it once per statement instead of once per row.
+-- Postgres evaluates it once per statement instead of once per row, and inside
+-- coalesce(…) so `= any (…)` sees an array expression: `= any ((select …))` on
+-- its own is the subquery form, which compares the uuid with the whole array.
 -- =============================================================================
 
 create or replace function app.current_user_id()
@@ -205,3 +207,91 @@ grant execute on function app.current_user_id() to dealerai_app, authenticated;
 grant execute on function app.my_team_ids() to dealerai_app, authenticated;
 grant execute on function app.visible_owner_ids() to dealerai_app, authenticated;
 grant execute on function app.pool_visible() to dealerai_app, authenticated;
+
+-- =============================================================================
+-- VISIBILITY POLICIES
+-- The tenant predicate stays exactly as it was; visibility is an extra clause.
+--
+-- WITH CHECK stays tenant-only on purpose: reassigning a conversation to a
+-- colleague makes it invisible to the person doing it, and a visibility check on
+-- the new row would make that update fail. Who may reassign is a permission,
+-- checked in the route; who may see is RLS.
+--
+-- Each table gets exactly one policy. Permissive policies are OR'ed, so leaving
+-- the old tenant_isolation policy beside a stricter one would quietly undo it.
+-- =============================================================================
+
+drop policy tenant_isolation on contacts;
+create policy tenant_visibility on contacts
+  using (
+    app.has_tenant_access(tenant_id)
+    and (
+      (select app.visible_owner_ids()) is null
+      or owner_id = any (coalesce((select app.visible_owner_ids()), '{}'))
+      or (owner_id is null and team_id = any (coalesce((select app.my_team_ids()), '{}'))
+          and (select app.pool_visible()))
+      -- covering for a colleague: assigned one of this customer's conversations
+      or exists (select 1 from public.conversations c
+                 where c.contact_id = contacts.id
+                   and c.assigned_to = (select app.current_user_id()))
+    )
+  )
+  with check (app.has_tenant_access(tenant_id));
+
+drop policy tenant_isolation on conversations;
+create policy tenant_visibility on conversations
+  using (
+    app.has_tenant_access(tenant_id)
+    and (
+      (select app.visible_owner_ids()) is null
+      or owner_id = any (coalesce((select app.visible_owner_ids()), '{}'))
+      or assigned_to = (select app.current_user_id())
+      or (owner_id is null and assigned_to is null
+          and team_id = any (coalesce((select app.my_team_ids()), '{}'))
+          and (select app.pool_visible()))
+    )
+  )
+  with check (app.has_tenant_access(tenant_id));
+
+drop policy tenant_isolation on leads;
+create policy tenant_visibility on leads
+  using (
+    app.has_tenant_access(tenant_id)
+    and (
+      (select app.visible_owner_ids()) is null
+      or owner_id = any (coalesce((select app.visible_owner_ids()), '{}'))
+      or (owner_id is null and team_id = any (coalesce((select app.my_team_ids()), '{}'))
+          and (select app.pool_visible()))
+    )
+  )
+  with check (app.has_tenant_access(tenant_id));
+
+-- Children inherit their parent's visibility: the inner select is itself
+-- filtered by the parent's policy above.
+drop policy tenant_isolation on messages;
+create policy tenant_visibility on messages
+  using (
+    app.has_tenant_access(tenant_id)
+    and exists (select 1 from public.conversations c where c.id = messages.conversation_id)
+  )
+  with check (app.has_tenant_access(tenant_id));
+
+drop policy tenant_isolation on contact_identities;
+create policy tenant_visibility on contact_identities
+  using (
+    app.has_tenant_access(tenant_id)
+    and exists (select 1 from public.contacts c where c.id = contact_identities.contact_id)
+  )
+  with check (app.has_tenant_access(tenant_id));
+
+drop policy tenant_isolation on activities;
+create policy tenant_visibility on activities
+  using (
+    app.has_tenant_access(tenant_id)
+    and (
+      (select app.visible_owner_ids()) is null
+      or exists (select 1 from public.leads l where l.id = activities.lead_id)
+      or exists (select 1 from public.contacts c where c.id = activities.contact_id)
+    )
+  )
+  with check (app.has_tenant_access(tenant_id));
