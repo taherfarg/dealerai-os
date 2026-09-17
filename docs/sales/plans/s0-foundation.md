@@ -399,7 +399,7 @@ $$;
 create or replace function app.visible_owner_ids()
 returns uuid[] language sql stable security definer
 set search_path = public, pg_temp as $$
-  select case coalesce(current_setting('app.scope', true), 'all')
+  select case coalesce(nullif(current_setting('app.scope', true), ''), 'all')
     when 'own' then array[app.current_user_id()]
     when 'team' then (
       select coalesce(array_agg(distinct tm2.user_id), '{}') || array[app.current_user_id()]
@@ -413,7 +413,7 @@ $$;
 create or replace function app.pool_visible()
 returns boolean language sql stable security definer
 set search_path = public, pg_temp as $$
-  select case when coalesce(current_setting('app.scope', true), 'all') = 'all' then true
+  select case when coalesce(nullif(current_setting('app.scope', true), ''), 'all') = 'all' then true
     else coalesce(
       (select (t.sales_settings->>'unassigned_visible_to_sales')::boolean
        from public.tenants t
@@ -711,8 +711,8 @@ create policy tenant_visibility on contacts
     app.has_tenant_access(tenant_id)
     and (
       (select app.visible_owner_ids()) is null
-      or owner_id = any ((select app.visible_owner_ids()))
-      or (owner_id is null and team_id = any ((select app.my_team_ids()))
+      or owner_id = any (coalesce((select app.visible_owner_ids()), '{}'))
+      or (owner_id is null and team_id = any (coalesce((select app.my_team_ids()), '{}'))
           and (select app.pool_visible()))
       or exists (select 1 from public.conversations c
                  where c.contact_id = contacts.id
@@ -727,10 +727,10 @@ create policy tenant_visibility on conversations
     app.has_tenant_access(tenant_id)
     and (
       (select app.visible_owner_ids()) is null
-      or owner_id = any ((select app.visible_owner_ids()))
+      or owner_id = any (coalesce((select app.visible_owner_ids()), '{}'))
       or assigned_to = (select app.current_user_id())
       or (owner_id is null and assigned_to is null
-          and team_id = any ((select app.my_team_ids()))
+          and team_id = any (coalesce((select app.my_team_ids()), '{}'))
           and (select app.pool_visible()))
     )
   )
@@ -742,8 +742,8 @@ create policy tenant_visibility on leads
     app.has_tenant_access(tenant_id)
     and (
       (select app.visible_owner_ids()) is null
-      or owner_id = any ((select app.visible_owner_ids()))
-      or (owner_id is null and team_id = any ((select app.my_team_ids()))
+      or owner_id = any (coalesce((select app.visible_owner_ids()), '{}'))
+      or (owner_id is null and team_id = any (coalesce((select app.my_team_ids()), '{}'))
           and (select app.pool_visible()))
     )
   )
@@ -770,11 +770,15 @@ create policy tenant_visibility on activities
   )
   with check (app.has_tenant_access(tenant_id));
 
-create policy tenant_visibility_identities on contact_identities
-  for select using (
+-- Replace, never add: permissive policies are OR'ed, so the tenant-only policy
+-- left beside this one would quietly undo it.
+drop policy tenant_isolation on contact_identities;
+create policy tenant_visibility on contact_identities
+  using (
     app.has_tenant_access(tenant_id)
     and exists (select 1 from public.contacts c where c.id = contact_identities.contact_id)
-  );
+  )
+  with check (app.has_tenant_access(tenant_id));
 ```
 
 - [ ] **Step 5: Run the matrix and the whole suite**
