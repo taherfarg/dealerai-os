@@ -1,20 +1,30 @@
-import Link from "next/link";
 import { type Locale, t } from "@/lib/i18n";
+import { AvailabilitySwitch } from "./AvailabilitySwitch";
 import { LocaleToggle } from "./LocaleToggle";
+import { NavLinks, type NavItem } from "./NavLinks";
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
 
 type Tenant = { id: string; slug: string; name: string };
 
-const NAV = [
-  { href: "", key: "nav.command" },
-  { href: "/inventory", key: "nav.inventory" },
-  { href: "/content", key: "nav.content" },
+const SALES: readonly NavItem[] = [
   { href: "/inbox", key: "nav.inbox" },
-  { href: "/leads", key: "nav.leads" },
+  { href: "/today", key: "nav.today" },
+  { href: "/customers", key: "nav.customers" },
+  { href: "/pipeline", key: "nav.pipeline" },
+  { href: "/tasks", key: "nav.tasks" },
+  { href: "/dashboard", key: "nav.dashboard", permission: "dashboard.manager" },
+  { href: "/inventory", key: "nav.inventory" },
   { href: "/approvals", key: "nav.approvals" },
-  { href: "/analytics", key: "nav.analytics" },
   { href: "/settings", key: "nav.settings" },
-] as const;
+];
+
+const MARKETING: readonly NavItem[] = [
+  { href: "/command", key: "nav.command" },
+  { href: "/content", key: "nav.content" },
+];
+
+/** Five destinations fit a phone's bottom bar; everything else is one tap into Settings for now. */
+const MOBILE: readonly NavItem[] = [...SALES.slice(0, 4), { href: "/settings", key: "nav.settings" }];
 
 export function Shell({
   tenant,
@@ -41,26 +51,28 @@ export function Shell({
 
         <WorkspaceSwitcher current={tenant} tenants={tenants} locale={locale} />
 
-        <nav className="flex flex-row flex-wrap gap-1 md:flex-col">
-          {NAV.map((item) => (
-            <Link
-              key={item.key}
-              href={`/${tenant.slug}${item.href}`}
-              // ps-3 / text-start are logical: they flip automatically in RTL.
-              className="hover:bg-background flex items-center justify-between gap-2 rounded-md px-3 py-2 text-sm text-start transition-colors"
-            >
-              <span>{t(locale, item.key)}</span>
-              {item.key === "nav.approvals" && pendingApprovals > 0 && (
-                <span className="bg-accent min-w-5 rounded-full px-1.5 py-0.5 text-center text-xs font-medium text-black">
-                  {pendingApprovals}
-                </span>
-              )}
-            </Link>
-          ))}
+        <nav className="hidden flex-col gap-1 md:flex">
+          <NavLinks
+            slug={tenant.slug}
+            items={SALES}
+            badges={{ "nav.approvals": pendingApprovals }}
+          />
+          <p className="text-muted mt-4 px-3 text-xs uppercase tracking-wide">
+            {t(locale, "nav.marketing")}
+          </p>
+          <NavLinks slug={tenant.slug} items={MARKETING} />
         </nav>
+
+        <div className="mt-auto hidden md:block">
+          <AvailabilitySwitch />
+        </div>
       </aside>
 
-      <main className="min-w-0 p-4 md:p-8">{children}</main>
+      <main className="min-w-0 p-4 pb-24 md:p-8">{children}</main>
+
+      <nav className="border-border bg-surface fixed inset-x-0 bottom-0 flex justify-around border-t p-1 md:hidden">
+        <NavLinks slug={tenant.slug} items={MOBILE} />
+      </nav>
     </div>
   );
 }

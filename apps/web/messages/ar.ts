@@ -1,0 +1,31 @@
+import type { en } from "./en";
+
+// `satisfies` makes a missing Arabic key a type error, not a blank button in Dubai.
+export const ar = {
+  "nav.inbox": "المحادثات",
+  "nav.today": "يومي",
+  "nav.customers": "العملاء",
+  "nav.pipeline": "مسار المبيعات",
+  "nav.tasks": "المهام",
+  "nav.dashboard": "لوحة المتابعة",
+  "nav.inventory": "المخزون",
+  "nav.approvals": "الموافقات",
+  "nav.settings": "الإعدادات",
+  "nav.marketing": "التسويق",
+  "nav.command": "مركز القيادة",
+  "nav.content": "المحتوى",
+  "availability.taking": "أستقبل المحادثات",
+  "availability.away": "لا أستقبل المحادثات",
+  "common.comingSoon": "هذه الشاشة قادمة في مرحلة لاحقة.",
+  "approvals.title": "الموافقات",
+  "approvals.empty": "لا يوجد ما ينتظر موافقتك.",
+  "approvals.approve": "موافقة",
+  "approvals.reject": "رفض",
+  "approvals.requires": "يتطلب",
+  "auth.signIn": "تسجيل الدخول",
+  "auth.email": "البريد الإلكتروني",
+  "auth.password": "كلمة المرور",
+  "auth.working": "جارٍ تسجيل الدخول…",
+  "workspace.switch": "مساحة العمل",
+  "workspace.none": "لا توجد مساحة عمل",
+} satisfies Record<keyof typeof en, string>;

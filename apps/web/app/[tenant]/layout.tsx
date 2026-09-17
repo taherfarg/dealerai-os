@@ -36,7 +36,7 @@ export default async function TenantLayout({
   }
 
   return (
-    <Providers tenantId={tenant.id} slug={tenant.slug}>
+    <Providers tenantId={tenant.id} slug={tenant.slug} locale={locale}>
       <Shell tenant={tenant} tenants={tenants} locale={locale} pendingApprovals={pending}>
         {children}
       </Shell>

@@ -4,14 +4,18 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
 import { ApiError } from "@/lib/api/client";
 import { TenantApiProvider } from "@/lib/api/context";
+import type { Locale } from "@/lib/i18n";
+import { LocaleProvider } from "@/lib/i18n-client";
 
 export function Providers({
   tenantId,
   slug,
+  locale,
   children,
 }: {
   tenantId: string;
   slug: string;
+  locale: Locale;
   children: ReactNode;
 }) {
   const [queryClient] = useState(
@@ -30,7 +34,7 @@ export function Providers({
   return (
     <QueryClientProvider client={queryClient}>
       <TenantApiProvider tenantId={tenantId} slug={slug}>
-        {children}
+        <LocaleProvider locale={locale}>{children}</LocaleProvider>
       </TenantApiProvider>
     </QueryClientProvider>
   );
