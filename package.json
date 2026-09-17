@@ -12,6 +12,7 @@
     "db:down": "docker compose down",
     "db:reset": "docker compose down -v && npm run db:up && npm run db:migrate",
     "db:migrate": "cd apps/api && uv run python -m dealerai.scripts.migrate",
+    "db:seed": "cd apps/api && uv run python -m dealerai.scripts.seed_sales",
     "db:psql": "docker compose exec db psql -U postgres -d dealerai",
     "api": "cd apps/api && uv run uvicorn dealerai.main:app --reload --port 8000",
     "dev": "npm run db:up && npm run db:migrate && npm run api",

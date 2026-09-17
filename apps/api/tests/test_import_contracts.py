@@ -24,7 +24,14 @@ def _python_files(root: Path) -> list[Path]:
 def test_only_session_module_opens_connections() -> None:
     """If any other module could open a connection, it could open one with no
     tenant context — and RLS would have nothing to filter on."""
-    allowed = {SRC / "db" / "session.py", SRC / "scripts" / "migrate.py"}
+    allowed = {
+        SRC / "db" / "session.py",
+        # Both need the elevated migration role, and neither serves a request:
+        # the runner owns the schema, and the local seed writes auth.users and a
+        # tenant, refusing before it connects unless ENV=local.
+        SRC / "scripts" / "migrate.py",
+        SRC / "scripts" / "seed_sales.py",
+    }
     offenders = [
         str(p.relative_to(SRC))
         for p in _python_files(SRC)
