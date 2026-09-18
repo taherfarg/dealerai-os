@@ -11,10 +11,11 @@ import structlog
 from ...ai.transcription import transcribe_audio
 from ...connectors.base import MessageRequest, TokenExpired
 from ...connectors.channels import whatsapp_for_channel
+from ...connectors.whatsapp import template_status
 from ...db.session import tenant_session
 from ...media import storage
 from ...sales.identity import resolve_whatsapp_identity
-from ...sales.messaging import is_opt_out
+from ...sales.messaging import is_opt_out, variable_numbers
 from ..bus import Event, emit, handler
 
 log = structlog.get_logger()
@@ -535,3 +536,98 @@ async def on_send_watchdog(event: Event) -> None:
                 "message": "Delivery unknown — check the conversation before resending",
             },
         )
+
+
+def _template_body(components: list[dict[str, Any]]) -> str:
+    for component in components:
+        if str(component.get("type") or "").upper() == "BODY":
+            return str(component.get("text") or "")
+    return ""
+
+
+@handler("whatsapp.templates_sync_requested")
+async def on_templates_sync_requested(event: Event) -> None:
+    if event.tenant_id is None:
+        raise ValueError("whatsapp.templates_sync_requested requires a tenant")
+    channel_id = UUID(str(event.payload["channel_id"]))
+    async with tenant_session(event.tenant_id) as conn:
+        channel = await conn.fetchrow(
+            "select id, external_id, account_id, credentials from channels where id=$1",
+            channel_id,
+        )
+    if channel is None:
+        raise LookupError(f"channel {channel_id} does not exist")
+    templates = await whatsapp_for_channel(dict(channel)).list_templates()
+
+    async with tenant_session(event.tenant_id) as conn:
+        await conn.execute(
+            "update message_templates set status='disabled', synced_at=now() where channel_id=$1",
+            channel_id,
+        )
+        for template in templates:
+            body = _template_body(template.components)
+            await conn.execute(
+                """insert into message_templates
+                     (tenant_id, channel_id, external_id, name, language, category, status,
+                      components, body, variables, rejected_reason, synced_at)
+                   values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,now())
+                   on conflict (channel_id, name, language) do update set
+                     external_id=excluded.external_id,
+                     category=excluded.category,
+                     status=excluded.status,
+                     components=excluded.components,
+                     body=excluded.body,
+                     variables=excluded.variables,
+                     rejected_reason=excluded.rejected_reason,
+                     synced_at=now()""",
+                event.tenant_id,
+                channel_id,
+                template.external_id,
+                template.name,
+                template.language,
+                template.category,
+                template.status,
+                template.components,
+                body,
+                [str(number) for number in variable_numbers(body)],
+                template.rejected_reason,
+            )
+
+
+@handler("whatsapp.template_status")
+async def on_template_status(event: Event) -> None:
+    if event.tenant_id is None:
+        raise ValueError("whatsapp.template_status requires a tenant")
+    channel_id = UUID(str(event.payload["channel_id"]))
+    update = event.payload.get("update")
+    if not isinstance(update, dict):
+        raise ValueError("whatsapp.template_status requires an update")
+    external_id = str(update.get("message_template_id") or update.get("id") or "")
+    status = template_status(str(update.get("event") or update.get("status") or ""))
+    reason = update.get("reason") or update.get("rejected_reason")
+    async with tenant_session(event.tenant_id) as conn:
+        template_id = await conn.fetchval(
+            """update message_templates set status=$3, rejected_reason=$4, synced_at=now()
+               where channel_id=$1 and external_id=$2 returning id""",
+            channel_id,
+            external_id,
+            status,
+            str(reason) if reason else None,
+        )
+        if template_id is None:
+            if event.attempts < event.max_attempts:
+                raise LookupError(f"template {external_id} has not been synchronized yet")
+            return
+        if status == "rejected":
+            await emit(
+                conn,
+                "notification.requested",
+                {
+                    "kind": "template_rejected",
+                    "channel_id": str(channel_id),
+                    "template_id": str(template_id),
+                },
+                tenant_id=event.tenant_id,
+                dedupe_key=f"template-rejected:{template_id}",
+                priority=2,
+            )

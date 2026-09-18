@@ -17,6 +17,7 @@ from .db import session
 from .events import handlers as _handlers  # noqa: F401  registers the event handlers
 from .routes import (
     approvals,
+    channels,
     content,
     dev,
     imports,
@@ -73,6 +74,7 @@ def create_app() -> FastAPI:
     app.include_router(team.router)
     app.include_router(webhooks.router)
     app.include_router(inbox.router)
+    app.include_router(channels.router)
     # Local sign-in as a seeded person. Never mounted outside ENV=local.
     if settings.env == "local":
         app.include_router(dev.router)
