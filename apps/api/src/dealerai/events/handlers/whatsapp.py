@@ -6,10 +6,16 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
 
+import structlog
+
 from ...db.session import tenant_session
 from ...sales.identity import resolve_whatsapp_identity
 from ...sales.messaging import is_opt_out
 from ..bus import Event, emit, handler
+
+log = structlog.get_logger()
+
+_STATUS_ORDER = {"queued": 0, "sending": 1, "sent": 2, "delivered": 3, "read": 4}
 
 
 def _at(message: dict[str, Any]) -> datetime:
@@ -238,4 +244,67 @@ async def on_message_received(event: Event) -> None:
             dedupe_key=f"idle:{conversation_id}",
             run_after=now + timedelta(minutes=15),
             priority=5,
+        )
+
+
+@handler("whatsapp.status_received")
+async def on_status_received(event: Event) -> None:
+    """Advance one outbound message; retry a status that raced ahead of its send write."""
+    if event.tenant_id is None:
+        raise ValueError("whatsapp.status_received requires a tenant")
+    raw = event.payload.get("status")
+    if not isinstance(raw, dict) or not raw.get("id"):
+        raise ValueError("whatsapp.status_received requires a message id")
+    external_id = str(raw["id"])
+    incoming = str(raw.get("status") or "")
+    if incoming not in {*_STATUS_ORDER, "failed"}:
+        log.warning("whatsapp_status_unknown", status=incoming, external_id=external_id)
+        return
+
+    async with tenant_session(event.tenant_id) as conn:
+        current = await conn.fetchrow(
+            "select id, status from messages where tenant_id=$1 and external_id=$2",
+            event.tenant_id,
+            external_id,
+        )
+        if current is None:
+            if event.attempts < event.max_attempts:
+                raise LookupError(f"message {external_id} has not been stored yet")
+            log.warning("whatsapp_status_orphaned", external_id=external_id)
+            return
+        if current["status"] == "failed":
+            return
+        if incoming != "failed" and _STATUS_ORDER.get(incoming, -1) <= _STATUS_ORDER.get(
+            current["status"], -1
+        ):
+            return
+
+        at = _at(raw)
+        errors = raw.get("errors")
+        first_error = errors[0] if isinstance(errors, list) and errors else {}
+        first_error = first_error if isinstance(first_error, dict) else {}
+        error = (
+            {
+                "code": str(first_error.get("code") or "unknown"),
+                "message": str(
+                    first_error.get("message") or first_error.get("title") or "Message failed"
+                ),
+            }
+            if incoming == "failed"
+            else None
+        )
+        await conn.execute(
+            """update messages set
+                 status=$2,
+                 delivered_at=case when $2 in ('delivered','read')
+                                   then coalesce(delivered_at, $3) else delivered_at end,
+                 read_at=case when $2='read' then coalesce(read_at, $3) else read_at end,
+                 pricing=coalesce($4, pricing),
+                 error=case when $2='failed' then $5 else error end
+               where id=$1""",
+            current["id"],
+            incoming,
+            at,
+            raw.get("pricing"),
+            error,
         )

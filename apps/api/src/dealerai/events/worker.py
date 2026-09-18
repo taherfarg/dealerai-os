@@ -33,7 +33,7 @@ where id in (
     limit $2
     for update skip locked
 )
-returning id, tenant_id, event_type, payload, attempts, dedupe_key, priority
+returning id, tenant_id, event_type, payload, attempts, dedupe_key, priority, max_attempts
 """
 
 _DONE = """
@@ -70,6 +70,7 @@ def _to_event(row: Any) -> Event:
         payload=row["payload"] or {},
         attempts=row["attempts"],
         dedupe_key=row["dedupe_key"],
+        max_attempts=row["max_attempts"],
     )
 
 
