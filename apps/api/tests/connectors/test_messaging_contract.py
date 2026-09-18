@@ -6,7 +6,9 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Protocol
 
+import httpx
 import pytest
+from fake_graph import PHONE_NUMBER_ID, TOKEN, WABA_ID, CloudControls, FakeGraph
 
 from dealerai.connectors.base import (
     MessageRequest,
@@ -19,6 +21,7 @@ from dealerai.connectors.base import (
     TokenExpired,
 )
 from dealerai.connectors.mock import MockConnector, whatsapp_like
+from dealerai.connectors.whatsapp import WhatsAppCloud
 
 
 class Controls(Protocol):
@@ -54,8 +57,21 @@ def _mock() -> tuple[MessagingConnector, Controls]:
     return mock, MockControls(mock)
 
 
+def _cloud() -> tuple[MessagingConnector, Controls]:
+    graph = FakeGraph()
+    connector = WhatsAppCloud(
+        phone_number_id=PHONE_NUMBER_ID,
+        waba_id=WABA_ID,
+        access_token=TOKEN,
+        graph_version="v25.0",
+        transport=httpx.MockTransport(graph),
+    )
+    return connector, CloudControls(graph)
+
+
 FACTORIES: list[tuple[str, Callable[[], tuple[MessagingConnector, Controls]]]] = [
     ("mock_whatsapp", _mock),
+    ("whatsapp_cloud", _cloud),
 ]
 
 Pair = tuple[MessagingConnector, Controls]

@@ -27,9 +27,7 @@ async def _conversation(su: asyncpg.Connection, tenant_id: uuid.UUID) -> uuid.UU
     return await su.fetchval("select id from conversations where tenant_id = $1", tenant_id)
 
 
-async def test_a_phone_number_belongs_to_one_tenant(
-    su: asyncpg.Connection, seeded: None
-) -> None:
+async def test_a_phone_number_belongs_to_one_tenant(su: asyncpg.Connection, seeded: None) -> None:
     """Webhooks route by phone_number_id before any tenant is known."""
     await _channel(su, TENANT_A, "15550001")
     with pytest.raises(asyncpg.UniqueViolationError):
@@ -85,9 +83,7 @@ async def test_a_whatsapp_message_id_is_unique_per_tenant(
     await su.execute(insert, TENANT_B, await _conversation(su, TENANT_B))
 
 
-async def test_an_idempotency_key_creates_one_message(
-    su: asyncpg.Connection, seeded: None
-) -> None:
+async def test_an_idempotency_key_creates_one_message(su: asyncpg.Connection, seeded: None) -> None:
     conversation = await _conversation(su, TENANT_A)
     insert = """insert into messages (tenant_id, conversation_id, direction, sender, origin,
                                       status, idempotency_key)
@@ -106,9 +102,7 @@ async def test_sending_is_a_status(su: asyncpg.Connection, seeded: None) -> None
     )
 
 
-async def test_every_message_says_where_it_came_from(
-    su: asyncpg.Connection, seeded: None
-) -> None:
+async def test_every_message_says_where_it_came_from(su: asyncpg.Connection, seeded: None) -> None:
     with pytest.raises(asyncpg.NotNullViolationError):
         await su.execute(
             """insert into messages (tenant_id, conversation_id, direction, sender)
