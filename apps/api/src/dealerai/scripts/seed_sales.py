@@ -21,6 +21,9 @@ from ..config import get_settings
 
 TENANT = UUID("11111111-0000-4000-8000-000000000001")
 TENANT_SLUG = "pollux-motors"
+CHANNEL = UUID("11111111-0000-4000-8000-000000000002")
+PHONE_NUMBER_ID = "pollux-local-phone"
+WABA_ID = "pollux-local-waba"
 _PEOPLE_NS = uuid5(NAMESPACE_URL, "dealerai-os/seed/people")
 
 #: (full name, role, languages, team: "local" | "export" | "both" | None)
@@ -124,6 +127,32 @@ async def _seed(conn: asyncpg.Connection) -> None:
             colour,
         )
 
+    await conn.execute(
+        """insert into channels
+             (id, tenant_id, platform, external_id, account_id, display_name, handle,
+              mode, credentials)
+           values ($1,$2,'whatsapp',$3,$4,'Pollux WhatsApp','+971 50 000 0000',
+                   'coexistence','{"provider":"mock"}'::jsonb)""",
+        CHANNEL,
+        TENANT,
+        PHONE_NUMBER_ID,
+        WABA_ID,
+    )
+    await conn.executemany(
+        """insert into message_templates
+             (tenant_id, channel_id, external_id, name, language, category, status,
+              body, variables)
+           values ($1,$2,$3,'vehicle_available',$4,'utility','approved',$5,'{1,2}')""",
+        [
+            (TENANT, CHANNEL, f"seed-template-{language}", language, body)
+            for language, body in (
+                ("en_US", "The {{1}} is available for {{2}}."),
+                ("ar", "السيارة {{1}} متوفرة بسعر {{2}}."),
+                ("fr", "Le véhicule {{1}} est disponible à {{2}}."),
+            )
+        ],
+    )
+
     now = datetime.now(UTC)
     for i, (name, phone, country, language, kind) in enumerate(CUSTOMERS):
         if kind == "export":
@@ -149,6 +178,40 @@ async def _seed(conn: asyncpg.Connection) -> None:
             contact_id,
             phone,
         )
+        await conn.execute(
+            """insert into contact_identities
+                 (tenant_id, contact_id, kind, value, is_primary)
+               values ($1, $2, 'whatsapp_user_id', $3, true)""",
+            TENANT,
+            contact_id,
+            f"AE.seed.{i + 1}",
+        )
+        conversation_id = await conn.fetchval(
+            """insert into conversations
+                 (tenant_id, contact_id, channel_id, surface, owner_id, team_id,
+                  assigned_to, status, last_message_at, last_inbound_at,
+                  wa_window_expires_at, waiting_since)
+               values ($1,$2,$3,'whatsapp',$4,$5,$4,'open',$6,$6,$7,$6)
+               returning id""",
+            TENANT,
+            contact_id,
+            CHANNEL,
+            owner,
+            teams["export" if kind == "export" else "local"],
+            now - timedelta(hours=i),
+            now + timedelta(hours=24 - i),
+        )
+        await conn.execute(
+            """insert into messages
+                 (tenant_id, conversation_id, direction, sender, origin, body, external_id,
+                  status, created_at)
+               values ($1,$2,'in','customer','customer',$3,$4,'sent',$5)""",
+            TENANT,
+            conversation_id,
+            "Is this vehicle available?" if language == "en" else "هل السيارة متوفرة؟",
+            f"wamid.seed.{i + 1}",
+            now - timedelta(hours=i),
+        )
 
 
 async def seed() -> int:
@@ -166,7 +229,7 @@ async def seed() -> int:
         await conn.close()
     print(
         f"seeded {TENANT_SLUG}: {len(PEOPLE)} people, {len(VEHICLES)} vehicles, "
-        f"{len(CUSTOMERS)} customers"
+        f"{len(CUSTOMERS)} customers, {len(CUSTOMERS)} conversations"
     )
     return 0
 

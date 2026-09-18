@@ -8,7 +8,7 @@ import pytest
 
 from dealerai.db.session import tenant_session
 from dealerai.scripts import seed_sales
-from dealerai.scripts.seed_sales import CUSTOMERS, PEOPLE, TENANT, person_id, seed
+from dealerai.scripts.seed_sales import CHANNEL, CUSTOMERS, PEOPLE, TENANT, person_id, seed
 
 
 async def test_the_seed_can_run_twice(db: None) -> None:
@@ -17,6 +17,10 @@ async def test_the_seed_can_run_twice(db: None) -> None:
     async with tenant_session(TENANT) as conn:
         assert await conn.fetchval("select count(*) from memberships") == len(PEOPLE)
         assert await conn.fetchval("select count(*) from contacts") == len(CUSTOMERS)
+        assert await conn.fetchval("select count(*) from conversations") == len(CUSTOMERS)
+        assert await conn.fetchval("select count(*) from messages") == len(CUSTOMERS)
+        assert await conn.fetchval("select count(*) from message_templates") == 3
+        assert await conn.fetchval("select external_id from channels where id=$1", CHANNEL)
 
 
 async def test_visibility_holds_on_the_seeded_workspace(db: None) -> None:
