@@ -746,3 +746,55 @@ async def on_user_id_changed(event: Event) -> None:
         )
         if changed is None and event.attempts < event.max_attempts:
             raise LookupError(f"WhatsApp user id {previous} is not known")
+
+
+@handler("whatsapp.account_update")
+async def on_account_update(event: Event) -> None:
+    if event.tenant_id is None:
+        raise ValueError("whatsapp.account_update requires a tenant")
+    channel_id = UUID(str(event.payload["channel_id"]))
+    update = event.payload.get("update")
+    if not isinstance(update, dict):
+        raise ValueError("whatsapp.account_update requires an update")
+    change = str(update.get("event") or update.get("status") or "").upper()
+    if change != "PARTNER_REMOVED":
+        return
+    async with tenant_session(event.tenant_id) as conn:
+        await conn.execute("update channels set status='revoked' where id=$1", channel_id)
+        await emit(
+            conn,
+            "notification.requested",
+            {"kind": "whatsapp_disconnected", "channel_id": str(channel_id)},
+            tenant_id=event.tenant_id,
+            dedupe_key=f"whatsapp-disconnected:{channel_id}",
+            priority=10,
+        )
+
+
+@handler("whatsapp.quality_update")
+async def on_quality_update(event: Event) -> None:
+    if event.tenant_id is None:
+        raise ValueError("whatsapp.quality_update requires a tenant")
+    channel_id = UUID(str(event.payload["channel_id"]))
+    update = event.payload.get("update")
+    if not isinstance(update, dict):
+        raise ValueError("whatsapp.quality_update requires an update")
+    rating = str(update.get("quality_rating") or update.get("current_quality_rating") or "").lower()
+    if rating not in {"green", "yellow", "red"}:
+        log.warning("whatsapp_quality_unknown", rating=rating, channel_id=str(channel_id))
+        return
+    async with tenant_session(event.tenant_id) as conn:
+        await conn.execute("update channels set quality_rating=$2 where id=$1", channel_id, rating)
+        if rating in {"yellow", "red"}:
+            await emit(
+                conn,
+                "notification.requested",
+                {
+                    "kind": "whatsapp_quality_warning",
+                    "channel_id": str(channel_id),
+                    "rating": rating,
+                },
+                tenant_id=event.tenant_id,
+                dedupe_key=f"whatsapp-quality:{channel_id}:{rating}",
+                priority=2,
+            )

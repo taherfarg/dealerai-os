@@ -105,6 +105,30 @@ def _items(field: str, value: dict[str, Any], channel_id: UUID) -> list[RoutedIt
                     {**shared, "update": update},
                 )
             )
+    elif field == "account_update":
+        event = str(value.get("event") or value.get("status") or "unknown")
+        at = str(value.get("timestamp") or value.get("last_updated_time") or "")
+        items.append(
+            RoutedItem(
+                "whatsapp.account_update",
+                f"{event}:{at}",
+                10,
+                {**shared, "update": value},
+            )
+        )
+    elif field == "phone_number_quality_update":
+        rating = str(
+            value.get("quality_rating") or value.get("current_quality_rating") or "unknown"
+        )
+        at = str(value.get("timestamp") or value.get("last_updated_time") or "")
+        items.append(
+            RoutedItem(
+                "whatsapp.quality_update",
+                f"{rating}:{at}",
+                2,
+                {**shared, "update": value},
+            )
+        )
     return items
 
 
