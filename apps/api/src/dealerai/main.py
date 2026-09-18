@@ -15,7 +15,19 @@ from .core.errors import install_error_handlers
 from .core.logging import configure_logging, install_request_context
 from .db import session
 from .events import handlers as _handlers  # noqa: F401  registers the event handlers
-from .routes import approvals, content, dev, imports, me, runs, team, tenants, vehicles, webhooks
+from .routes import (
+    approvals,
+    content,
+    dev,
+    imports,
+    inbox,
+    me,
+    runs,
+    team,
+    tenants,
+    vehicles,
+    webhooks,
+)
 
 log = structlog.get_logger()
 
@@ -60,6 +72,7 @@ def create_app() -> FastAPI:
     app.include_router(me.router)
     app.include_router(team.router)
     app.include_router(webhooks.router)
+    app.include_router(inbox.router)
     # Local sign-in as a seeded person. Never mounted outside ENV=local.
     if settings.env == "local":
         app.include_router(dev.router)

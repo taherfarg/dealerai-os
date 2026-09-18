@@ -9,6 +9,7 @@ from uuid import UUID
 import structlog
 
 from ...ai.transcription import transcribe_audio
+from ...connectors.base import MessageRequest, TokenExpired
 from ...connectors.channels import whatsapp_for_channel
 from ...db.session import tenant_session
 from ...media import storage
@@ -426,3 +427,111 @@ async def on_transcription_requested(event: Event) -> None:
                 dedupe_key=f"draft:{message_id}",
                 priority=5,
             )
+
+
+@handler("whatsapp.send_requested")
+async def on_send_requested(event: Event) -> None:
+    """Claim one queued message exactly once, then call Meta outside the transaction."""
+    if event.tenant_id is None:
+        raise ValueError("whatsapp.send_requested requires a tenant")
+    message_id = UUID(str(event.payload["message_id"]))
+    async with tenant_session(event.tenant_id) as conn:
+        row = await conn.fetchrow(
+            """with claimed as (
+                 update messages set status='sending', locked_at=now()
+                 where id=$1 and status='queued'
+                 returning *
+               )
+               select claimed.id, claimed.body, claimed.template, claimed.idempotency_key,
+                      claimed.reply_to_id, c.contact_id, c.channel_id,
+                      ch.external_id, ch.account_id, ch.credentials
+               from claimed
+               join conversations c on c.id=claimed.conversation_id
+               join channels ch on ch.id=c.channel_id""",
+            message_id,
+        )
+        if row is None:
+            return
+        await emit(
+            conn,
+            "whatsapp.send_watchdog",
+            {"message_id": str(message_id)},
+            tenant_id=event.tenant_id,
+            dedupe_key=f"send-watchdog:{message_id}",
+            run_after=datetime.now(UTC) + timedelta(minutes=2),
+            priority=10,
+        )
+        recipient = await conn.fetchval(
+            """select value from contact_identities
+               where contact_id=$1 and kind in ('whatsapp_user_id','phone')
+               order by case kind when 'whatsapp_user_id' then 0 else 1 end, is_primary desc
+               limit 1""",
+            row["contact_id"],
+        )
+    if not recipient:
+        async with tenant_session(event.tenant_id) as conn:
+            await conn.execute(
+                """update messages set status='failed', locked_at=null,
+                          error=$2
+                   where id=$1""",
+                message_id,
+                {
+                    "code": "recipient_missing",
+                    "message": "Customer has no WhatsApp identity",
+                },
+            )
+        return
+
+    template = dict(row["template"] or {})
+    request = MessageRequest(
+        recipient_external_id=str(recipient),
+        idempotency_key=str(row["idempotency_key"]),
+        text=None if template else row["body"],
+        template=str(template["name"]) if template else None,
+        template_params=dict(template.get("params") or {}),
+        template_language=str(template["language"]) if template else None,
+    )
+    try:
+        result = await whatsapp_for_channel(dict(row)).send_message(request)
+    except Exception as exc:
+        code = str(getattr(exc, "code", getattr(exc, "slug", "connector_error")))
+        async with tenant_session(event.tenant_id) as conn:
+            await conn.execute(
+                "update messages set status='failed', locked_at=null, error=$2 where id=$1",
+                message_id,
+                {"code": code, "message": str(exc)},
+            )
+            if isinstance(exc, TokenExpired):
+                await conn.execute(
+                    "update channels set status='expired' where id=$1", row["channel_id"]
+                )
+        return
+
+    async with tenant_session(event.tenant_id) as conn:
+        await conn.execute(
+            """update messages set status='sent', external_id=$2, locked_at=null
+               where id=$1 and status='sending'""",
+            message_id,
+            result.external_id,
+        )
+
+
+@handler("whatsapp.send_watchdog")
+async def on_send_watchdog(event: Event) -> None:
+    """Fail an ambiguous send instead of risking a customer-visible duplicate."""
+    if event.tenant_id is None:
+        raise ValueError("whatsapp.send_watchdog requires a tenant")
+    message_id = UUID(str(event.payload["message_id"]))
+    async with tenant_session(event.tenant_id) as conn:
+        await conn.execute(
+            """update messages set
+                 status='failed', locked_at=null,
+                 error=$2
+               where id=$1 and status='sending' and external_id is null
+                 and locked_at <= now() - interval '2 minutes'""",
+            message_id,
+            {
+                "code": "delivery_unknown",
+                "message": "Delivery unknown — check the conversation before resending",
+            },
+        )
