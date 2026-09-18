@@ -75,6 +75,20 @@ class Settings(BaseSettings):
     #: to the API directly since docs/sales/01-architecture.md § 2 A.
     web_origins: str = "http://localhost:3000"
 
+    #: Meta app secret. Every webhook body is verified against it
+    #: (X-Hub-Signature-256); unset, every webhook is refused.
+    whatsapp_app_secret: str | None = None
+
+    #: The string Meta echoes back when the webhook subscription is verified.
+    whatsapp_verify_token: str | None = None
+
+    #: Graph API version the WhatsApp connector calls. Meta keeps a version about two years.
+    whatsapp_graph_version: str = "v25.0"
+
+    #: Local development only: stored objects live in this directory instead of
+    #: Supabase Storage. Relative paths resolve against the repo root.
+    storage_dir: str | None = None
+
     @property
     def migration_dsn(self) -> str:
         return self.migration_database_url or self.database_url

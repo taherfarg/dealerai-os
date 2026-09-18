@@ -7,12 +7,14 @@ walk across tenants.
 
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime
+from pathlib import Path
 from uuid import UUID, uuid4
 
 import httpx
 
-from ..config import get_settings
+from ..config import get_settings, repo_root
 from ..core.errors import AppError
 
 
@@ -30,6 +32,65 @@ class ObjectNotFound(AppError):
 
 BUCKET = "media"
 
+#: What WhatsApp sends, mapped to the extension a stored object gets.
+_EXTENSIONS = {
+    "audio/ogg": "ogg",
+    "audio/mpeg": "mp3",
+    "audio/mp4": "m4a",
+    "audio/aac": "aac",
+    "audio/amr": "amr",
+    "image/jpeg": "jpg",
+    "image/png": "png",
+    "image/webp": "webp",
+    "video/mp4": "mp4",
+    "video/3gpp": "3gp",
+    "application/pdf": "pdf",
+}
+
+
+def extension_for(mime: str, filename: str | None = None) -> str:
+    """The customer's own extension when it is sane, otherwise the type's."""
+    if filename and "." in filename:
+        extension = filename.rsplit(".", 1)[1].lower()
+        if extension.isalnum() and len(extension) <= 8:
+            return extension
+    return _EXTENSIONS.get(mime.split(";")[0].strip().lower(), "bin")
+
+
+def _local_root() -> Path | None:
+    """STORAGE_DIR, when set: objects on disk, for a laptop with no Supabase project."""
+    settings = get_settings()
+    if not settings.storage_dir:
+        return None
+    if not settings.is_local:
+        raise StorageUnavailable("STORAGE_DIR is for local development only")
+    root = Path(settings.storage_dir)
+    return root if root.is_absolute() else repo_root() / root
+
+
+def _local_path(root: Path, storage_path: str) -> Path:
+    path = (root / storage_path.lstrip("/")).resolve()
+    if not path.is_relative_to(root.resolve()):
+        raise ObjectNotFound(storage_path)
+    return path
+
+
+def _read(root: Path, storage_path: str) -> bytes:
+    path = _local_path(root, storage_path)
+    if not path.is_file():
+        raise ObjectNotFound(storage_path)
+    return path.read_bytes()
+
+
+def _write(root: Path, storage_path: str, data: bytes) -> None:
+    path = _local_path(root, storage_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        with path.open("xb") as handle:
+            handle.write(data)
+    except FileExistsError as exc:
+        raise StorageUnavailable(f"object already exists: {storage_path}") from exc
+
 
 def _base_url() -> str:
     url = get_settings().supabase_url
@@ -44,6 +105,10 @@ async def download(storage_path: str) -> bytes:
     Uses the anon key with RLS-backed storage policies rather than the service
     role — the same rule as the database. A storage path is not a capability.
     """
+    root = _local_root()
+    if root is not None:
+        return await asyncio.to_thread(_read, root, storage_path)
+
     settings = get_settings()
     if not settings.supabase_anon_key:
         raise StorageUnavailable("SUPABASE_ANON_KEY is not set")
@@ -82,6 +147,11 @@ async def upload(storage_path: str, data: bytes, *, content_type: str) -> str:
     rule as the database, and for the same reason: a storage path is not a
     capability.
     """
+    root = _local_root()
+    if root is not None:
+        await asyncio.to_thread(_write, root, storage_path, data)
+        return storage_path
+
     settings = get_settings()
     if not settings.supabase_anon_key:
         raise StorageUnavailable("SUPABASE_ANON_KEY is not set")

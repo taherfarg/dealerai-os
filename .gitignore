@@ -21,6 +21,7 @@ dist/
 
 # local infra + generated media
 .supabase/
+.storage/
 /tmp/
 *.log
 renders/
