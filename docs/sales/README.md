@@ -84,7 +84,7 @@ say so explicitly if you do.
 | Area | State |
 |---|---|
 | Documentation | Draft, 2026-09-16 — awaiting review |
-| Code | **S0 foundation complete** on `sales/phase-1`: visibility enforced in Postgres, `/v1/me`, members and teams, local sign-in, generated types, the sales shell. Next: S1, the WhatsApp channel |
+| Code | **S1 WhatsApp channel complete locally** on `sales/phase-1`: signed webhooks, BSUID-first identity, inbound text/media/voice, transcription, phone echoes, delivery states, templates, safe outbound sends, channel health, seed data and simulator. Live Meta test-number smoke and coexistence onboarding remain external gates. Next: S2, the inbox. |
 | Meta | Business verification and Tech Provider review not started (Pollux Motors). **Critical path** |
 | Supabase project | Schema live in ap-northeast-1 (Tokyo). Moving to Mumbai before real customer data is open question Q1 in [00](00-prd.md) |
 
