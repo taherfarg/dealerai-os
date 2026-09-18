@@ -31,6 +31,7 @@ class TaskKind(StrEnum):
     CREATIVE_DIRECTION = "creative_direction"
     VISION = "vision"
     ENRICHMENT = "enrichment"
+    TRANSCRIBE = "transcribe"
 
     # cheap tier — high volume, trivial decisions
     CLASSIFY_INTENT = "classify_intent"
@@ -47,6 +48,8 @@ class ModelSpec:
     input_usd_per_mtok: float
     output_usd_per_mtok: float
     cached_input_usd_per_mtok: float
+    audio_input_usd_per_mtok: float | None = None
+    cached_audio_input_usd_per_mtok: float | None = None
 
 
 # Only GA models. `gemini-3-pro-preview` was shut down while still being the
@@ -61,6 +64,7 @@ class ModelSpec:
 # the table to fix.
 PRO = ModelSpec("gemini-2.5-pro", 16_000, DYNAMIC_THINKING, 1.25, 10.00, 0.125)
 FLASH = ModelSpec("gemini-2.5-flash", 8_000, DYNAMIC_THINKING, 0.30, 2.50, 0.03)
+TRANSCRIPTION = ModelSpec("gemini-2.5-flash", 2_000, 0, 0.30, 2.50, 0.03, 1.00, 0.10)
 #: Thinking off: classification does not benefit and it is pure latency and cost
 #: on the critical path of a customer reply.
 FLASH_LITE = ModelSpec("gemini-2.5-flash-lite", 2_000, 0, 0.10, 0.40, 0.01)
@@ -76,6 +80,7 @@ ROUTING: dict[TaskKind, ModelSpec] = {
     TaskKind.CREATIVE_DIRECTION: FLASH,
     TaskKind.VISION: FLASH,
     TaskKind.ENRICHMENT: FLASH,
+    TaskKind.TRANSCRIBE: TRANSCRIPTION,
     TaskKind.CLASSIFY_INTENT: FLASH_LITE,
     TaskKind.SPAM_FILTER: FLASH_LITE,
     TaskKind.ROUTE: FLASH_LITE,
@@ -102,6 +107,7 @@ def cost_usd(
     output_tokens: int,
     cached_tokens: int = 0,
     thought_tokens: int = 0,
+    input_kind: Literal["standard", "audio"] = "standard",
 ) -> float:
     """Cost of one call.
 
@@ -116,8 +122,13 @@ def cost_usd(
       reasoning-heavy calls look far cheaper than they are.
     """
     billed_input = max(input_tokens - cached_tokens, 0)
+    input_rate = spec.input_usd_per_mtok
+    cached_rate = spec.cached_input_usd_per_mtok
+    if input_kind == "audio":
+        input_rate = spec.audio_input_usd_per_mtok or input_rate
+        cached_rate = spec.cached_audio_input_usd_per_mtok or cached_rate
     return (
-        billed_input * spec.input_usd_per_mtok / _PER_TOKEN
-        + cached_tokens * spec.cached_input_usd_per_mtok / _PER_TOKEN
+        billed_input * input_rate / _PER_TOKEN
+        + cached_tokens * cached_rate / _PER_TOKEN
         + (output_tokens + thought_tokens) * spec.output_usd_per_mtok / _PER_TOKEN
     )

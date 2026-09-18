@@ -15,7 +15,7 @@ from dealerai.ai.gateway import (
     SystemLayers,
     complete,
 )
-from dealerai.ai.models import FLASH, FLASH_LITE, PRO, ROUTING, TaskKind, cost_usd
+from dealerai.ai.models import FLASH, FLASH_LITE, PRO, ROUTING, TRANSCRIPTION, TaskKind, cost_usd
 from dealerai.core.errors import BudgetExceeded
 from dealerai.db.session import tenant_session
 
@@ -149,6 +149,12 @@ def test_thinking_tokens_are_billed_at_the_output_rate() -> None:
     without = cost_usd(PRO, input_tokens=0, output_tokens=1_000)
     with_thoughts = cost_usd(PRO, input_tokens=0, output_tokens=1_000, thought_tokens=9_000)
     assert with_thoughts == pytest.approx(without * 10)
+
+
+def test_audio_input_uses_the_audio_rate() -> None:
+    assert cost_usd(
+        TRANSCRIPTION, input_tokens=1_000_000, output_tokens=0, input_kind="audio"
+    ) == pytest.approx(1.0)
 
 
 # --------------------------------------------------------------------------

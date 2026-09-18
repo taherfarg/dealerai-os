@@ -8,7 +8,10 @@ from uuid import UUID
 
 import structlog
 
+from ...ai.transcription import transcribe_audio
+from ...connectors.channels import whatsapp_for_channel
 from ...db.session import tenant_session
+from ...media import storage
 from ...sales.identity import resolve_whatsapp_identity
 from ...sales.messaging import is_opt_out
 from ..bus import Event, emit, handler
@@ -16,6 +19,10 @@ from ..bus import Event, emit, handler
 log = structlog.get_logger()
 
 _STATUS_ORDER = {"queued": 0, "sending": 1, "sent": 2, "delivered": 3, "read": 4}
+
+
+def _media_asset(media: list[dict[str, Any]], external_id: str) -> dict[str, Any] | None:
+    return next((asset for asset in media if str(asset.get("external_id")) == external_id), None)
 
 
 def _at(message: dict[str, Any]) -> datetime:
@@ -308,3 +315,114 @@ async def on_status_received(event: Event) -> None:
             raw.get("pricing"),
             error,
         )
+
+
+@handler("message.media_requested")
+async def on_media_requested(event: Event) -> None:
+    """Download one customer attachment and replace its external reference with storage."""
+    if event.tenant_id is None:
+        raise ValueError("message.media_requested requires a tenant")
+    message_id = UUID(str(event.payload["message_id"]))
+    channel_id = UUID(str(event.payload["channel_id"]))
+    media_id = str(event.payload["media_id"])
+
+    async with tenant_session(event.tenant_id) as conn:
+        row = await conn.fetchrow(
+            """select m.media, c.external_id, c.account_id, c.credentials
+               from messages m
+               join channels c on c.id=$2 and c.tenant_id=m.tenant_id
+               where m.id=$1""",
+            message_id,
+            channel_id,
+        )
+    if row is None:
+        if event.attempts < event.max_attempts:
+            raise LookupError(f"message {message_id} has not been stored yet")
+        return
+    media = list(row["media"] or [])
+    asset = _media_asset(media, media_id)
+    if asset is None:
+        raise ValueError(f"message {message_id} has no media {media_id}")
+    if asset.get("status") == "ready":
+        return
+
+    try:
+        connector = whatsapp_for_channel(dict(row))
+        data, mime = await connector.download_media(media_id)
+        filename = event.payload.get("filename")
+        path = storage.object_path(
+            event.tenant_id,
+            "messages",
+            storage.extension_for(mime, str(filename) if filename else None),
+        )
+        await storage.upload(path, data, content_type=mime)
+    except Exception as exc:
+        if event.attempts < event.max_attempts:
+            raise
+        asset |= {"status": "failed", "error": str(exc)}
+        async with tenant_session(event.tenant_id) as conn:
+            await conn.execute("update messages set media=$2 where id=$1", message_id, media)
+        log.warning("whatsapp_media_failed", message_id=str(message_id), media_id=media_id)
+        return
+
+    asset |= {
+        "status": "ready",
+        "mime": mime,
+        "size": len(data),
+        "storage_path": path,
+    }
+    asset.pop("error", None)
+    async with tenant_session(event.tenant_id) as conn:
+        await conn.execute("update messages set media=$2 where id=$1", message_id, media)
+        if mime.split(";", 1)[0].strip().lower().startswith("audio/"):
+            await emit(
+                conn,
+                "message.transcription_requested",
+                {"message_id": str(message_id), "media_id": media_id},
+                tenant_id=event.tenant_id,
+                dedupe_key=f"transcribe:{message_id}:{media_id}",
+                priority=5,
+            )
+
+
+@handler("message.transcription_requested")
+async def on_transcription_requested(event: Event) -> None:
+    """Transcribe one stored audio asset and make it available to the reply copilot."""
+    if event.tenant_id is None:
+        raise ValueError("message.transcription_requested requires a tenant")
+    message_id = UUID(str(event.payload["message_id"]))
+    media_id = str(event.payload["media_id"])
+    async with tenant_session(event.tenant_id) as conn:
+        row = await conn.fetchrow(
+            "select media, transcript, conversation_id from messages where id=$1", message_id
+        )
+    if row is None:
+        if event.attempts < event.max_attempts:
+            raise LookupError(f"message {message_id} has not been stored yet")
+        return
+    if row["transcript"]:
+        return
+    asset = _media_asset(list(row["media"] or []), media_id)
+    if asset is None or asset.get("status") != "ready" or not asset.get("storage_path"):
+        if event.attempts < event.max_attempts:
+            raise LookupError(f"media {media_id} is not ready")
+        return
+
+    data = await storage.download(str(asset["storage_path"]))
+    result = await transcribe_audio(
+        tenant_id=event.tenant_id,
+        data=data,
+        mime=str(asset.get("mime") or "application/octet-stream"),
+    )
+    transcript = {"text": result.text, "language": result.language}
+    async with tenant_session(event.tenant_id) as conn:
+        await conn.execute("update messages set transcript=$2 where id=$1", message_id, transcript)
+        if result.text:
+            await emit(
+                conn,
+                "copilot.draft_requested",
+                {"conversation_id": str(row["conversation_id"]), "message_id": str(message_id)},
+                tenant_id=event.tenant_id,
+                dedupe_key=f"draft:{message_id}",
+                priority=5,
+            )

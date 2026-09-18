@@ -12,7 +12,7 @@ from __future__ import annotations
 import asyncio
 import time
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
 import structlog
@@ -269,6 +269,7 @@ async def complete(
     output_schema: type[BaseModel] | None = None,
     max_tokens: int | None = None,
     trace_name: str | None = None,
+    input_kind: Literal["standard", "audio"] = "standard",
 ) -> Completion:
     spec = spec_for(task)
     await assert_within_budget(tenant_id)
@@ -317,6 +318,7 @@ async def complete(
         output_tokens=output_tokens,
         cached_tokens=cached_tokens,
         thought_tokens=thought_tokens,
+        input_kind=input_kind,
     )
 
     reason = _finish_reason(response)
