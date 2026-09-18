@@ -93,10 +93,10 @@ async def tenant_session(
 async def system_session() -> AsyncIterator[asyncpg.Connection]:
     """A connection with NO tenant context.
 
-    Legitimate uses are exactly two: the event-queue claim (which runs before
-    the tenant is known) and the health check. Everything else must go through
-    tenant_session. Under RLS this session can see nothing tenant-owned, which
-    is the intended safety net rather than an inconvenience.
+    Legitimate uses are the event-queue claim, webhook delivery routing (both
+    run before the tenant is known), and the health check. Everything else must
+    go through tenant_session. Under RLS this session can see nothing
+    tenant-owned, which is the intended safety net rather than an inconvenience.
     """
     async with _require_pool().acquire() as conn:
         yield conn
