@@ -631,3 +631,118 @@ async def on_template_status(event: Event) -> None:
                 dedupe_key=f"template-rejected:{template_id}",
                 priority=2,
             )
+
+
+@handler("whatsapp.echo_received")
+async def on_echo_received(event: Event) -> None:
+    """Mirror a reply sent from the WhatsApp Business app into the inbox."""
+    if event.tenant_id is None:
+        raise ValueError("whatsapp.echo_received requires a tenant")
+    message = event.payload.get("message")
+    if not isinstance(message, dict) or not message.get("id"):
+        raise ValueError("whatsapp.echo_received requires a message id")
+    channel_id = UUID(str(event.payload["channel_id"]))
+    external_id = str(message["id"])
+    bsuid = message.get("to_user_id") or message.get("recipient_user_id")
+    wa_id = message.get("to") or message.get("recipient_id")
+    sent_at = _at(message)
+    media = _media(message)
+
+    async with tenant_session(event.tenant_id) as conn:
+        if await conn.fetchval(
+            "select exists(select 1 from messages where external_id=$1)", external_id
+        ):
+            return
+        contact_id = await resolve_whatsapp_identity(
+            conn,
+            tenant_id=event.tenant_id,
+            bsuid=str(bsuid) if bsuid else None,
+            wa_id=str(wa_id) if wa_id else None,
+            profile_name=None,
+            team_id=None,
+        )
+        conversation = await conn.fetchrow(
+            """select id from conversations
+               where contact_id=$1 and channel_id=$2
+               order by last_message_at desc nulls last, created_at desc limit 1""",
+            contact_id,
+            channel_id,
+        )
+        if conversation is None:
+            conversation_id = await conn.fetchval(
+                """insert into conversations
+                     (tenant_id, contact_id, channel_id, surface, owner_id, team_id)
+                   select $1, c.id, $2, 'whatsapp', c.owner_id, c.team_id
+                   from contacts c where c.id=$3 returning id""",
+                event.tenant_id,
+                channel_id,
+                contact_id,
+            )
+        else:
+            conversation_id = conversation["id"]
+        message_id = await conn.fetchval(
+            """insert into messages
+                 (tenant_id, conversation_id, direction, sender, origin, type, body,
+                  media, external_id, status, created_at)
+               values ($1,$2,'out','human','phone_app',$3,$4,$5,$6,'sent',$7)
+               on conflict do nothing returning id""",
+            event.tenant_id,
+            conversation_id,
+            _type(message),
+            _body(message),
+            media,
+            external_id,
+            sent_at,
+        )
+        if message_id is None:
+            return
+        await conn.execute(
+            """update conversations set
+                 status='open',
+                 last_message_at=greatest(last_message_at, $2),
+                 waiting_since=null,
+                 sla_due_at=null,
+                 first_response_at=coalesce(first_response_at, $2)
+               where id=$1""",
+            conversation_id,
+            sent_at,
+        )
+        for asset in media:
+            await emit(
+                conn,
+                "message.media_requested",
+                {
+                    "message_id": str(message_id),
+                    "channel_id": str(channel_id),
+                    "media_id": asset["external_id"],
+                    "mime": asset["mime"],
+                    "filename": asset["filename"],
+                },
+                tenant_id=event.tenant_id,
+                dedupe_key=f"media:{message_id}:{asset['external_id']}",
+                priority=5,
+            )
+
+
+@handler("whatsapp.user_id_changed")
+async def on_user_id_changed(event: Event) -> None:
+    if event.tenant_id is None:
+        raise ValueError("whatsapp.user_id_changed requires a tenant")
+    update = event.payload.get("update")
+    if not isinstance(update, dict):
+        raise ValueError("whatsapp.user_id_changed requires an update")
+    previous = str(update.get("previous") or "")
+    current = str(update.get("current") or "")
+    if not previous or not current:
+        raise ValueError("user id update needs previous and current values")
+    async with tenant_session(event.tenant_id) as conn:
+        changed = await conn.fetchval(
+            """update contact_identities set value=$3
+               where tenant_id=$1 and kind='whatsapp_user_id' and value=$2
+               returning id""",
+            event.tenant_id,
+            previous,
+            current,
+        )
+        if changed is None and event.attempts < event.max_attempts:
+            raise LookupError(f"WhatsApp user id {previous} is not known")
