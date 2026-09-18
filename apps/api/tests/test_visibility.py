@@ -103,8 +103,8 @@ async def test_messages_follow_their_conversation(
             "select id from conversations where contact_id = $1", visibility_seed[key]
         )
         await su.execute(
-            """insert into messages (tenant_id, conversation_id, direction, sender, body)
-               values ($1, $2, 'in', 'customer', $3)""",
+            """insert into messages (tenant_id, conversation_id, direction, sender, origin, body)
+               values ($1, $2, 'in', 'customer', 'customer', $3)""",
             TENANT_A,
             conversation_id,
             f"secret of {key}",

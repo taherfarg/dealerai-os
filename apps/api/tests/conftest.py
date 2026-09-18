@@ -159,8 +159,8 @@ async def _seed_tenant(
         contact_id,
     )
     await conn.execute(
-        """insert into messages (tenant_id, conversation_id, direction, sender, body)
-           values ($1, $2, 'in', 'customer', $3)""",
+        """insert into messages (tenant_id, conversation_id, direction, sender, origin, body)
+           values ($1, $2, 'in', 'customer', 'customer', $3)""",
         tenant_id,
         conversation_id,
         f"secret of {slug}",
