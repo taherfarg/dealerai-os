@@ -2,6 +2,7 @@ import { type Locale, t } from "@/lib/i18n";
 import { AvailabilitySwitch } from "./AvailabilitySwitch";
 import { LocaleToggle } from "./LocaleToggle";
 import { NavLinks, type NavItem } from "./NavLinks";
+import { NotificationsBell } from "./NotificationsBell";
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
 
 type Tenant = { id: string; slug: string; name: string };
@@ -46,7 +47,10 @@ export function Shell({
       <aside className="border-border bg-surface flex flex-col gap-4 border-b p-4 md:border-b-0 md:border-e md:p-6">
         <div className="flex items-center justify-between gap-2">
           <span className="text-brand text-lg font-semibold tracking-tight">DealerAI</span>
-          <LocaleToggle locale={locale} />
+          <div className="flex items-center gap-1">
+            <NotificationsBell />
+            <LocaleToggle locale={locale} />
+          </div>
         </div>
 
         <WorkspaceSwitcher current={tenant} tenants={tenants} locale={locale} />

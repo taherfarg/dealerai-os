@@ -72,4 +72,7 @@ export const ar = {
   "thread.windowClosed": "النافذة مغلقة — القوالب فقط",
   "thread.windowClosedHint": "مرت أكثر من ٢٤ ساعة على رسالة العميل. أرسل قالبًا.",
   "thread.gone": "هذه المحادثة غير متاحة.",
+  "notifications.title": "الإشعارات",
+  "notifications.markAllRead": "تعليم الكل كمقروء",
+  "notifications.empty": "لا جديد.",
 } satisfies Record<keyof typeof en, string>;
