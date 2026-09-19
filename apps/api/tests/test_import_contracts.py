@@ -13,8 +13,8 @@ SRC = Path(__file__).resolve().parents[1] / "src" / "dealerai"
 
 ACQUIRE = re.compile(r"\.acquire\(\)")
 CONNECT = re.compile(r"asyncpg\.(connect|create_pool)\(")
-#: Any route from a guard into the model layer, whatever the provider is called.
-MODEL_IMPORT = re.compile(r"^\s*(from|import)\s+.*(ai|google\.genai|genai)", re.M)
+#: emit(conn, "some.event", …) — the event type as written at the call site.
+EMIT = re.compile(r'emit\(\s*conn,\s*"([a-z_]+\.[a-z_]+)"', re.S)
 
 
 def _python_files(root: Path) -> list[Path]:
@@ -40,6 +40,30 @@ def test_only_session_module_opens_connections() -> None:
     assert not offenders, (
         f"these modules open their own database connection: {offenders}. "
         "Use dealerai.db.session.tenant_session instead."
+    )
+
+
+def test_every_emitted_event_has_a_handler() -> None:
+    """A type nobody handles is retried five times and then dead-lettered.
+
+    That is the right behaviour for a mid-deploy race and the wrong one for a
+    consumer nobody has written yet: it fills the queue with red for a feature
+    that is merely not built. Park it in events/handlers/parked.py instead.
+    """
+    from dealerai.events import bus
+    from dealerai.events import handlers as _handlers  # noqa: F401  registers them
+
+    emitted = {
+        match.group(1)
+        for path in _python_files(SRC)
+        for match in EMIT.finditer(path.read_text("utf-8"))
+    }
+    assert emitted, "no emit() calls found — did the scan pattern drift?"
+    missing = sorted(emitted - bus.registered_types())
+    assert not missing, (
+        f"these event types are emitted but nothing handles them: {missing}. "
+        "Add a handler, or park them with their future owner in "
+        "events/handlers/parked.py."
     )
 
 
