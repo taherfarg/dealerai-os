@@ -13,7 +13,7 @@ import {
   useSetConversationStatus,
 } from "@/lib/api/hooks";
 import { useNow } from "@/lib/clock";
-import { countryFlag, formatRelative } from "@/lib/format";
+import { countryFlag, formatUntil } from "@/lib/format";
 import { useT } from "@/lib/i18n-client";
 import { Composer } from "./Composer";
 import { MessageBubble } from "./MessageBubble";
@@ -102,7 +102,7 @@ export function Thread({ tenant, conversationId }: { tenant: string; conversatio
             : t("inbox.unassigned")}
           {" · "}
           {windowOpen
-            ? `${t("thread.windowOpen")} ${formatRelative(row.window_expires_at ?? "")}`
+            ? `${t("thread.windowOpen")} ${formatUntil(row.window_expires_at ?? "", new Date(now))}`
             : t("thread.windowClosed")}
         </p>
       </header>

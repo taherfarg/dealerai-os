@@ -38,6 +38,12 @@ export function formatRelative(iso: string, now: Date = new Date()): string {
   return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 }
 
+/** How long until a moment in the future: "20h", "3m", or "0m" once it has passed. */
+export function formatUntil(iso: string, now: Date = new Date()): string {
+  const seconds = (new Date(iso).getTime() - now.getTime()) / 1000;
+  return seconds <= 0 ? "0m" : formatDuration(seconds);
+}
+
 /** A date and time in the tenant's timezone, never the viewer's. */
 export function formatDateTime(iso: string, timeZone: string, locale: "en" | "ar" = "en"): string {
   return new Intl.DateTimeFormat(locale === "ar" ? "ar-AE-u-nu-latn" : "en-GB", {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { countryFlag, formatDuration, formatMoney, formatRelative } from "./format";
+import { countryFlag, formatUntil, formatDuration, formatMoney, formatRelative } from "./format";
 
 describe("formatMoney", () => {
   it("shows whole dirhams without decimals", () => {
@@ -47,5 +47,18 @@ describe("countryFlag", () => {
   it("returns nothing for junk rather than a broken glyph", () => {
     expect(countryFlag(null)).toBe("");
     expect(countryFlag("Algeria")).toBe("");
+  });
+});
+
+describe("formatUntil", () => {
+  const now = new Date("2026-09-19T12:00:00Z");
+
+  it("says how long is left, not how long ago it was", () => {
+    expect(formatUntil("2026-09-20T08:00:00Z", now)).toBe("20h");
+    expect(formatUntil("2026-09-19T12:03:00Z", now)).toBe("3m");
+  });
+
+  it("does not count backwards once the moment has passed", () => {
+    expect(formatUntil("2026-09-19T11:00:00Z", now)).toBe("0m");
   });
 });
