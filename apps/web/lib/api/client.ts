@@ -2,7 +2,8 @@ import createFetchClient, { type Middleware } from "openapi-fetch";
 import { getBrowserAccessToken } from "@/lib/auth/token";
 import type { paths } from "./schema";
 
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+/** Where the API lives. Exported because the SSE reader opens its own fetch. */
+export const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 /** RFC 9457 problem+json — the only error shape the API emits. */
 export type Problem = {
@@ -45,7 +46,7 @@ export function unwrap<T>(result: { data?: T; error?: unknown; response: Respons
  * middleware, guarantees it is never forgotten. This adds only the token.
  */
 export function createApiClient() {
-  const client = createFetchClient<paths>({ baseUrl: BASE });
+  const client = createFetchClient<paths>({ baseUrl: API_BASE });
   const auth: Middleware = {
     async onRequest({ request }) {
       const token = await getBrowserAccessToken();

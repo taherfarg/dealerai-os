@@ -5,6 +5,7 @@ import { useState, type ReactNode } from "react";
 import { ApiError } from "@/lib/api/client";
 import { TenantApiProvider } from "@/lib/api/context";
 import type { Locale } from "@/lib/i18n";
+import { LiveEvents } from "@/lib/live";
 import { LocaleProvider } from "@/lib/i18n-client";
 
 export function Providers({
@@ -34,7 +35,10 @@ export function Providers({
   return (
     <QueryClientProvider client={queryClient}>
       <TenantApiProvider tenantId={tenantId} slug={slug}>
-        <LocaleProvider locale={locale}>{children}</LocaleProvider>
+        <LocaleProvider locale={locale}>
+          <LiveEvents />
+          {children}
+        </LocaleProvider>
       </TenantApiProvider>
     </QueryClientProvider>
   );
