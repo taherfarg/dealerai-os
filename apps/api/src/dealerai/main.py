@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+import contextlib
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Any
@@ -15,6 +17,7 @@ from .core.errors import install_error_handlers
 from .core.logging import configure_logging, install_request_context
 from .db import session
 from .events import handlers as _handlers  # noqa: F401  registers the event handlers
+from .realtime import hub, listen
 from .routes import (
     approvals,
     channels,
@@ -26,6 +29,7 @@ from .routes import (
     media,
     notifications,
     runs,
+    stream,
     team,
     tenants,
     vehicles,
@@ -39,10 +43,17 @@ log = structlog.get_logger()
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = get_settings()
     await session.init_pool()
+    # One LISTEN connection for this process, feeding every SSE stream on it.
+    stop = asyncio.Event()
+    listener = asyncio.create_task(listen(stop))
     log.info("api_started", env=settings.env)
     try:
         yield
     finally:
+        stop.set()
+        listener.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await listener
         await session.close_pool()
 
 
@@ -80,6 +91,7 @@ def create_app() -> FastAPI:
     app.include_router(channels.router)
     app.include_router(notifications.router)
     app.include_router(media.router)
+    app.include_router(stream.router)
     # Local sign-in as a seeded person. Never mounted outside ENV=local.
     if settings.env == "local":
         app.include_router(dev.router)
@@ -88,7 +100,12 @@ def create_app() -> FastAPI:
     async def health() -> dict[str, Any]:
         # Degraded connectors must not take the API out of the load balancer;
         # only the database is liveness-critical here.
-        return {"status": "ok", "env": settings.env, **await session.healthcheck()}
+        return {
+            "status": "ok",
+            "env": settings.env,
+            "streams": hub.open_streams,
+            **await session.healthcheck(),
+        }
 
     return app
 

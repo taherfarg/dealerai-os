@@ -102,6 +102,22 @@ async def system_session() -> AsyncIterator[asyncpg.Connection]:
         yield conn
 
 
+@contextlib.asynccontextmanager
+async def listen_connection() -> AsyncIterator[asyncpg.Connection]:
+    """One long-lived connection for LISTEN.
+
+    Held out of the pool for the life of the process, so db_pool_max must be at
+    least two. A transaction-pooled connection cannot LISTEN at all, which is why
+    deployment points the API at the session pooler (docs/sales/01 § 6).
+    """
+    pool = _require_pool()
+    conn = await pool.acquire()
+    try:
+        yield conn
+    finally:
+        await pool.release(conn)
+
+
 async def healthcheck() -> dict[str, Any]:
     async with system_session() as conn:
         await conn.fetchval("select 1")
