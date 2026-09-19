@@ -102,6 +102,8 @@ async def test_a_customer_message_creates_the_thread_message_and_followups(
         "select event_type, priority, run_after, payload from events order by id"
     )
     assert [(e["event_type"], e["priority"]) for e in events] == [
+        # The waiting timer books its own first check (S2).
+        ("conversation.sla_check", 8),
         ("conversation.assign_requested", 8),
         ("notification.requested", 8),
         ("copilot.draft_requested", 5),
@@ -144,7 +146,7 @@ async def test_replaying_the_handler_creates_no_second_message_or_side_effect(
         )
         == 1
     )
-    assert await su.fetchval("select count(*) from events") == 4
+    assert await su.fetchval("select count(*) from events") == 5
 
 
 async def test_an_opt_out_is_recorded_before_followups(

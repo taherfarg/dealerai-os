@@ -196,6 +196,73 @@ async def on_assign_requested(event: Event) -> None:
         )
 
 
+@handler("conversation.sla_check")
+async def on_sla_check(event: Event) -> None:
+    """Warn before the target, then once after it. Silent if the customer was answered.
+
+    Scheduled by the message that started the wait rather than by a sweep: exact,
+    and one queue row instead of a job a minute per tenant. The screen never
+    depends on it — the inbox computes the state from sla_due_at when it is read.
+    """
+    if event.tenant_id is None:
+        raise ValueError("conversation.sla_check requires a tenant")
+    tenant_id = event.tenant_id
+    conversation_id = UUID(str(event.payload["conversation_id"]))
+    level = str(event.payload.get("level") or "due_soon")
+    waiting_since = str(event.payload.get("waiting_since") or "")
+
+    async with tenant_session(tenant_id) as conn, conn.transaction():
+        row = await conn.fetchrow(
+            """select cv.waiting_since, cv.sla_due_at, cv.assigned_to, cv.team_id, ct.full_name
+               from conversations cv join contacts ct on ct.id = cv.contact_id
+               where cv.id = $1""",
+            conversation_id,
+        )
+        # Answered, or this check belongs to an older wait: nothing to say.
+        if row is None or row["waiting_since"] is None:
+            return
+        if waiting_since and row["waiting_since"].isoformat() != waiting_since:
+            return
+
+        started = row["waiting_since"].isoformat()
+        managers = [
+            r["user_id"] for r in await conn.fetch(_TEAM_MANAGERS, tenant_id, row["team_id"])
+        ]
+        if row["assigned_to"] is None:
+            kind, recipients = "unassigned_waiting", managers
+        elif level == "missed":
+            kind, recipients = "waiting_missed", [row["assigned_to"], *managers]
+        else:
+            kind, recipients = "waiting_due_soon", [row["assigned_to"]]
+
+        title = f"{row['full_name'] or 'A customer'} is waiting"
+        for user_id in dict.fromkeys(recipients):
+            await _notify(
+                conn,
+                tenant_id=tenant_id,
+                user_id=user_id,
+                kind=kind,
+                title=title,
+                entity={"type": "conversation", "id": str(conversation_id)},
+                dedupe_key=f"{kind}:{conversation_id}:{started}:{user_id}",
+            )
+
+        if level == "due_soon":
+            await emit(
+                conn,
+                "conversation.sla_check",
+                {
+                    "conversation_id": str(conversation_id),
+                    "level": "missed",
+                    "waiting_since": started,
+                },
+                tenant_id=tenant_id,
+                dedupe_key=f"sla:{conversation_id}:{started}:missed",
+                run_after=row["sla_due_at"],
+                priority=8,
+            )
+
+
 @handler("notification.requested")
 async def on_notification_requested(event: Event) -> None:
     """Turn an intent to notify into rows for the people who can act on it."""

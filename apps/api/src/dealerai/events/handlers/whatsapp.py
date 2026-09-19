@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import structlog
 
@@ -21,8 +22,10 @@ from ...connectors.channels import whatsapp_for_channel
 from ...connectors.whatsapp import template_status
 from ...db.session import tenant_session
 from ...media import storage
+from ...sales import hours
 from ...sales.identity import resolve_whatsapp_identity
 from ...sales.messaging import is_opt_out, variable_numbers
+from ...sales.settings import SalesSettings
 from ..bus import Event, emit, handler
 
 log = structlog.get_logger()
@@ -81,6 +84,51 @@ def _media(message: dict[str, Any]) -> list[dict[str, Any]]:
             "status": "pending",
         }
     ]
+
+
+def _timezone(name: str | None) -> ZoneInfo:
+    """The tenant's timezone, or UTC if it names one this machine does not have."""
+    try:
+        return ZoneInfo(name or "UTC")
+    except (ZoneInfoNotFoundError, ValueError):
+        log.warning("tenant_timezone_unknown", timezone=name)
+        return ZoneInfo("UTC")
+
+
+async def _start_the_timer(
+    conn: Any,
+    tenant_id: UUID,
+    conversation_id: UUID,
+    waiting_since: datetime,
+    tenant: Any,
+) -> None:
+    """Set the response target in business hours, and book its two checks.
+
+    A customer who writes at 23:30 is not late at 23:35, so the due time counts
+    minutes the team is open (docs/sales/05-workflows.md § 5).
+    """
+    settings = SalesSettings.model_validate((tenant["sales_settings"] if tenant else None) or {})
+    due = hours.due_at(
+        waiting_since,
+        settings=settings,
+        tz=_timezone(tenant["timezone"] if tenant else None),
+    )
+    await conn.execute(
+        "update conversations set sla_due_at=$2 where id=$1 and waiting_since=$3",
+        conversation_id,
+        due,
+        waiting_since,
+    )
+    started = waiting_since.isoformat()
+    await emit(
+        conn,
+        "conversation.sla_check",
+        {"conversation_id": str(conversation_id), "level": "due_soon", "waiting_since": started},
+        tenant_id=tenant_id,
+        dedupe_key=f"sla:{conversation_id}:{started}:due_soon",
+        run_after=due - timedelta(minutes=2),
+        priority=8,
+    )
 
 
 @handler("whatsapp.message_received")
@@ -185,21 +233,24 @@ async def on_message_received(event: Event) -> None:
         if message_id is None:
             return
 
-        settings = await conn.fetchval("select sales_settings from tenants where id=$1", tenant_id)
-        target_minutes = int((settings or {}).get("first_response_target_min", 5))
-        await conn.execute(
+        tenant = await conn.fetchrow(
+            "select sales_settings, timezone from tenants where id=$1", tenant_id
+        )
+        # The customer may already have been waiting: the target counts from then,
+        # not from this message.
+        started_waiting = await conn.fetchval(
             """update conversations set
                  status='open',
                  last_message_at=greatest(last_message_at, $2),
                  last_inbound_at=greatest(last_inbound_at, $2),
                  wa_window_expires_at=greatest(wa_window_expires_at, $2 + interval '24 hours'),
-                 waiting_since=coalesce(waiting_since, $2),
-                 sla_due_at=coalesce(sla_due_at, $2 + make_interval(mins => $3))
-               where id=$1""",
+                 waiting_since=coalesce(waiting_since, $2)
+               where id=$1
+               returning waiting_since""",
             conversation_id,
             sent_at,
-            target_minutes,
         )
+        await _start_the_timer(conn, tenant_id, conversation_id, started_waiting, tenant)
         if opted_out:
             await conn.execute(
                 """update contacts
