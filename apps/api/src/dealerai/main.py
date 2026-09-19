@@ -23,6 +23,7 @@ from .routes import (
     imports,
     inbox,
     me,
+    notifications,
     runs,
     team,
     tenants,
@@ -75,6 +76,7 @@ def create_app() -> FastAPI:
     app.include_router(webhooks.router)
     app.include_router(inbox.router)
     app.include_router(channels.router)
+    app.include_router(notifications.router)
     # Local sign-in as a seeded person. Never mounted outside ENV=local.
     if settings.env == "local":
         app.include_router(dev.router)

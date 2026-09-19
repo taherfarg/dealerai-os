@@ -67,7 +67,7 @@ async def test_partner_removed_revokes_the_channel_and_notifies(
     )
     assert await su.fetchval("select status from channels where id=$1", CHANNEL) == "revoked"
     [event] = await su.fetch("select payload from events where event_type='notification.requested'")
-    assert json.loads(event["payload"])["kind"] == "whatsapp_disconnected"
+    assert json.loads(event["payload"])["kind"] == "channel_disconnected"
 
 
 async def test_quality_warning_is_stored_and_notifies(
@@ -89,4 +89,4 @@ async def test_quality_warning_is_stored_and_notifies(
     )
     assert await su.fetchval("select quality_rating from channels where id=$1", CHANNEL) == "yellow"
     [event] = await su.fetch("select payload from events where event_type='notification.requested'")
-    assert json.loads(event["payload"])["kind"] == "whatsapp_quality_warning"
+    assert json.loads(event["payload"])["kind"] == "channel_quality"

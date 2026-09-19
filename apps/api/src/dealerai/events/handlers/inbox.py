@@ -46,6 +46,23 @@ join team_members tm on tm.user_id = m.user_id and tm.tenant_id = m.tenant_id
 where m.tenant_id = $1 and tm.team_id = $2 and m.role = 'manager'
 """
 
+_ADMINS = """
+select user_id from memberships where tenant_id = $1 and role in ('owner', 'admin')
+"""
+
+#: kind -> (title, body). The words live here rather than in the emitters, so a
+#: notification reads the same wherever it was raised.
+_NOTIFICATIONS: dict[str, tuple[str, str | None]] = {
+    "message_received": ("New message", None),
+    "assigned": ("A customer is waiting for you", None),
+    "waiting_due_soon": ("A customer is about to wait too long", None),
+    "waiting_missed": ("A customer has been waiting too long", None),
+    "unassigned_waiting": ("An unassigned customer is waiting", None),
+    "template_rejected": ("WhatsApp rejected a template", "Open Settings → Channels to fix it."),
+    "channel_disconnected": ("WhatsApp was disconnected", "Reconnect it in Settings → Channels."),
+    "channel_quality": ("WhatsApp flagged this number's quality", None),
+}
+
 
 async def _event_line(
     conn: asyncpg.Connection, tenant_id: UUID, conversation_id: UUID, kind: str, text: str
@@ -177,6 +194,64 @@ async def on_assign_requested(event: Event) -> None:
             entity={"type": "conversation", "id": str(conversation_id)},
             dedupe_key=f"assigned:{conversation_id}:{chosen}",
         )
+
+
+@handler("notification.requested")
+async def on_notification_requested(event: Event) -> None:
+    """Turn an intent to notify into rows for the people who can act on it."""
+    if event.tenant_id is None:
+        raise ValueError("notification.requested requires a tenant")
+    tenant_id = event.tenant_id
+    payload = event.payload
+    kind = str(payload.get("kind") or "message_received")
+    if kind not in _NOTIFICATIONS:
+        log.warning("notification_kind_unknown", kind=kind)
+        return
+    title, body = _NOTIFICATIONS[kind]
+
+    async with tenant_session(tenant_id) as conn, conn.transaction():
+        if kind == "message_received":
+            conversation_id = UUID(str(payload["conversation_id"]))
+            row = await conn.fetchrow(
+                """select cv.assigned_to, cv.team_id, ct.full_name
+                   from conversations cv join contacts ct on ct.id = cv.contact_id
+                   where cv.id = $1""",
+                conversation_id,
+            )
+            if row is None:
+                return
+            recipients: list[UUID] = (
+                [row["assigned_to"]]
+                if row["assigned_to"]
+                # Nobody owns it yet, so it is the managers' problem, not nobody's.
+                else [
+                    r["user_id"]
+                    for r in await conn.fetch(_TEAM_MANAGERS, tenant_id, row["team_id"])
+                ]
+            )
+            title = f"{row['full_name'] or 'A customer'} sent a message"
+            entity = {"type": "conversation", "id": str(conversation_id)}
+            dedupe = f"message:{payload.get('message_id')}"
+        else:
+            recipients = [r["user_id"] for r in await conn.fetch(_ADMINS, tenant_id)]
+            entity = {
+                key: str(value)
+                for key, value in payload.items()
+                if key != "kind" and value is not None
+            }
+            dedupe = f"{kind}:{payload.get('template_id') or payload.get('channel_id')}"
+
+        for user_id in dict.fromkeys(recipients):  # ordered, and each person once
+            await _notify(
+                conn,
+                tenant_id=tenant_id,
+                user_id=user_id,
+                kind=kind,
+                title=title,
+                body=body,
+                entity=entity,
+                dedupe_key=f"{dedupe}:{user_id}",
+            )
 
 
 async def _keep_their_own(

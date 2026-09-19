@@ -789,7 +789,7 @@ async def on_account_update(event: Event) -> None:
         await emit(
             conn,
             "notification.requested",
-            {"kind": "whatsapp_disconnected", "channel_id": str(channel_id)},
+            {"kind": "channel_disconnected", "channel_id": str(channel_id)},
             tenant_id=event.tenant_id,
             dedupe_key=f"whatsapp-disconnected:{channel_id}",
             priority=10,
@@ -815,7 +815,7 @@ async def on_quality_update(event: Event) -> None:
                 conn,
                 "notification.requested",
                 {
-                    "kind": "whatsapp_quality_warning",
+                    "kind": "channel_quality",
                     "channel_id": str(channel_id),
                     "rating": rating,
                 },
