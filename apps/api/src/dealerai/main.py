@@ -75,6 +75,7 @@ def create_app() -> FastAPI:
     app.include_router(team.router)
     app.include_router(webhooks.router)
     app.include_router(inbox.router)
+    app.include_router(inbox.messages_router)
     app.include_router(channels.router)
     app.include_router(notifications.router)
     # Local sign-in as a seeded person. Never mounted outside ENV=local.

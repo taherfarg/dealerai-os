@@ -111,6 +111,32 @@ def one_sql() -> str:
     return f"{SUMMARY} where cv.id = $2"
 
 
+#: One message as the thread draws it. The joins are shared with THREAD so a
+#: message never looks different depending on which route answered.
+_MESSAGE_SELECT = """
+select m.id, m.conversation_id, m.kind, m.type, m.direction, m.origin, m.body, m.media,
+       m.transcript, m.location, m.template, m.reactions, m.status, m.error, m.event,
+       m.referral, m.created_at, m.reply_to_id,
+       m.author_user_id, author.full_name as author_name, author.avatar_url as author_avatar,
+       reply.body as reply_body, reply.type as reply_type, reply.transcript as reply_transcript
+from messages m
+left join profiles author on author.id = m.author_user_id
+left join messages reply on reply.id = m.reply_to_id
+"""
+
+#: Newest first, so a page walks backwards into the past; the route reverses it,
+#: because the screen appends downwards.
+#: $1 conversation, $2 cursor time, $3 cursor id, $4 limit.
+THREAD = f"""
+{_MESSAGE_SELECT}
+where m.conversation_id = $1
+  and ($2::timestamptz is null or (m.created_at, m.id) < ($2::timestamptz, $3::uuid))
+order by m.created_at desc, m.id desc
+limit $4
+"""
+
+MESSAGE = f"{_MESSAGE_SELECT} where m.id = $1"
+
 COUNTS = """
 select count(*) filter (where cv.waiting_since is not null) as waiting,
        coalesce(sum((select count(*) from messages unread
