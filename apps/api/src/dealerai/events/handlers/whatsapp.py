@@ -9,7 +9,14 @@ from uuid import UUID
 import structlog
 
 from ...ai.transcription import transcribe_audio
-from ...connectors.base import MessageRequest, TokenExpired
+from ...connectors.base import (
+    MessageRequest,
+    NotSupported,
+    OutsideMessagingWindow,
+    RateLimited,
+    RequestRejected,
+    TokenExpired,
+)
 from ...connectors.channels import whatsapp_for_channel
 from ...connectors.whatsapp import template_status
 from ...db.session import tenant_session
@@ -494,7 +501,19 @@ async def on_send_requested(event: Event) -> None:
     )
     try:
         result = await whatsapp_for_channel(dict(row)).send_message(request)
-    except Exception as exc:
+    except RateLimited:
+        # Meta declined to accept it, so nothing reached the customer. Put it
+        # back in the queue instead of failing a reply Meta never saw.
+        async with tenant_session(event.tenant_id) as conn:
+            await conn.execute(
+                """update messages set status='queued', locked_at=null
+                   where id=$1 and status='sending'""",
+                message_id,
+            )
+        raise
+    except (OutsideMessagingWindow, RequestRejected, NotSupported, TokenExpired) as exc:
+        # Meta read the request and refused it: nothing was delivered, and the
+        # reason is worth showing to the salesperson.
         code = str(getattr(exc, "code", getattr(exc, "slug", "connector_error")))
         async with tenant_session(event.tenant_id) as conn:
             await conn.execute(
@@ -507,6 +526,12 @@ async def on_send_requested(event: Event) -> None:
                     "update channels set status='expired' where id=$1", row["channel_id"]
                 )
         return
+    # Anything else — a timeout, a 5xx, a dropped connection — leaves the send
+    # ambiguous: Meta may already have delivered it. The row stays 'sending' and
+    # the watchdog calls it "delivery unknown" two minutes later, because a
+    # customer-visible double send is the worse of the two mistakes
+    # (docs/sales/03-whatsapp.md § 7). Nothing here auto-resends: the claim
+    # above only ever moves a message out of 'queued'.
 
     async with tenant_session(event.tenant_id) as conn:
         await conn.execute(
