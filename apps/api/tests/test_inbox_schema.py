@@ -44,7 +44,7 @@ async def test_a_read_cursor_is_one_row_per_person(su: asyncpg.Connection, seede
 
 
 async def test_a_notification_is_delivered_once(su: asyncpg.Connection, seeded: None) -> None:
-    """"This customer is late" must not fire twice for one waiting period.
+    """ "This customer is late" must not fire twice for one waiting period.
 
     The event queue only dedupes events that are still pending, so the row needs
     its own key to survive the first event finishing.

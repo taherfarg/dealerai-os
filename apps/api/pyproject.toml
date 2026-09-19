@@ -17,6 +17,9 @@ dependencies = [
     "pillow>=12.3.0",
     "python-multipart>=0.0.32",
     "playwright>=1.62.0",
+    # zoneinfo has no IANA database on Windows, and response targets are computed
+    # in the tenant's timezone. Data, not code.
+    "tzdata>=2026.1",
 ]
 
 [dependency-groups]
