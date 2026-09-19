@@ -58,6 +58,36 @@ and an idempotent human reply is sent once through the mock connector. Live Meta
 and Tech Provider approval remain operational gates; coexistence onboarding and history import are
 the later S10 workflow slice.
 
+## Review — 2026-09-19
+
+The implementation above was reviewed against this plan and the specs, and the exit path was
+run end to end for the first time. The suite was green throughout, so each of these was
+invisible to it.
+
+| Found | Why it mattered | Fixed in |
+|---|---|---|
+| `npm run wa:simulate inbound` never produced a message: the simulator sent the BSUID as `wa_id`, and the resolver raised on anything that is not a phone number | The documented demo path, and the slice's own exit criterion. Only the payload shape was tested, never its journey | `34bae10` |
+| Every connector failure marked the message `failed`, including timeouts and 5xx | A clean "failed" invites a retry that sends the customer the same message twice — the one mistake the watchdog exists to prevent. A rate limit also failed a reply Meta never received | `1649194` |
+| Eleven event types were emitted with nothing handling them, four on every inbound message | An unhandled type retries five times and dead-letters, so working software fills the queue with red | `edde940` |
+| The three authenticated endpoints had no permission or visibility test; another tenant's channel answered `[]` rather than 404 | The definition of done requires both of every endpoint | `a6d00d0` |
+| Route errors were the connector's own types, not the contract's | The composer branches on `window-closed` to offer templates; `channel-unavailable` is a 409 | `a6d00d0` |
+| The mock served 21 placeholder bytes as a voice note | Gemini transcribes whatever it is handed: the demo attached invented speech that looked exactly like a working transcript | `34bae10` |
+| Transcripts carried no language, and silence became a plausible car enquiry | The fake in the test supplied a language the real function never returned. Fabricated customer speech is worse than no transcript | `b4d2462` |
+
+Sound as built, and left alone: the migration, the advisory-lock identity resolution, status
+monotonicity, media idempotence, the audio-rate cost model and the watchdog itself.
+
+Known and deliberately not changed in S1: `sla_due_at` ignores business hours until
+`sales/hours.py` arrives with S2; inbound interactive replies and button taps store as
+`unsupported`; template variables are numbered rather than labelled; an inbound message
+reopens a conversation marked spam.
+
+**Verified end to end on 2026-09-19** (signed simulated webhook → worker → database):
+a voice note became an `audio` message on the right customer, its media was stored on disk,
+Gemini returned *"Hello, is the white Land Cruiser still available? What is your best price?"*,
+a salesperson's reply was queued, claimed once and sent through the mock, and the queue
+finished with no failures.
+
 ---
 
 ## File structure
