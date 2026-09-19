@@ -15,7 +15,8 @@ from uuid import uuid4
 import httpx
 
 from ..config import get_settings
-from .seed_sales import PHONE_NUMBER_ID, WABA_ID
+from ..connectors.mock import SIMULATOR_VOICE_MEDIA_ID
+from .seed_sales import CUSTOMERS, PHONE_NUMBER_ID, WABA_ID
 
 Kind = Literal["inbound", "voice", "echo", "status"]
 
@@ -29,16 +30,24 @@ def build_payload(
     text: str,
     message_id: str,
     timestamp: int,
+    phone: str | None = None,
+    name: str = "Local Customer",
 ) -> dict[str, Any]:
+    """`customer` is the business-scoped user id; `phone` is the wa_id.
+
+    They are different fields on purpose: wa_id is a phone number, and Meta omits
+    it for customers who use a username. Passing phone=None simulates that.
+    """
     metadata = {
         "display_phone_number": "+971 50 000 0000",
         "phone_number_id": phone_number_id,
     }
-    contact = {
-        "profile": {"name": "Local Customer"},
-        "wa_id": customer,
+    contact: dict[str, Any] = {
+        "profile": {"name": name},
         "user_id": customer,
     }
+    if phone:
+        contact["wa_id"] = phone
     if kind == "status":
         field = "messages"
         value: dict[str, Any] = {
@@ -54,13 +63,20 @@ def build_payload(
         }
         if kind == "echo":
             message |= {"to_user_id": customer, "text": {"body": text}}
-        elif kind == "voice":
-            message |= {
-                "from_user_id": customer,
-                "audio": {"id": "local-media-1", "mime_type": "audio/ogg"},
-            }
+            if phone:
+                message["to"] = phone
         else:
-            message |= {"from_user_id": customer, "text": {"body": text}}
+            message["from_user_id"] = customer
+            if phone:
+                message["from"] = phone
+            if kind == "voice":
+                message["audio"] = {
+                    "id": SIMULATOR_VOICE_MEDIA_ID,
+                    "mime_type": "audio/ogg; codecs=opus",
+                    "voice": True,
+                }
+            else:
+                message["text"] = {"body": text}
         value = {"metadata": metadata, "contacts": [contact], "messages": [message]}
     return {
         "object": "whatsapp_business_account",
@@ -88,6 +104,8 @@ async def run(args: argparse.Namespace) -> int:
         phone_number_id=args.phone_number_id,
         account_id=args.account_id,
         customer=args.customer,
+        phone=None if args.no_phone else args.phone,
+        name=args.name,
         text=args.text,
         message_id=message_id,
         timestamp=int(time.time()),
@@ -112,7 +130,22 @@ def main() -> None:
     parser.add_argument("--url", default="http://127.0.0.1:8000/webhooks/whatsapp")
     parser.add_argument("--phone-number-id", default=PHONE_NUMBER_ID)
     parser.add_argument("--account-id", default=WABA_ID)
-    parser.add_argument("--customer", default="AE.seed.1")
+    parser.add_argument("--customer", default="AE.seed.1", help="business-scoped user id")
+    parser.add_argument(
+        "--phone",
+        default=CUSTOMERS[0][1].removeprefix("+"),
+        help="wa_id: the customer's number, digits only",
+    )
+    parser.add_argument(
+        "--no-phone",
+        action="store_true",
+        help="omit wa_id, as Meta does for a customer with a username",
+    )
+    parser.add_argument(
+        "--name",
+        default=CUSTOMERS[0][0],
+        help="WhatsApp profile name; it renames the customer unless a person edited theirs",
+    )
     parser.add_argument("--text", default="Is the Hilux available?")
     parser.add_argument("--message-id")
     raise SystemExit(asyncio.run(run(parser.parse_args())))

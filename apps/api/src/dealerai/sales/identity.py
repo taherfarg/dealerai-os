@@ -5,6 +5,9 @@ from __future__ import annotations
 from uuid import UUID
 
 import asyncpg
+import structlog
+
+log = structlog.get_logger()
 
 _CALLING_CODES = {
     "971": "AE",
@@ -15,11 +18,19 @@ _CALLING_CODES = {
 
 
 def _phone(wa_id: str | None) -> str | None:
+    """A wa_id is a phone number without the plus. Anything else is not one.
+
+    Ignored rather than raised: Meta omits this field for customers with a
+    username, and a value we cannot parse must not cost us the message — the
+    BSUID identifies the customer on its own.
+    """
     if not wa_id:
         return None
     digits = wa_id.strip().removeprefix("+")
     if not digits.isdigit() or not 7 <= len(digits) <= 15 or digits.startswith("0"):
-        raise ValueError("WhatsApp phone identity is not E.164")
+        # Never log the value itself: an unparsed wa_id is still someone's number.
+        log.warning("whatsapp_wa_id_not_e164", length=len(digits))
+        return None
     return f"+{digits}"
 
 

@@ -14,6 +14,7 @@ from __future__ import annotations
 import hashlib
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from pathlib import Path
 
 from .base import (
     ConnectorHealth,
@@ -176,6 +177,46 @@ def whatsapp_like() -> MockConnector:
         supports=frozenset(),
         enforces_messaging_window=True,
     )
+
+
+#: The media id the simulator sends for a voice note (scripts/wa_simulate.py).
+SIMULATOR_VOICE_MEDIA_ID = "local-media-1"
+
+_SAMPLES = Path(__file__).parent / "samples"
+
+#: What the seed writes into message_templates, so a local template sync agrees
+#: with it instead of disabling the rows.
+SIMULATOR_TEMPLATES = (
+    ("en_US", "The {{1}} is available for {{2}}."),
+    ("ar", "السيارة {{1}} متوفرة بسعر {{2}}."),
+    ("fr", "Le véhicule {{1}} est disponible à {{2}}."),
+)
+
+
+def whatsapp_simulator() -> MockConnector:
+    """The local channel's connector.
+
+    It serves a real six-second voice note, not a placeholder: Gemini transcribes
+    whatever it is handed, so fake audio produces a fabricated transcript that
+    looks exactly like a working one.
+    """
+    connector = whatsapp_like()
+    connector.media[SIMULATOR_VOICE_MEDIA_ID] = (
+        (_SAMPLES / "voice-note.ogg").read_bytes(),
+        "audio/ogg; codecs=opus",
+    )
+    connector.templates.extend(
+        TemplateInfo(
+            external_id=f"seed-template-{language}",
+            name="vehicle_available",
+            language=language,
+            category="utility",
+            status="approved",
+            components=[{"type": "BODY", "text": body}],
+        )
+        for language, body in SIMULATOR_TEMPLATES
+    )
+    return connector
 
 
 def instagram_like() -> MockConnector:

@@ -8,7 +8,7 @@ from typing import Any
 from ..config import get_settings
 from .base import MessagingConnector
 from .crypto import CredentialsCorrupt, decrypt
-from .mock import whatsapp_like
+from .mock import whatsapp_simulator
 from .whatsapp import WhatsAppCloud
 
 _local_mocks: dict[str, MessagingConnector] = {}
@@ -20,9 +20,7 @@ def whatsapp_for_channel(channel: Mapping[str, Any]) -> MessagingConnector:
     if settings.is_local and stored.get("provider") == "mock":
         key = str(channel["external_id"])
         if key not in _local_mocks:
-            connector = whatsapp_like()
-            connector.media["local-media-1"] = (b"OggS local voice note", "audio/ogg")
-            _local_mocks[key] = connector
+            _local_mocks[key] = whatsapp_simulator()
         return _local_mocks[key]
     credentials = decrypt(stored)
     token = credentials.get("access_token")

@@ -121,3 +121,32 @@ async def test_ten_simultaneous_first_messages_create_one_customer(
 async def test_at_least_one_identity_is_required(db: None, seeded: None) -> None:
     with pytest.raises(ValueError, match="identity"):
         await _resolve(bsuid=None, wa_id=None)
+
+
+async def test_an_unreadable_wa_id_does_not_cost_us_the_message(
+    db: None, su: asyncpg.Connection, seeded: None
+) -> None:
+    """Meta may send something that is not a phone number, or nothing at all.
+
+    Refusing the message would lose a customer's first contact over a field the
+    BSUID already makes unnecessary.
+    """
+    contact_id = await _resolve(wa_id="AE.13491208655302741918")
+    kinds = [
+        row["kind"]
+        for row in await su.fetch(
+            "select kind from contact_identities where contact_id = $1", contact_id
+        )
+    ]
+    assert kinds == ["whatsapp_user_id"], "a junk wa_id was stored as a phone number"
+
+
+async def test_a_phone_only_customer_still_resolves(
+    db: None, su: asyncpg.Connection, seeded: None
+) -> None:
+    contact_id = await _resolve(bsuid=None)
+    assert await su.fetchval(
+        """select exists(select 1 from contact_identities
+                         where contact_id = $1 and kind = 'phone' and value = '+971500009999')""",
+        contact_id,
+    )
