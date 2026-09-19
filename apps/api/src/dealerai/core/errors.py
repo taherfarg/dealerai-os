@@ -66,6 +66,30 @@ class GuardRejected(AppError):
     title = "Rejected by a guard"
 
 
+class WindowClosed(AppError):
+    """WhatsApp's 24-hour service window, refused before the connector is called.
+
+    Its own type because the composer answers it by offering templates rather
+    than by showing an error (docs/sales/06-api-contract.md § 11).
+    """
+
+    status = 422
+    slug = "window-closed"
+    title = "The 24-hour window is closed"
+
+
+class ConsentRequired(AppError):
+    status = 422
+    slug = "consent-required"
+    title = "The customer has not agreed to this message"
+
+
+class ChannelUnavailable(AppError):
+    status = 409
+    slug = "channel-unavailable"
+    title = "The channel cannot send right now"
+
+
 class BudgetExceeded(AppError):
     status = 422
     slug = "budget-exceeded"

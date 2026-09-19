@@ -17,7 +17,9 @@ from ..core.security import Unauthenticated
 from ..db.session import system_session
 from ..events.bus import emit
 
-router = APIRouter(prefix="/webhooks", tags=["webhooks"])
+# Out of the schema on purpose: this is Meta's callback, not part of the API the
+# browser is generated from (docs/sales/07-frontend.md § 2).
+router = APIRouter(prefix="/webhooks", tags=["webhooks"], include_in_schema=False)
 
 
 @dataclass(frozen=True, slots=True)

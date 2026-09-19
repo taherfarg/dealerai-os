@@ -9,6 +9,7 @@ from google.genai import types
 
 from .gateway import SystemLayers, complete
 from .models import TaskKind
+from .prompts import load
 
 
 @dataclass(frozen=True, slots=True)
@@ -29,12 +30,7 @@ async def transcribe_audio(*, tenant_id: UUID, data: bytes, mime: str) -> Transc
     result = await complete(
         TaskKind.TRANSCRIBE,
         tenant_id=tenant_id,
-        system=SystemLayers(
-            role=(
-                "You transcribe customer voice messages accurately. Preserve the spoken "
-                "language and do not translate, summarize, or add commentary."
-            )
-        ),
+        system=SystemLayers(role=load("transcribe")),
         messages=content,
         max_tokens=2_000,
         trace_name="whatsapp.transcribe",

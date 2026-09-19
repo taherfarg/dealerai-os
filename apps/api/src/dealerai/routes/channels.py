@@ -56,6 +56,10 @@ async def list_channels(ctx: Ctx) -> list[dict[str, Any]]:
 @router.get("/{channel_id}/templates", response_model=list[TemplateOut])
 async def list_templates(channel_id: UUID, ctx: Ctx) -> list[TemplateOut]:
     async with tenant_session(ctx.tenant_id, user_id=ctx.user.id, scope=ctx.scope) as conn:
+        # Another tenant's channel is a 404, exactly like one that does not
+        # exist — an empty list would answer "it exists, and it is empty".
+        if not await conn.fetchval("select exists(select 1 from channels where id=$1)", channel_id):
+            raise NotFound("no such channel")
         rows = await conn.fetch(
             """select id, channel_id, external_id, name, language, category, status,
                       body, variables, rejected_reason, synced_at

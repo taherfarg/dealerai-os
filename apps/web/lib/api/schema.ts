@@ -112,6 +112,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/channels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Channels */
+        get: operations["list_channels_v1_channels_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/channels/{channel_id}/templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Templates */
+        get: operations["list_templates_v1_channels__channel_id__templates_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/channels/{channel_id}/templates/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Sync Templates */
+        post: operations["sync_templates_v1_channels__channel_id__templates_sync_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/content": {
         parameters: {
             query?: never;
@@ -147,6 +198,26 @@ export interface paths {
          *     the DAG is spawned by the strategist rather than guessed here.
          */
         post: operations["generate_v1_content_generate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/conversations/{conversation_id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send Message
+         * @description Persist the send intent before the worker calls Meta.
+         */
+        post: operations["send_message_v1_conversations__conversation_id__messages_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -641,6 +712,30 @@ export interface components {
                 [key: string]: string;
             };
         };
+        /** ChannelOut */
+        ChannelOut: {
+            /** Display Name */
+            display_name: string | null;
+            /** Handle */
+            handle: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Mode */
+            mode: string | null;
+            /** Platform */
+            platform: string;
+            /** Quality Rating */
+            quality_rating: string | null;
+            /** Status */
+            status: string;
+            /** Sync State */
+            sync_state: {
+                [key: string]: unknown;
+            };
+        };
         /** ContentItemOut */
         ContentItemOut: {
             /**
@@ -831,6 +926,32 @@ export interface components {
             /** Reason */
             reason: string;
         };
+        /** QueuedMessage */
+        QueuedMessage: {
+            /** Body */
+            body: string | null;
+            /**
+             * Conversation Id
+             * Format: uuid
+             */
+            conversation_id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Idempotency Key */
+            idempotency_key: string;
+            /** Status */
+            status: string;
+            /** Type */
+            type: string;
+        };
         /** RowError */
         RowError: {
             /** Message */
@@ -919,6 +1040,17 @@ export interface components {
             summary?: string | null;
             /** Trigger Type */
             trigger_type: string;
+        };
+        /** SendMessageIn */
+        SendMessageIn: {
+            /** Reply To Id */
+            reply_to_id?: string | null;
+            /** Template Id */
+            template_id?: string | null;
+            /** Text */
+            text?: string | null;
+            /** Variables */
+            variables?: string[];
         };
         /** StatusChange */
         StatusChange: {
@@ -1014,6 +1146,40 @@ export interface components {
             member_ids: string[];
             /** Name */
             name: string;
+        };
+        /** TemplateOut */
+        TemplateOut: {
+            /** Body */
+            body: string;
+            /** Category */
+            category: string;
+            /**
+             * Channel Id
+             * Format: uuid
+             */
+            channel_id: string;
+            /** External Id */
+            external_id: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Language */
+            language: string;
+            /** Name */
+            name: string;
+            /** Rejected Reason */
+            rejected_reason: string | null;
+            /** Status */
+            status: string;
+            /**
+             * Synced At
+             * Format: date-time
+             */
+            synced_at: string;
+            /** Variables */
+            variables: string[];
         };
         /** TenantCreate */
         TenantCreate: {
@@ -1522,6 +1688,105 @@ export interface operations {
             };
         };
     };
+    list_channels_v1_channels_get: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChannelOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_templates_v1_channels__channel_id__templates_get: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                channel_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TemplateOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sync_templates_v1_channels__channel_id__templates_sync_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                channel_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_content_v1_content_get: {
         parameters: {
             query?: {
@@ -1579,6 +1844,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GenerateAccepted"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    send_message_v1_conversations__conversation_id__messages_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+                "X-Tenant-Id": string;
+            };
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SendMessageIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QueuedMessage"];
                 };
             };
             /** @description Validation Error */

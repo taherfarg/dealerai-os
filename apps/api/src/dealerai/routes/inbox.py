@@ -9,8 +9,13 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Header, status
 from pydantic import BaseModel, Field, model_validator
 
-from ..connectors.base import OutsideMessagingWindow, RequestRejected
-from ..core.errors import NotFound, Unusable
+from ..core.errors import (
+    ChannelUnavailable,
+    ConsentRequired,
+    NotFound,
+    Unusable,
+    WindowClosed,
+)
 from ..db.session import tenant_session
 from ..deps import TenantContext, require_permission
 from ..events.bus import emit
@@ -86,7 +91,7 @@ async def send_message(
         if conversation is None:
             raise NotFound("no such WhatsApp conversation")
         if conversation["channel_status"] != "connected":
-            raise RequestRejected("the WhatsApp channel is not connected", code="channel_inactive")
+            raise ChannelUnavailable("This WhatsApp number is not connected right now.")
 
         consent = dict(conversation["consent"] or {})
         message_type = "text"
@@ -94,9 +99,12 @@ async def send_message(
         template_data: dict[str, Any] | None = None
         if body.template_id is None:
             if consent.get("opted_out_at"):
-                raise RequestRejected("the customer asked not to be messaged", code="opted_out")
+                raise ConsentRequired("The customer asked not to be messaged.")
             if not window_is_open(conversation["wa_window_expires_at"], datetime.now(UTC)):
-                raise OutsideMessagingWindow("choose an approved template to continue")
+                raise WindowClosed(
+                    "More than 24 hours since the customer's last message. "
+                    "Send an approved template."
+                )
         else:
             template = await conn.fetchrow(
                 """select id, name, language, category, status, body
@@ -107,10 +115,10 @@ async def send_message(
             if template is None:
                 raise NotFound("no such message template")
             if template["status"] != "approved":
-                raise RequestRejected("the template is not approved", code="template_not_approved")
+                raise Unusable("This template is not approved by WhatsApp.")
             reason = template_block_reason(template["category"], consent)
             if reason:
-                raise RequestRejected(reason, code="consent_required")
+                raise ConsentRequired(reason)
             required = variable_numbers(template["body"])
             if required and (required != list(range(1, len(body.variables) + 1))):
                 raise Unusable(f"this template needs {max(required)} variables")

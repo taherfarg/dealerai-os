@@ -14,10 +14,10 @@ from dealerai.connectors.base import (
     ConnectorError,
     MessageRequest,
     MessageResult,
-    OutsideMessagingWindow,
     RateLimited,
     RequestRejected,
 )
+from dealerai.core.errors import WindowClosed
 from dealerai.core.security import AuthedUser
 from dealerai.deps import TenantContext
 from dealerai.events.bus import Event
@@ -109,7 +109,7 @@ async def test_free_form_send_is_refused_after_the_customer_window_closes(
     db: None, su: asyncpg.Connection, seeded: None
 ) -> None:
     conversation_id = await _conversation(su, window_open=False)
-    with pytest.raises(OutsideMessagingWindow):
+    with pytest.raises(WindowClosed):
         await send_message(
             conversation_id, SendMessageIn(text="Still interested?"), "send-closed", _ctx()
         )

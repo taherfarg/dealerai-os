@@ -253,11 +253,13 @@ reader.
 |---|---|---|
 | `window-closed` | 422 | Free-form send outside the 24-hour window |
 | `guard-rejected` | 422 | Outbound text a guard refused |
+| `consent-required` | 422 | The customer opted out, or a marketing template without consent |
+| `unusable-input` | 422 | A template that is not approved, or the wrong number of variables |
 | `channel-unavailable` | 409 | The channel is revoked or in error |
 | `stage-in-use` | 409 | Deleting a pipeline stage that still holds leads |
 | `already-merged` | 409 | Merging a customer that no longer exists |
-| `idempotency-key-required` | 400 | A send without the header |
-| `permission-denied` | 403 | The role lacks the permission for this action |
+| `invalid-request` | 400 | A malformed body, or a send without `Idempotency-Key` |
+| `forbidden` | 403 | The role lacks the permission for this action |
 | `not-found` | 404 | Missing, another tenant's, or outside the caller's visibility |
 | `rate-limited` | 429 | Per-tenant limits, `Retry-After` set |
 

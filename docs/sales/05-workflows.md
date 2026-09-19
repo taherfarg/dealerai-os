@@ -16,7 +16,8 @@ idempotent on `(event_type, dedupe_key)`.
 | `whatsapp.status_received` | Webhook | Status update | 10 |
 | `whatsapp.echo_received` | Webhook | Store phone-app reply, stop the timer | 10 |
 | `whatsapp.account_update` | Webhook | Channel state | 10 |
-| `message.send_requested` | Send API, task draft send | Window check → connector | 10 |
+| `whatsapp.send_requested` | Send API, task draft send | Claim `queued → sending`, then the connector | 10 |
+| `whatsapp.send_watchdog` | The send claim, +2 min | A send still `sending` becomes "delivery unknown" | 10 |
 | `conversation.assign_requested` | Ingest, rep stops taking chats, opening-time sweep | Routing | 8 |
 | `conversation.sla_check` | Every minute | Due-soon and missed notifications | 8 |
 | `whatsapp.contacts_synced` | Webhook | Upsert names and phones | 8 |
@@ -26,11 +27,12 @@ idempotent on `(event_type, dedupe_key)`.
 | `contact.reassigned` | Reassign API | Notify the new owner | 8 |
 | `notification.push_requested` | A notification row | Web push to the user's subscriptions | 8 |
 | `message.media_requested` | Ingest | Download media to Storage | 5 |
-| `message.transcribe_requested` | Media stored, audio | Transcribe | 5 |
+| `message.transcription_requested` | Media stored, audio | Transcribe | 5 |
 | `copilot.draft_requested` | Ingest, +20 s | Draft loop ([04](04-ai-copilot.md) §3) | 5 |
 | `conversation.idle` | Any message, +15 min | Profile, signals, score, summary | 2 |
 | `followup.check` | Hourly sweep, `vehicle.price_changed`, `vehicle.created` | Eligibility → follow-up agent → task | 2 |
 | `whatsapp.template_status` | Webhook | Template state | 2 |
+| `whatsapp.templates_sync_requested` | Connect API, Settings, daily sweep | Re-read the WABA's templates | 2 |
 | `whatsapp.quality_update` | Webhook | Quality rating | 2 |
 | `channel.history_imported` | Final history chunk | Recompute conversation state, notify | 2 |
 | `whatsapp.history_chunk` | Webhook | Import messages | 0 |

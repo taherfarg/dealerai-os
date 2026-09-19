@@ -20,6 +20,7 @@ node_modules/
 dist/
 
 # local infra + generated media
+.codegraph/
 .supabase/
 .storage/
 /tmp/
