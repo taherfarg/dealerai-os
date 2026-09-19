@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useNow } from "@/lib/clock";
 import { formatDuration } from "@/lib/format";
 import { useT } from "@/lib/i18n-client";
 
@@ -11,17 +11,6 @@ const TONE: Record<"ok" | "due_soon" | "breached", string> = {
   due_soon: "text-amber-600 dark:text-amber-400",
   breached: "text-red-600 dark:text-red-400",
 };
-
-/** A clock that advances on its own, so a timer counts up without a refetch. */
-function useNow(everyMs = 30_000, fixed?: number): number {
-  const [now, setNow] = useState(() => fixed ?? Date.now());
-  useEffect(() => {
-    if (fixed !== undefined) return;
-    const tick = window.setInterval(() => setNow(Date.now()), everyMs);
-    return () => window.clearInterval(tick);
-  }, [everyMs, fixed]);
-  return now;
-}
 
 /**
  * How long this customer has been waiting.
