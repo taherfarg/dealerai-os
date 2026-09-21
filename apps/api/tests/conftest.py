@@ -120,6 +120,63 @@ async def _wipe(conn: asyncpg.Connection) -> None:
     )
 
 
+#: The stages a new workspace starts with (docs/sales/02-data-model.md § 2).
+DEFAULT_STAGES = (
+    ("New", "open"),
+    ("Contacted", "open"),
+    ("Qualified", "open"),
+    ("Won", "won"),
+    ("Lost", "lost"),
+)
+
+
+async def _default_board(
+    conn: asyncpg.Connection, tenant_id: uuid.UUID
+) -> tuple[uuid.UUID, uuid.UUID]:
+    """The default pipeline and its first open stage.
+
+    A lead cannot exist without a stage to sit on, so the fixtures create the
+    same board routes/tenants.py gives a real workspace.
+    """
+    pipeline_id = await conn.fetchval(
+        """insert into pipelines (tenant_id, name, is_default) values ($1, 'Sales', true)
+           returning id""",
+        tenant_id,
+    )
+    first_open: uuid.UUID | None = None
+    for position, (name, category) in enumerate(DEFAULT_STAGES):
+        stage_id = await conn.fetchval(
+            """insert into pipeline_stages (tenant_id, pipeline_id, name, position, category)
+               values ($1, $2, $3, $4, $5) returning id""",
+            tenant_id,
+            pipeline_id,
+            name,
+            position,
+            category,
+        )
+        if category == "open" and first_open is None:
+            first_open = stage_id
+    assert first_open is not None
+    return pipeline_id, first_open
+
+
+async def _open_board(
+    conn: asyncpg.Connection, tenant_id: uuid.UUID
+) -> tuple[uuid.UUID, uuid.UUID]:
+    """The board a workspace already has, and where a new lead lands on it."""
+    row = await conn.fetchrow(
+        """select p.id as pipeline_id, s.id as stage_id
+             from pipelines p
+             join pipeline_stages s on s.pipeline_id = p.id and s.category = 'open'
+            where p.tenant_id = $1
+            order by p.is_default desc, p.position, s.position
+            limit 1""",
+        tenant_id,
+    )
+    assert row is not None, "seed the tenant before its customers"
+    return row["pipeline_id"], row["stage_id"]
+
+
 async def _seed_tenant(
     conn: asyncpg.Connection, tenant_id: uuid.UUID, user_id: uuid.UUID, slug: str
 ) -> None:
@@ -165,10 +222,14 @@ async def _seed_tenant(
         conversation_id,
         f"secret of {slug}",
     )
+    pipeline_id, stage_id = await _default_board(conn, tenant_id)
     await conn.execute(
-        "insert into leads (tenant_id, contact_id, stage) values ($1, $2, 'new')",
+        """insert into leads (tenant_id, contact_id, pipeline_id, stage_id)
+           values ($1, $2, $3, $4)""",
         tenant_id,
         contact_id,
+        pipeline_id,
+        stage_id,
     )
     await conn.execute("insert into content_items (tenant_id, kind) values ($1, 'post')", tenant_id)
     await conn.execute(
@@ -318,11 +379,14 @@ async def _seed_customer(
         team_id,
         assigned_to if assigned_to is not None else owner_id,
     )
+    pipeline_id, stage_id = await _open_board(conn, TENANT_A)
     await conn.execute(
-        """insert into leads (tenant_id, contact_id, stage, owner_id, team_id)
-           values ($1, $2, 'new', $3, $4)""",
+        """insert into leads (tenant_id, contact_id, pipeline_id, stage_id, owner_id, team_id)
+           values ($1, $2, $3, $4, $5, $6)""",
         TENANT_A,
         contact_id,
+        pipeline_id,
+        stage_id,
         owner_id,
         team_id,
     )
