@@ -537,6 +537,7 @@ export function useCreateLead() {
 }
 
 type LeadEdit = {
+  id: string;
   stage_id?: string;
   owner_id?: string;
   vehicle_id?: string;
@@ -548,33 +549,35 @@ type LeadEdit = {
  * Moving a lead is the move a person makes over and over and watches, so the
  * card lands in its new column before the round trip — and goes back if the API
  * refuses, which it does for a lost lead with no reason.
+ *
+ * The lead's id is a mutation variable rather than a hook argument: a board
+ * moves whichever card was dragged, and a hook per card would mean a hook
+ * inside a loop.
  */
-export function useEditLead(leadId: string) {
+export function useEditLead() {
   const { api, tenantId, header } = useTenantApi();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (body: LeadEdit) =>
+    mutationFn: async ({ id, ...body }: LeadEdit) =>
       unwrap(
         await api.PATCH("/v1/leads/{lead_id}", {
-          params: { header, path: { lead_id: leadId } },
+          params: { header, path: { lead_id: id } },
           body,
         }),
       ),
-    onMutate: async (body) => {
-      if (!body.stage_id) return undefined;
+    onMutate: async ({ id, stage_id }) => {
+      if (!stage_id) return undefined;
       await queryClient.cancelQueries({ queryKey: keys.leadList(tenantId) });
-      const previous = queryClient.getQueriesData<Lead[]>({
-        queryKey: keys.leadList(tenantId),
-      });
+      const previous = queryClient.getQueriesData<Lead[]>({ queryKey: keys.leadList(tenantId) });
       const moved = queryClient
         .getQueryData<Pipeline[]>(keys.pipelines(tenantId))
         ?.flatMap((pipeline) => pipeline.stages)
-        .find((stage) => stage.id === body.stage_id);
+        .find((stage) => stage.id === stage_id);
       if (moved) {
         for (const [key, leads] of previous) {
           queryClient.setQueryData<Lead[]>(
             key,
-            leads?.map((lead) => (lead.id === leadId ? { ...lead, stage: moved } : lead)),
+            leads?.map((lead) => (lead.id === id ? { ...lead, stage: moved } : lead)),
           );
         }
       }
@@ -585,14 +588,12 @@ export function useEditLead(leadId: string) {
         queryClient.setQueryData(key, leads);
       }
     },
-    onSettled: (lead) => {
+    onSettled: (lead, _error, { id }) => {
       queryClient.invalidateQueries({ queryKey: keys.leadList(tenantId) });
-      queryClient.invalidateQueries({ queryKey: keys.lead(tenantId, leadId) });
+      queryClient.invalidateQueries({ queryKey: keys.lead(tenantId, id) });
       queryClient.invalidateQueries({ queryKey: keys.myDay(tenantId) });
       if (lead) {
-        queryClient.invalidateQueries({
-          queryKey: keys.customer(tenantId, lead.contact.id),
-        });
+        queryClient.invalidateQueries({ queryKey: keys.customer(tenantId, lead.contact.id) });
       }
     },
   });
