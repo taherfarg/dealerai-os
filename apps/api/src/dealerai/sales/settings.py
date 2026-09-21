@@ -59,3 +59,7 @@ class SalesSettings(BaseModel):
     #: A day missing from the map is a closed day; an empty map means always open.
     business_hours: dict[Weekday, OpenHours] = Field(default_factory=dict)
     routing_rules: list[RoutingRule] = Field(default_factory=list)
+    #: Signal → points, overriding sales/scoring.py's defaults. No UI in Phase 1
+    #: (docs/sales/04-ai-copilot.md § 5); a dealership that wants different
+    #: arithmetic gets it by hand, and the reasons on screen stay honest either way.
+    scoring_weights: dict[str, int] = Field(default_factory=dict)

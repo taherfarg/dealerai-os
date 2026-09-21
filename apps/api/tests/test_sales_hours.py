@@ -31,6 +31,15 @@ def dubai(text: str) -> datetime:
     return datetime.fromisoformat(text).replace(tzinfo=DUBAI)
 
 
+def test_a_weight_for_a_signal_we_do_not_know_loads_anyway() -> None:
+    """The scorer ignores unknown signals; settings must not refuse them, or a
+    tenant tuned for a newer version would stop loading on an older one."""
+    settings = SalesSettings.model_validate(
+        {"scoring_weights": {"asked_price": 30, "read_their_mind": 5}}
+    )
+    assert settings.scoring_weights["asked_price"] == 30
+
+
 def test_inside_business_hours_the_target_is_just_minutes() -> None:
     assert due_at(dubai("2026-09-16T10:00"), settings=SETTINGS, tz=DUBAI) == dubai(
         "2026-09-16T10:05"
