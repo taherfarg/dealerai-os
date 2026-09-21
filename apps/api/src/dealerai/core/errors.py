@@ -51,6 +51,19 @@ class Conflict(AppError):
     title = "Conflict"
 
 
+class AlreadyMerged(AppError):
+    """This customer was merged into another one.
+
+    409 rather than 404 because the record did exist and the answer is where it
+    went: a link somebody saved before the merge should explain itself, not look
+    like a mistake.
+    """
+
+    status = 409
+    slug = "already-merged"
+    title = "This customer was merged into another"
+
+
 class Unusable(AppError):
     """The request was well-formed and its content was not — a CSV with no
     header row, a mapping naming a column that does not exist."""

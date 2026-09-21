@@ -12,6 +12,7 @@ from ...db.session import tenant_session
 from ...sales.assignment import Candidate, choose, route_to_team
 from ...sales.settings import SalesSettings
 from ..bus import Event, emit, handler
+from .notify import notify
 
 log = structlog.get_logger()
 
@@ -76,35 +77,6 @@ async def _event_line(
         tenant_id,
         conversation_id,
         {"type": kind, "text": text},
-    )
-
-
-async def _notify(
-    conn: asyncpg.Connection,
-    *,
-    tenant_id: UUID,
-    user_id: UUID,
-    kind: str,
-    title: str,
-    body: str | None = None,
-    entity: dict[str, str] | None = None,
-    dedupe_key: str | None = None,
-) -> None:
-    entity = entity or {}
-    href = f"/inbox/{entity['id']}" if entity.get("type") == "conversation" else None
-    await conn.execute(
-        """insert into notifications (tenant_id, user_id, kind, title, body, href, entity,
-                                      dedupe_key)
-           values ($1, $2, $3, $4, $5, $6, $7, $8)
-           on conflict do nothing""",
-        tenant_id,
-        user_id,
-        kind,
-        title,
-        body,
-        href,
-        entity,
-        dedupe_key,
     )
 
 
@@ -185,7 +157,7 @@ async def on_assign_requested(event: Event) -> None:
         await _event_line(
             conn, tenant_id, conversation_id, "assigned", f"Assigned to {name or 'a colleague'}"
         )
-        await _notify(
+        await notify(
             conn,
             tenant_id=tenant_id,
             user_id=chosen,
@@ -237,7 +209,7 @@ async def on_sla_check(event: Event) -> None:
 
         title = f"{row['full_name'] or 'A customer'} is waiting"
         for user_id in dict.fromkeys(recipients):
-            await _notify(
+            await notify(
                 conn,
                 tenant_id=tenant_id,
                 user_id=user_id,
@@ -309,7 +281,7 @@ async def on_notification_requested(event: Event) -> None:
             dedupe = f"{kind}:{payload.get('template_id') or payload.get('channel_id')}"
 
         for user_id in dict.fromkeys(recipients):  # ordered, and each person once
-            await _notify(
+            await notify(
                 conn,
                 tenant_id=tenant_id,
                 user_id=user_id,

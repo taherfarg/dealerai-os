@@ -223,6 +223,19 @@ create trigger tasks_rt after insert or update on tasks
   for each row execute function app.notify_rt('task.updated');
 
 -- =============================================================================
+-- ONE MORE THING WORTH BEING TOLD
+-- A customer changing hands is news (docs/sales/05-workflows.md § 9). The kinds
+-- are a check constraint rather than a lookup table, so adding one is a
+-- migration — which is the point: every kind the bell can show is listed in one
+-- place a reviewer can read.
+-- =============================================================================
+alter table notifications drop constraint notifications_kind_check;
+alter table notifications add constraint notifications_kind_check check (kind in
+  ('message_received', 'assigned', 'waiting_due_soon', 'waiting_missed',
+   'unassigned_waiting', 'template_rejected', 'channel_disconnected',
+   'channel_quality', 'contact_assigned'));
+
+-- =============================================================================
 -- SINGLE WRITERS (docs/sales/02-data-model.md § 4, 05-workflows.md § 9-§ 10)
 -- SECURITY DEFINER because they must move rows the caller cannot see: a
 -- salesperson hands a customer to a colleague whose rows are invisible to them.

@@ -1717,6 +1717,26 @@
         "title": "MemberPatch",
         "type": "object"
       },
+      "MergeIn": {
+        "properties": {
+          "keep_id": {
+            "format": "uuid",
+            "title": "Keep Id",
+            "type": "string"
+          },
+          "merge_id": {
+            "format": "uuid",
+            "title": "Merge Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "keep_id",
+          "merge_id"
+        ],
+        "title": "MergeIn",
+        "type": "object"
+      },
       "MessageOut": {
         "properties": {
           "attachment": {
@@ -2146,6 +2166,20 @@
           }
         },
         "title": "ReadIn",
+        "type": "object"
+      },
+      "ReassignIn": {
+        "properties": {
+          "owner_id": {
+            "format": "uuid",
+            "title": "Owner Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "owner_id"
+        ],
+        "title": "ReassignIn",
         "type": "object"
       },
       "RowError": {
@@ -5433,6 +5467,60 @@
         ]
       }
     },
+    "/v1/customers/merge": {
+      "post": {
+        "description": "Two records, one customer. Not undoable — the audit row is what a repair\nwould start from, and the old id keeps answering with where it went.",
+        "operationId": "merge_customers_v1_customers_merge_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MergeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Merge Customers",
+        "tags": [
+          "customers"
+        ]
+      }
+    },
     "/v1/customers/{customer_id}": {
       "get": {
         "operationId": "get_customer_v1_customers__customer_id__get",
@@ -5543,6 +5631,70 @@
           }
         },
         "summary": "Edit Customer",
+        "tags": [
+          "customers"
+        ]
+      }
+    },
+    "/v1/customers/{customer_id}/reassign": {
+      "post": {
+        "description": "The customer, their open conversations, their open leads and their open\ntasks, in one transaction — and a line in every thread that moved.",
+        "operationId": "reassign_customer_v1_customers__customer_id__reassign_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "customer_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Customer Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReassignIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reassign Customer",
         "tags": [
           "customers"
         ]

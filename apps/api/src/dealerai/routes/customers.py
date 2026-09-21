@@ -9,12 +9,13 @@ from datetime import UTC, datetime
 from typing import Annotated, Any, Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
 
-from ..core.errors import NotFound, Unusable
+from ..core.errors import AlreadyMerged, NotFound, Unusable
 from ..db.queries.crm import (
     IDENTITIES,
+    MERGED_INTO,
     ONE_CUSTOMER,
     OPEN_LEADS,
     OPEN_TASK_COUNT,
@@ -22,7 +23,8 @@ from ..db.queries.crm import (
     list_sql,
 )
 from ..db.session import tenant_session
-from ..deps import Ctx
+from ..deps import Ctx, TenantContext, require_permission
+from ..events.bus import emit
 from ..sales import profile as profile_fields
 from .inbox import UserRef
 
@@ -181,17 +183,29 @@ def decode_cursor(cursor: str) -> tuple[datetime, UUID]:
         raise Unusable("that cursor is not one of ours") from exc
 
 
-async def _row_or_404(conn: Any, customer_id: UUID) -> dict[str, Any]:
+async def _row_or_404(conn: Any, tenant_id: UUID, customer_id: UUID) -> dict[str, Any]:
     """The customer, or 404 — which is also the answer for another tenant's id
-    and for a colleague's customer we are not allowed to see."""
+    and for a colleague's customer we are not allowed to see.
+
+    Except when they were merged away: then the answer is where they went, so a
+    link somebody saved last week explains itself instead of looking broken.
+    """
     row = await conn.fetchrow(ONE_CUSTOMER, customer_id)
-    if row is None:
-        raise NotFound("no such customer")
-    return dict(row)
+    if row is not None:
+        return dict(row)
+    keep_id = await conn.fetchval(MERGED_INTO, tenant_id, customer_id)
+    if keep_id:
+        raise AlreadyMerged(
+            "This customer was merged into another record.",
+            # The renderer passes `errors` through untouched, which is how the
+            # browser learns where to redirect without parsing a sentence.
+            errors=[{"keep_id": str(keep_id)}],
+        )
+    raise NotFound("no such customer")
 
 
-async def _detail(conn: Any, customer_id: UUID) -> dict[str, Any]:
-    row = await _row_or_404(conn, customer_id)
+async def _detail(conn: Any, tenant_id: UUID, customer_id: UUID) -> dict[str, Any]:
+    row = await _row_or_404(conn, tenant_id, customer_id)
     identities = await conn.fetch(IDENTITIES, customer_id)
     leads = await conn.fetch(OPEN_LEADS, customer_id, False)
     open_tasks = await conn.fetchval(OPEN_TASK_COUNT, customer_id)
@@ -242,7 +256,7 @@ async def list_customers(
 @router.get("/{customer_id}", response_model=CustomerDetail)
 async def get_customer(ctx: Ctx, customer_id: UUID) -> dict[str, Any]:
     async with tenant_session(ctx.tenant_id, user_id=ctx.user.id, scope=ctx.scope) as conn:
-        return await _detail(conn, customer_id)
+        return await _detail(conn, ctx.tenant_id, customer_id)
 
 
 @router.get("/{customer_id}/timeline", response_model=TimelinePage)
@@ -252,7 +266,7 @@ async def customer_timeline(
     """Every channel and every lead move, merged, newest first."""
     size = min(limit, 200)
     async with tenant_session(ctx.tenant_id, user_id=ctx.user.id, scope=ctx.scope) as conn:
-        await _row_or_404(conn, customer_id)  # 404 before reading anybody's history
+        await _row_or_404(conn, ctx.tenant_id, customer_id)  # 404 before anybody's history
         rows = await conn.fetch(TIMELINE, customer_id, size + 1, max(offset, 0))
     page, has_more = rows[:size], len(rows) > size
     return {
@@ -272,7 +286,7 @@ async def edit_customer(ctx: Ctx, customer_id: UUID, body: CustomerPatch) -> dic
         tenant_session(ctx.tenant_id, user_id=ctx.user.id, scope=ctx.scope) as conn,
         conn.transaction(),
     ):
-        row = await _row_or_404(conn, customer_id)
+        row = await _row_or_404(conn, ctx.tenant_id, customer_id)
         if body.name is not None:
             await conn.execute(
                 "update contacts set full_name = $2 where id = $1",
@@ -297,4 +311,65 @@ async def edit_customer(ctx: Ctx, customer_id: UUID, body: CustomerPatch) -> dic
                 customer_id,
                 updated,
             )
-        return await _detail(conn, customer_id)
+        return await _detail(conn, ctx.tenant_id, customer_id)
+
+
+class ReassignIn(BaseModel):
+    owner_id: UUID
+
+
+class MergeIn(BaseModel):
+    keep_id: UUID
+    merge_id: UUID
+
+
+@router.post("/merge", response_model=CustomerDetail)
+async def merge_customers(
+    body: MergeIn,
+    ctx: Annotated[TenantContext, Depends(require_permission("contacts.merge"))],
+) -> dict[str, Any]:
+    """Two records, one customer. Not undoable — the audit row is what a repair
+    would start from, and the old id keeps answering with where it went."""
+    async with (
+        tenant_session(ctx.tenant_id, user_id=ctx.user.id, scope=ctx.scope) as conn,
+        conn.transaction(),
+    ):
+        await _row_or_404(conn, ctx.tenant_id, body.keep_id)
+        await _row_or_404(conn, ctx.tenant_id, body.merge_id)
+        await conn.execute(
+            "select app.merge_contacts($1, $2, $3)", body.keep_id, body.merge_id, ctx.user.id
+        )
+        return await _detail(conn, ctx.tenant_id, body.keep_id)
+
+
+@router.post("/{customer_id}/reassign", response_model=CustomerDetail)
+async def reassign_customer(
+    customer_id: UUID,
+    body: ReassignIn,
+    ctx: Annotated[TenantContext, Depends(require_permission("contacts.reassign"))],
+) -> dict[str, Any]:
+    """The customer, their open conversations, their open leads and their open
+    tasks, in one transaction — and a line in every thread that moved."""
+    async with (
+        tenant_session(ctx.tenant_id, user_id=ctx.user.id, scope=ctx.scope) as conn,
+        conn.transaction(),
+    ):
+        await _row_or_404(conn, ctx.tenant_id, customer_id)
+        member = await conn.fetchval("select app.member_role($1, $2)", ctx.tenant_id, body.owner_id)
+        if member is None:
+            raise NotFound("no such colleague in this workspace")
+        await conn.execute(
+            "select app.reassign_contact($1, $2, $3)", customer_id, body.owner_id, ctx.user.id
+        )
+        await emit(
+            conn,
+            "contact.reassigned",
+            {
+                "contact_id": str(customer_id),
+                "owner_id": str(body.owner_id),
+                "actor_id": str(ctx.user.id),
+            },
+            tenant_id=ctx.tenant_id,
+            priority=8,
+        )
+        return await _detail(conn, ctx.tenant_id, customer_id)

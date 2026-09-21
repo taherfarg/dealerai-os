@@ -373,6 +373,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/customers/merge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Merge Customers
+         * @description Two records, one customer. Not undoable — the audit row is what a repair
+         *     would start from, and the old id keeps answering with where it went.
+         */
+        post: operations["merge_customers_v1_customers_merge_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/customers/{customer_id}": {
         parameters: {
             query?: never;
@@ -393,6 +414,27 @@ export interface paths {
          *     stops the next AI run overwriting it.
          */
         patch: operations["edit_customer_v1_customers__customer_id__patch"];
+        trace?: never;
+    };
+    "/v1/customers/{customer_id}/reassign": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reassign Customer
+         * @description The customer, their open conversations, their open leads and their open
+         *     tasks, in one transaction — and a line in every thread that moved.
+         */
+        post: operations["reassign_customer_v1_customers__customer_id__reassign_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/v1/customers/{customer_id}/timeline": {
@@ -1448,6 +1490,19 @@ export interface components {
             /** Team Ids */
             team_ids?: string[] | null;
         };
+        /** MergeIn */
+        MergeIn: {
+            /**
+             * Keep Id
+             * Format: uuid
+             */
+            keep_id: string;
+            /**
+             * Merge Id
+             * Format: uuid
+             */
+            merge_id: string;
+        };
         /** MessageOut */
         MessageOut: {
             attachment: components["schemas"]["Attachment"] | null;
@@ -1606,6 +1661,14 @@ export interface components {
             all: boolean;
             /** Ids */
             ids?: string[];
+        };
+        /** ReassignIn */
+        ReassignIn: {
+            /**
+             * Owner Id
+             * Format: uuid
+             */
+            owner_id: string;
         };
         /** RowError */
         RowError: {
@@ -2968,6 +3031,41 @@ export interface operations {
             };
         };
     };
+    merge_customers_v1_customers_merge_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MergeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_customer_v1_customers__customer_id__get: {
         parameters: {
             query?: never;
@@ -3015,6 +3113,43 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["CustomerPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reassign_customer_v1_customers__customer_id__reassign_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                customer_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReassignIn"];
             };
         };
         responses: {

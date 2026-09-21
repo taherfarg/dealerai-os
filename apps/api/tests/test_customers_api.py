@@ -370,3 +370,101 @@ def test_editing_a_customer_i_cannot_see_is_404(client: TestClient) -> None:
         headers=_auth(SALES_1),
     )
     assert response.status_code == 404, response.text
+
+
+# ---------------------------------------------------------------------------
+# Handing a customer over
+# ---------------------------------------------------------------------------
+
+
+def test_a_salesperson_cannot_hand_a_customer_to_someone_else(client: TestClient) -> None:
+    response = client.post(
+        f"/v1/customers/{_id_of(client, OMAR)}/reassign",
+        json={"owner_id": str(SALES_2)},
+        headers=_auth(SALES_1),
+    )
+    assert response.status_code == 403, response.text
+
+
+def test_reassigning_moves_the_work_and_tells_the_new_owner(client: TestClient) -> None:
+    customer_id = _id_of(client, OMAR)
+    response = client.post(
+        f"/v1/customers/{customer_id}/reassign",
+        json={"owner_id": str(SALES_2)},
+        headers=_auth(MANAGER),
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["owner"]["name"] == "sales2"
+    assert response.json()["leads"][0]["owner"]["name"] == "sales2"
+
+    # The handover is done; telling the new owner is a queued event, and what
+    # the handler makes of it is tests/test_crm_events.py.
+    assert "contact.reassigned" in asyncio.run(_queued_events())
+
+
+def test_reassigning_to_somebody_outside_the_workspace_is_404(client: TestClient) -> None:
+    response = client.post(
+        f"/v1/customers/{_id_of(client, OMAR)}/reassign",
+        json={"owner_id": str(uuid.uuid4())},
+        headers=_auth(MANAGER),
+    )
+    assert response.status_code == 404, response.text
+
+
+def test_a_manager_cannot_reassign_the_other_desk_s_customer(client: TestClient) -> None:
+    """404 rather than 403: the export desk's customers are not theirs to see."""
+    youssef = _id_of(client, YOUSSEF)
+    response = client.post(
+        f"/v1/customers/{youssef}/reassign",
+        json={"owner_id": str(SALES_2)},
+        headers=_auth(MANAGER),
+    )
+    assert response.status_code == 404, response.text
+
+
+def test_merging_needs_the_permission(client: TestClient) -> None:
+    response = client.post(
+        "/v1/customers/merge",
+        json={"keep_id": _id_of(client, OMAR), "merge_id": _id_of(client, KARIM)},
+        headers=_auth(SALES_1),
+    )
+    assert response.status_code == 403, response.text
+
+
+def test_a_merged_customer_s_old_link_says_where_they_went(client: TestClient) -> None:
+    keep_id = _id_of(client, OMAR)
+    merge_id = _id_of(client, KARIM)
+    merged = client.post(
+        "/v1/customers/merge",
+        json={"keep_id": keep_id, "merge_id": merge_id},
+        headers=_auth(OWNER),
+    )
+    assert merged.status_code == 200, merged.text
+    assert {identity["value"] for identity in merged.json()["identities"]} == {
+        "+971500000101",
+        "+213500000102",
+    }
+
+    gone = client.get(f"/v1/customers/{merge_id}", headers=_auth(OWNER))
+    assert gone.status_code == 409, gone.text
+    problem = gone.json()
+    assert problem["type"].endswith("already-merged")
+    assert problem["errors"][0]["keep_id"] == keep_id
+
+
+def test_merging_a_customer_i_cannot_see_is_404(client: TestClient) -> None:
+    response = client.post(
+        "/v1/customers/merge",
+        json={"keep_id": _id_of(client, OMAR), "merge_id": _id_of(client, YOUSSEF)},
+        headers=_auth(MANAGER),
+    )
+    assert response.status_code == 404, response.text
+
+
+async def _queued_events() -> list[str]:
+    conn = await asyncpg.connect(get_settings().migration_dsn)
+    try:
+        rows = await conn.fetch("select event_type from events where tenant_id = $1", TENANT_A)
+        return [row["event_type"] for row in rows]
+    finally:
+        await conn.close()
