@@ -585,12 +585,26 @@ async def on_send_requested(event: Event) -> None:
     # above only ever moves a message out of 'queued'.
 
     async with tenant_session(event.tenant_id) as conn:
-        await conn.execute(
+        conversation_id = await conn.fetchval(
             """update messages set status='sent', external_id=$2, locked_at=null
-               where id=$1 and status='sending'""",
+               where id=$1 and status='sending'
+               returning conversation_id""",
             message_id,
             result.external_id,
         )
+        if conversation_id is not None:
+            # The customer has their answer, so the queue stops counting. Here
+            # rather than where Send was pressed: until Meta has accepted it
+            # nobody has replied to anything, and a queue that stops showing a
+            # customer who is still waiting is worse than one that is a second
+            # late (docs/sales/05-workflows.md § 3).
+            await conn.execute(
+                """update conversations set
+                     waiting_since=null, sla_due_at=null,
+                     first_response_at=coalesce(first_response_at, now())
+                   where id=$1""",
+                conversation_id,
+            )
 
 
 @handler("whatsapp.send_watchdog")

@@ -18,9 +18,70 @@ async def test_the_seed_can_run_twice(db: None) -> None:
         assert await conn.fetchval("select count(*) from memberships") == len(PEOPLE)
         assert await conn.fetchval("select count(*) from contacts") == len(CUSTOMERS)
         assert await conn.fetchval("select count(*) from conversations") == len(CUSTOMERS)
-        assert await conn.fetchval("select count(*) from messages") == len(CUSTOMERS)
         assert await conn.fetchval("select count(*) from message_templates") == 3
         assert await conn.fetchval("select external_id from channels where id=$1", CHANNEL)
+        empty = await conn.fetchval(
+            """select count(*) from conversations cv
+               where not exists (select 1 from messages m where m.conversation_id = cv.id)"""
+        )
+        assert empty == 0, "a conversation with nothing in it is not worth opening"
+
+
+async def test_the_seeded_queue_looks_like_a_monday_morning(db: None) -> None:
+    """The seed is the demo, so its shape is part of what works.
+
+    One customer already missed, one next in line, one nobody has taken, one
+    answered, one closed, one voice note with its transcript — and two people
+    who do not see the same unread counts. Flattening any of that takes the
+    first screen anyone sees with it.
+    """
+    assert await seed() == 0
+    async with tenant_session(TENANT) as conn:
+        # Ordered by how long they have waited, so the clock cannot make this flaky.
+        waiting = await conn.fetch(
+            """select c.full_name from conversations cv join contacts c on c.id = cv.contact_id
+               where cv.waiting_since is not null order by cv.waiting_since"""
+        )
+        assert [row["full_name"] for row in waiting] == [
+            "Omar Al Mazrouei",
+            "Mona Fathy",
+            "James Whitfield",
+        ]
+        assert (
+            await conn.fetchval("select count(*) from conversations where sla_due_at < now()") == 1
+        )
+        assert (
+            await conn.fetchval(
+                "select count(*) from conversations where assigned_to is null and status = 'open'"
+            )
+            == 1
+        )
+        assert (
+            await conn.fetchval("select count(*) from conversations where status = 'closed'") == 1
+        )
+        assert (
+            await conn.fetchval(
+                """select count(*) from messages
+                   where type = 'audio' and coalesce(transcript->>'text', '') <> ''
+                     and media->0->>'status' = 'ready'"""
+            )
+            == 1
+        )
+        # Per conversation, not totalled: two people can be owed the same number
+        # of replies and still be looking at completely different rows.
+        unread = """
+            select c.full_name,
+                   (select count(*) from messages m
+                     where m.conversation_id = cv.id and m.direction = 'in'
+                       and m.created_at > coalesce(r.last_read_at, '-infinity'::timestamptz))
+              from conversations cv
+              join contacts c on c.id = cv.contact_id
+              left join conversation_reads r
+                on r.conversation_id = cv.id and r.user_id = $1"""
+        ahmed = {row[0]: row[1] for row in await conn.fetch(unread, person_id("Ahmed Nasser"))}
+        sara = {row[0]: row[1] for row in await conn.fetch(unread, person_id("Sara Mansour"))}
+        assert sara["Omar Al Mazrouei"] == 0 and ahmed["Omar Al Mazrouei"] > 0
+        assert sara["Mona Fathy"] > ahmed["Mona Fathy"] > 0
 
 
 async def test_visibility_holds_on_the_seeded_workspace(db: None) -> None:

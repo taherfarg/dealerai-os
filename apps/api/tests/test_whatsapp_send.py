@@ -154,6 +154,45 @@ async def test_send_handler_claims_calls_meta_and_records_the_external_id_once(
     )
 
 
+async def test_a_sent_reply_stops_the_queue_counting(
+    db: None, su: asyncpg.Connection, seeded: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Answering a customer is what stops their timer — and only once Meta has it.
+
+    The exit run for S2 found this missing: the reply arrived, and the queue
+    went on saying the customer had been waiting twenty-four minutes.
+    """
+    conversation_id = await _conversation(su)
+    await su.execute(
+        """update conversations set waiting_since = $2::timestamptz,
+                  sla_due_at = $2::timestamptz + interval '5 minutes' where id = $1""",
+        conversation_id,
+        datetime.now(UTC) - timedelta(minutes=9),
+    )
+    queued = await send_message(
+        conversation_id, SendMessageIn(text="Yes, it is available."), "send-timer", _ctx()
+    )
+
+    still = await su.fetchrow(
+        "select waiting_since, first_response_at from conversations where id=$1", conversation_id
+    )
+    assert still is not None
+    assert still["waiting_since"] is not None, "queued is not answered"
+    assert still["first_response_at"] is None
+
+    monkeypatch.setattr(whatsapp, "whatsapp_for_channel", lambda channel: FakeConnector())
+    await whatsapp.on_send_requested(_send_event(queued.id))
+
+    answered = await su.fetchrow(
+        """select waiting_since, sla_due_at, first_response_at
+             from conversations where id=$1""",
+        conversation_id,
+    )
+    assert answered is not None
+    assert (answered["waiting_since"], answered["sla_due_at"]) == (None, None)
+    assert answered["first_response_at"] is not None
+
+
 class FailingConnector:
     """A connector that refuses every send with one prepared failure."""
 
