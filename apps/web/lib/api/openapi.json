@@ -425,44 +425,6 @@
         "title": "ChannelRef",
         "type": "object"
       },
-      "ContactRef": {
-        "properties": {
-          "country": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Country"
-          },
-          "id": {
-            "format": "uuid",
-            "title": "Id",
-            "type": "string"
-          },
-          "name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Name"
-          }
-        },
-        "required": [
-          "id",
-          "name",
-          "country"
-        ],
-        "title": "ContactRef",
-        "type": "object"
-      },
       "ContactSummary": {
         "properties": {
           "country": {
@@ -1473,7 +1435,7 @@
             ]
           },
           "contact": {
-            "$ref": "#/components/schemas/ContactRef"
+            "$ref": "#/components/schemas/dealerai__routes__leads__ContactRef"
           },
           "conversation_id": {
             "anyOf": [
@@ -1654,7 +1616,7 @@
             ]
           },
           "contact": {
-            "$ref": "#/components/schemas/ContactRef"
+            "$ref": "#/components/schemas/dealerai__routes__leads__ContactRef"
           },
           "conversation_id": {
             "anyOf": [
@@ -2796,7 +2758,7 @@
           },
           "tasks": {
             "items": {
-              "$ref": "#/components/schemas/TaskOut"
+              "$ref": "#/components/schemas/dealerai__routes__runs__TaskOut"
             },
             "title": "Tasks",
             "type": "array"
@@ -3287,28 +3249,89 @@
         "title": "StockRow",
         "type": "object"
       },
-      "TaskOut": {
+      "TaskCreate": {
         "properties": {
-          "agent": {
-            "title": "Agent",
+          "assignee_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assignee Id"
+          },
+          "contact_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contact Id"
+          },
+          "conversation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conversation Id"
+          },
+          "due_at": {
+            "format": "date-time",
+            "title": "Due At",
             "type": "string"
           },
-          "attempts": {
-            "title": "Attempts",
-            "type": "integer"
+          "kind": {
+            "default": "todo",
+            "enum": [
+              "follow_up",
+              "call",
+              "meeting",
+              "todo"
+            ],
+            "title": "Kind",
+            "type": "string"
           },
-          "cost_usd": {
-            "title": "Cost Usd",
-            "type": "number"
+          "lead_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lead Id"
           },
-          "depends_on": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Depends On",
-            "type": "array"
-          },
-          "error": {
+          "title": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "due_at"
+        ],
+        "title": "TaskCreate",
+        "type": "object"
+      },
+      "TaskPatch": {
+        "properties": {
+          "cancel_reason": {
             "anyOf": [
               {
                 "type": "string"
@@ -3317,38 +3340,51 @@
                 "type": "null"
               }
             ],
-            "title": "Error"
+            "title": "Cancel Reason"
           },
-          "output": {
+          "due_at": {
             "anyOf": [
               {
-                "additionalProperties": true,
-                "type": "object"
+                "format": "date-time",
+                "type": "string"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Output"
+            "title": "Due At"
           },
           "status": {
-            "title": "Status",
-            "type": "string"
+            "anyOf": [
+              {
+                "enum": [
+                  "open",
+                  "done",
+                  "cancelled"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
           },
-          "task_key": {
-            "title": "Task Key",
-            "type": "string"
+          "title": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
           }
         },
-        "required": [
-          "task_key",
-          "agent",
-          "depends_on",
-          "status",
-          "attempts",
-          "cost_usd"
-        ],
-        "title": "TaskOut",
+        "title": "TaskPatch",
         "type": "object"
       },
       "TaskSpec": {
@@ -4539,6 +4575,44 @@
         "title": "VehicleUpdate",
         "type": "object"
       },
+      "dealerai__routes__leads__ContactRef": {
+        "properties": {
+          "country": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "country"
+        ],
+        "title": "ContactRef",
+        "type": "object"
+      },
       "dealerai__routes__leads__Money": {
         "properties": {
           "amount_minor": {
@@ -4555,6 +4629,213 @@
           "currency"
         ],
         "title": "Money",
+        "type": "object"
+      },
+      "dealerai__routes__runs__TaskOut": {
+        "properties": {
+          "agent": {
+            "title": "Agent",
+            "type": "string"
+          },
+          "attempts": {
+            "title": "Attempts",
+            "type": "integer"
+          },
+          "cost_usd": {
+            "title": "Cost Usd",
+            "type": "number"
+          },
+          "depends_on": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Depends On",
+            "type": "array"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "output": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "task_key": {
+            "title": "Task Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "task_key",
+          "agent",
+          "depends_on",
+          "status",
+          "attempts",
+          "cost_usd"
+        ],
+        "title": "TaskOut",
+        "type": "object"
+      },
+      "dealerai__routes__tasks__ContactRef": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "ContactRef",
+        "type": "object"
+      },
+      "dealerai__routes__tasks__TaskOut": {
+        "properties": {
+          "assignee": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UserRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "contact": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/dealerai__routes__tasks__ContactRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "conversation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conversation Id"
+          },
+          "due_at": {
+            "format": "date-time",
+            "title": "Due At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "follow_up",
+              "call",
+              "meeting",
+              "todo"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "lead_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lead Id"
+          },
+          "source": {
+            "enum": [
+              "human",
+              "ai",
+              "rule"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "open",
+              "done",
+              "cancelled"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "kind",
+          "due_at",
+          "status",
+          "completed_at",
+          "source",
+          "assignee",
+          "contact",
+          "lead_id",
+          "conversation_id"
+        ],
+        "title": "TaskOut",
         "type": "object"
       },
       "dealerai__routes__team__MemberOut": {
@@ -7478,6 +7759,206 @@
         "summary": "Stream",
         "tags": [
           "stream"
+        ]
+      }
+    },
+    "/v1/tasks": {
+      "get": {
+        "description": "`assignee` is `me`, `team` or a person's id.\n\nA salesperson asking for `team` gets their own: RLS would answer with their\nown rows anyway, and a 403 on a list the switch does not even show them\nwould be noise.",
+        "operationId": "list_tasks_v1_tasks_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "assignee",
+            "required": false,
+            "schema": {
+              "default": "me",
+              "title": "Assignee",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "bucket",
+            "required": false,
+            "schema": {
+              "default": "today",
+              "enum": [
+                "overdue",
+                "today",
+                "upcoming",
+                "done"
+              ],
+              "title": "Bucket",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/dealerai__routes__tasks__TaskOut"
+                  },
+                  "title": "Response List Tasks V1 Tasks Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Tasks",
+        "tags": [
+          "tasks"
+        ]
+      },
+      "post": {
+        "description": "Mine unless it says otherwise. Everything it points at has to be\nsomething the caller can already see, or this is a way to probe for rows.",
+        "operationId": "create_task_v1_tasks_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaskCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/dealerai__routes__tasks__TaskOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Task",
+        "tags": [
+          "tasks"
+        ]
+      }
+    },
+    "/v1/tasks/{task_id}": {
+      "patch": {
+        "description": "Completing, snoozing and renaming are the same call.\n\nCompleting twice changes nothing, and un-completing is an ordinary edit —\nwhich is what lets the Undo toast work without an endpoint of its own.",
+        "operationId": "edit_task_v1_tasks__task_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Task Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaskPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/dealerai__routes__tasks__TaskOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Edit Task",
+        "tags": [
+          "tasks"
         ]
       }
     },

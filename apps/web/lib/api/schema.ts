@@ -759,6 +759,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/tasks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Tasks
+         * @description `assignee` is `me`, `team` or a person's id.
+         *
+         *     A salesperson asking for `team` gets their own: RLS would answer with their
+         *     own rows anyway, and a 403 on a list the switch does not even show them
+         *     would be noise.
+         */
+        get: operations["list_tasks_v1_tasks_get"];
+        put?: never;
+        /**
+         * Create Task
+         * @description Mine unless it says otherwise. Everything it points at has to be
+         *     something the caller can already see, or this is a way to probe for rows.
+         */
+        post: operations["create_task_v1_tasks_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tasks/{task_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Edit Task
+         * @description Completing, snoozing and renaming are the same call.
+         *
+         *     Completing twice changes nothing, and un-completing is an ordinary edit —
+         *     which is what lets the Undo toast work without an endpoint of its own.
+         */
+        patch: operations["edit_task_v1_tasks__task_id__patch"];
+        trace?: never;
+    };
     "/v1/teams": {
         parameters: {
             query?: never;
@@ -1198,18 +1250,6 @@ export interface components {
             /** Platform */
             platform: string;
         };
-        /** ContactRef */
-        ContactRef: {
-            /** Country */
-            country: string | null;
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /** Name */
-            name: string | null;
-        };
         /** ContactSummary */
         ContactSummary: {
             /** Country */
@@ -1514,7 +1554,7 @@ export interface components {
             /** Band */
             band: ("hot" | "warm" | "cold") | null;
             budget: components["schemas"]["dealerai__routes__leads__Money"] | null;
-            contact: components["schemas"]["ContactRef"];
+            contact: components["schemas"]["dealerai__routes__leads__ContactRef"];
             /** Conversation Id */
             conversation_id: string | null;
             /**
@@ -1562,7 +1602,7 @@ export interface components {
             /** Band */
             band: ("hot" | "warm" | "cold") | null;
             budget: components["schemas"]["dealerai__routes__leads__Money"] | null;
-            contact: components["schemas"]["ContactRef"];
+            contact: components["schemas"]["dealerai__routes__leads__ContactRef"];
             /** Conversation Id */
             conversation_id: string | null;
             /**
@@ -1952,7 +1992,7 @@ export interface components {
             /** Summary */
             summary?: string | null;
             /** Tasks */
-            tasks: components["schemas"]["TaskOut"][];
+            tasks: components["schemas"]["dealerai__routes__runs__TaskOut"][];
             /** Trigger Type */
             trigger_type: string;
         };
@@ -2115,26 +2155,40 @@ export interface components {
             /** Stock Number */
             stock_number: string | null;
         };
-        /** TaskOut */
-        TaskOut: {
-            /** Agent */
-            agent: string;
-            /** Attempts */
-            attempts: number;
-            /** Cost Usd */
-            cost_usd: number;
-            /** Depends On */
-            depends_on: string[];
-            /** Error */
-            error?: string | null;
-            /** Output */
-            output?: {
-                [key: string]: unknown;
-            } | null;
+        /** TaskCreate */
+        TaskCreate: {
+            /** Assignee Id */
+            assignee_id?: string | null;
+            /** Contact Id */
+            contact_id?: string | null;
+            /** Conversation Id */
+            conversation_id?: string | null;
+            /**
+             * Due At
+             * Format: date-time
+             */
+            due_at: string;
+            /**
+             * Kind
+             * @default todo
+             * @enum {string}
+             */
+            kind: "follow_up" | "call" | "meeting" | "todo";
+            /** Lead Id */
+            lead_id?: string | null;
+            /** Title */
+            title: string;
+        };
+        /** TaskPatch */
+        TaskPatch: {
+            /** Cancel Reason */
+            cancel_reason?: string | null;
+            /** Due At */
+            due_at?: string | null;
             /** Status */
-            status: string;
-            /** Task Key */
-            task_key: string;
+            status?: ("open" | "done" | "cancelled") | null;
+            /** Title */
+            title?: string | null;
         };
         /**
          * TaskSpec
@@ -2524,12 +2578,93 @@ export interface components {
             /** Trim */
             trim?: string | null;
         };
+        /** ContactRef */
+        dealerai__routes__leads__ContactRef: {
+            /** Country */
+            country: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string | null;
+        };
         /** Money */
         dealerai__routes__leads__Money: {
             /** Amount Minor */
             amount_minor: number;
             /** Currency */
             currency: string;
+        };
+        /** TaskOut */
+        dealerai__routes__runs__TaskOut: {
+            /** Agent */
+            agent: string;
+            /** Attempts */
+            attempts: number;
+            /** Cost Usd */
+            cost_usd: number;
+            /** Depends On */
+            depends_on: string[];
+            /** Error */
+            error?: string | null;
+            /** Output */
+            output?: {
+                [key: string]: unknown;
+            } | null;
+            /** Status */
+            status: string;
+            /** Task Key */
+            task_key: string;
+        };
+        /** ContactRef */
+        dealerai__routes__tasks__ContactRef: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string | null;
+        };
+        /** TaskOut */
+        dealerai__routes__tasks__TaskOut: {
+            assignee: components["schemas"]["UserRef"] | null;
+            /** Completed At */
+            completed_at: string | null;
+            contact: components["schemas"]["dealerai__routes__tasks__ContactRef"] | null;
+            /** Conversation Id */
+            conversation_id: string | null;
+            /**
+             * Due At
+             * Format: date-time
+             */
+            due_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "follow_up" | "call" | "meeting" | "todo";
+            /** Lead Id */
+            lead_id: string | null;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "human" | "ai" | "rule";
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "open" | "done" | "cancelled";
+            /** Title */
+            title: string;
         };
         /** MemberOut */
         dealerai__routes__team__MemberOut: {
@@ -4123,6 +4258,113 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_tasks_v1_tasks_get: {
+        parameters: {
+            query?: {
+                assignee?: string;
+                bucket?: "overdue" | "today" | "upcoming" | "done";
+                limit?: number;
+            };
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dealerai__routes__tasks__TaskOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_task_v1_tasks_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TaskCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dealerai__routes__tasks__TaskOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    edit_task_v1_tasks__task_id__patch: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TaskPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dealerai__routes__tasks__TaskOut"];
                 };
             };
             /** @description Validation Error */

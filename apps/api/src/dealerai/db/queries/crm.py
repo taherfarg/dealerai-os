@@ -150,3 +150,26 @@ select meta->>'keep_id' from audit_log
    and entity_type = 'contact' and entity_id = $2
  order by created_at desc limit 1
 """
+
+#: One task row, with the customer it is about. `bucket` is a window on due_at
+#: rather than a column, so a task cannot be in the wrong one after midnight.
+TASK_SELECT = """
+select t.id, t.title, t.kind, t.due_at, t.status, t.completed_at, t.source, t.ai_draft,
+       t.assignee_id, p.full_name as assignee_name,
+       t.contact_id, c.full_name as contact_name, t.lead_id, t.conversation_id
+  from tasks t
+  left join profiles p on p.id = t.assignee_id
+  left join contacts c on c.id = t.contact_id
+"""
+
+TASKS_LIST = f"""
+{TASK_SELECT}
+ where ($1::uuid is null or t.assignee_id = $1)
+   and (($2::boolean and t.status <> 'open') or (not $2::boolean and t.status = 'open'))
+   and ($3::timestamptz is null or t.due_at >= $3)
+   and ($4::timestamptz is null or t.due_at < $4)
+ order by (case when $2::boolean then t.completed_at end) desc nulls last, t.due_at
+ limit $5
+"""
+
+ONE_TASK = f"{TASK_SELECT} where t.id = $1"

@@ -13,7 +13,7 @@ from uuid import UUID
 import asyncpg
 import pytest
 
-from conftest import MANAGER, OWNER, SALES_1, SALES_X, TENANT_A, USER_A
+from conftest import MANAGER, OWNER, SALES_1, SALES_2, SALES_X, TENANT_A, USER_A
 from dealerai.db.session import system_session, tenant_session
 
 
@@ -93,6 +93,47 @@ async def test_conversations_and_leads_follow_the_customer(
     for key in hidden:
         assert visibility_seed[key] not in conversations, f"LEAK: {key}'s conversation is visible"
         assert visibility_seed[key] not in leads, f"LEAK: {key}'s lead is visible"
+
+
+#: (viewer, scope, whose tasks they must see, whose they must not)
+TASK_MATRIX = (
+    (OWNER, "all", (SALES_1, SALES_2, SALES_X), ()),
+    (MANAGER, "team", (SALES_1, SALES_2), (SALES_X,)),
+    (SALES_1, "own", (SALES_1,), (SALES_2, SALES_X)),
+    (SALES_X, "own", (SALES_X,), (SALES_1, SALES_2)),
+)
+
+
+@pytest.mark.parametrize(("viewer", "scope", "visible", "hidden"), TASK_MATRIX)
+async def test_a_task_follows_its_assignee_not_its_customer(
+    db: None,
+    su: asyncpg.Connection,
+    visibility_seed: dict[str, UUID],
+    viewer: UUID,
+    scope: str,
+    visible: tuple[UUID, ...],
+    hidden: tuple[UUID, ...],
+) -> None:
+    """Three tasks about one customer, one each for three people.
+
+    S1 covers S2's conversation about this customer and still does not see S2's
+    task on it: covering a conversation is not inheriting somebody's day.
+    """
+    for assignee in (SALES_1, SALES_2, SALES_X):
+        await su.execute(
+            """insert into tasks (tenant_id, title, due_at, assignee_id, contact_id)
+               values ($1, 'Call them back', now(), $2, $3)""",
+            TENANT_A,
+            assignee,
+            visibility_seed["covered"],
+        )
+
+    async with tenant_session(TENANT_A, user_id=viewer, scope=scope) as conn:
+        seen = {row["assignee_id"] for row in await conn.fetch("select assignee_id from tasks")}
+    for assignee in visible:
+        assert assignee in seen, f"{assignee} task should be visible with scope {scope}"
+    for assignee in hidden:
+        assert assignee not in seen, f"LEAK: {assignee} task visible with scope {scope}"
 
 
 async def test_messages_follow_their_conversation(
