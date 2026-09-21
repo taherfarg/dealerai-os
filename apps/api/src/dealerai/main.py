@@ -22,6 +22,7 @@ from .routes import (
     approvals,
     channels,
     content,
+    customers,
     dev,
     imports,
     inbox,
@@ -89,6 +90,7 @@ def create_app() -> FastAPI:
     app.include_router(inbox.router)
     app.include_router(inbox.messages_router)
     app.include_router(channels.router)
+    app.include_router(customers.router)
     app.include_router(notifications.router)
     app.include_router(media.router)
     app.include_router(stream.router)

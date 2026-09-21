@@ -356,6 +356,65 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/customers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Customers */
+        get: operations["list_customers_v1_customers_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/customers/{customer_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Customer */
+        get: operations["get_customer_v1_customers__customer_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Edit Customer
+         * @description Anything typed here is a person's answer, stamped `human` — which is what
+         *     stops the next AI run overwriting it.
+         */
+        patch: operations["edit_customer_v1_customers__customer_id__patch"];
+        trace?: never;
+    };
+    "/v1/customers/{customer_id}/timeline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Customer Timeline
+         * @description Every channel and every lead move, merged, newest first.
+         */
+        get: operations["customer_timeline_v1_customers__customer_id__timeline_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/invites/accept": {
         parameters: {
             query?: never;
@@ -1098,6 +1157,92 @@ export interface components {
             /** Window Expires At */
             window_expires_at: string | null;
         };
+        /** CustomerDetail */
+        CustomerDetail: {
+            /** Band */
+            band: ("hot" | "warm" | "cold") | null;
+            /** Country */
+            country: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Identities */
+            identities: components["schemas"]["Identity"][];
+            /** Language */
+            language: string | null;
+            /**
+             * Last Seen At
+             * Format: date-time
+             */
+            last_seen_at: string;
+            /** Leads */
+            leads: components["schemas"]["LeadSummary"][];
+            /** Name */
+            name: string | null;
+            /** Open Tasks */
+            open_tasks: number;
+            /** Opted Out */
+            opted_out: boolean;
+            owner: components["schemas"]["UserRef"] | null;
+            /** Phone */
+            phone: string | null;
+            /** Profile */
+            profile: {
+                [key: string]: unknown;
+            };
+            /** Profile Updated At */
+            profile_updated_at: string | null;
+            /** Tags */
+            tags: string[];
+        };
+        /** CustomerPage */
+        CustomerPage: {
+            /** Data */
+            data: components["schemas"]["CustomerSummary"][];
+            /** Next Cursor */
+            next_cursor: string | null;
+        };
+        /** CustomerPatch */
+        CustomerPatch: {
+            /** Name */
+            name?: string | null;
+            /** Profile */
+            profile?: {
+                [key: string]: unknown;
+            } | null;
+            /** Tags */
+            tags?: string[] | null;
+        };
+        /** CustomerSummary */
+        CustomerSummary: {
+            /** Band */
+            band: ("hot" | "warm" | "cold") | null;
+            /** Country */
+            country: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Language */
+            language: string | null;
+            /**
+             * Last Seen At
+             * Format: date-time
+             */
+            last_seen_at: string;
+            /** Name */
+            name: string | null;
+            /** Opted Out */
+            opted_out: boolean;
+            owner: components["schemas"]["UserRef"] | null;
+            /** Phone */
+            phone: string | null;
+            /** Tags */
+            tags: string[];
+        };
         /** Decision */
         Decision: {
             /** Note */
@@ -1134,6 +1279,20 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** Identity */
+        Identity: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Is Primary */
+            is_primary: boolean;
+            /** Kind */
+            kind: string;
+            /** Value */
+            value: string;
         };
         /** ImportResult */
         ImportResult: {
@@ -1191,6 +1350,38 @@ export interface components {
             preview: string;
             /** Type */
             type: string;
+        };
+        /** LeadSummary */
+        LeadSummary: {
+            /** Band */
+            band: ("hot" | "warm" | "cold") | null;
+            budget: components["schemas"]["dealerai__routes__customers__Money"] | null;
+            /** Conversation Id */
+            conversation_id: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Next Action At */
+            next_action_at: string | null;
+            owner: components["schemas"]["UserRef"] | null;
+            /**
+             * Pipeline Id
+             * Format: uuid
+             */
+            pipeline_id: string;
+            /** Pipeline Name */
+            pipeline_name: string;
+            /** Score */
+            score: number | null;
+            stage: components["schemas"]["StageRef"];
+            /**
+             * Stage Entered At
+             * Format: date-time
+             */
+            stage_entered_at: string;
+            vehicle: components["schemas"]["VehicleRef"] | null;
         };
         /** MeOut */
         MeOut: {
@@ -1333,13 +1524,6 @@ export interface components {
             data: components["schemas"]["MessageOut"][];
             /** Next Cursor */
             next_cursor: string | null;
-        };
-        /** Money */
-        Money: {
-            /** Amount Minor */
-            amount_minor: number;
-            /** Currency */
-            currency: string;
         };
         /** NoteIn */
         NoteIn: {
@@ -1523,6 +1707,21 @@ export interface components {
             /** Variables */
             variables?: string[];
         };
+        /** StageRef */
+        StageRef: {
+            /**
+             * Category
+             * @enum {string}
+             */
+            category: "open" | "won" | "lost";
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+        };
         /** StatusChange */
         StatusChange: {
             /** Reason */
@@ -1556,7 +1755,7 @@ export interface components {
             make: string;
             /** Model */
             model: string;
-            price: components["schemas"]["Money"] | null;
+            price: components["schemas"]["dealerai__routes__vehicles__Money"] | null;
             /** Published Content Count */
             published_content_count: number;
             /**
@@ -1742,6 +1941,32 @@ export interface components {
             /** Timezone */
             timezone?: string | null;
         };
+        /** TimelineEntry */
+        TimelineEntry: {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** Data */
+            data: {
+                [key: string]: unknown;
+            };
+            /** Id */
+            id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "message" | "activity";
+        };
+        /** TimelinePage */
+        TimelinePage: {
+            /** Data */
+            data: components["schemas"]["TimelineEntry"][];
+            /** Next Offset */
+            next_offset: number | null;
+        };
         /** UsageOut */
         UsageOut: {
             /** Budget Usd */
@@ -1867,12 +2092,12 @@ export interface components {
             make: string;
             /** Mileage Km */
             mileage_km: number;
-            min_price?: components["schemas"]["Money"] | null;
+            min_price?: components["schemas"]["dealerai__routes__vehicles__Money"] | null;
             /** Model */
             model: string;
             /** Model Year */
             model_year?: number | null;
-            price?: components["schemas"]["Money"] | null;
+            price?: components["schemas"]["dealerai__routes__vehicles__Money"] | null;
             /** Seats */
             seats?: number | null;
             /** Sold At */
@@ -1909,6 +2134,16 @@ export interface components {
             /** Vin */
             vin?: string | null;
         };
+        /** VehicleRef */
+        VehicleRef: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Label */
+            label: string;
+        };
         /** VehicleUpdate */
         VehicleUpdate: {
             /** Engine */
@@ -1939,6 +2174,13 @@ export interface components {
             transmission?: string | null;
             /** Trim */
             trim?: string | null;
+        };
+        /** Money */
+        dealerai__routes__customers__Money: {
+            /** Amount Minor */
+            amount_minor: number;
+            /** Currency */
+            currency: string;
         };
         /** MemberOut */
         dealerai__routes__team__MemberOut: {
@@ -1981,6 +2223,13 @@ export interface components {
              * Format: uuid
              */
             user_id: string;
+        };
+        /** Money */
+        dealerai__routes__vehicles__Money: {
+            /** Amount Minor */
+            amount_minor: number;
+            /** Currency */
+            currency: string;
         };
     };
     responses: never;
@@ -2667,6 +2916,151 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ConversationSummary"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_customers_v1_customers_get: {
+        parameters: {
+            query?: {
+                q?: string;
+                owner_id?: string | null;
+                band?: ("hot" | "warm" | "cold") | null;
+                country?: string;
+                tag?: string;
+                cursor?: string | null;
+                limit?: number;
+            };
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_customer_v1_customers__customer_id__get: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                customer_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    edit_customer_v1_customers__customer_id__patch: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                customer_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CustomerPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    customer_timeline_v1_customers__customer_id__timeline_get: {
+        parameters: {
+            query?: {
+                offset?: number;
+                limit?: number;
+            };
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                customer_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TimelinePage"];
                 };
             };
             /** @description Validation Error */
