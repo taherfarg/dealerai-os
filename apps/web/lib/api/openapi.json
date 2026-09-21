@@ -2356,6 +2356,60 @@
         "title": "Money",
         "type": "object"
       },
+      "MyDay": {
+        "properties": {
+          "accepting_chats": {
+            "title": "Accepting Chats",
+            "type": "boolean"
+          },
+          "due_today": {
+            "items": {
+              "$ref": "#/components/schemas/dealerai__routes__tasks__TaskOut"
+            },
+            "title": "Due Today",
+            "type": "array"
+          },
+          "hot_leads": {
+            "items": {
+              "$ref": "#/components/schemas/LeadOut"
+            },
+            "title": "Hot Leads",
+            "type": "array"
+          },
+          "median_first_response_seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Median First Response Seconds"
+          },
+          "replied_today": {
+            "title": "Replied Today",
+            "type": "integer"
+          },
+          "waiting_on_you": {
+            "items": {
+              "$ref": "#/components/schemas/ConversationSummary"
+            },
+            "title": "Waiting On You",
+            "type": "array"
+          }
+        },
+        "required": [
+          "replied_today",
+          "median_first_response_seconds",
+          "accepting_chats",
+          "waiting_on_you",
+          "due_today",
+          "hot_leads"
+        ],
+        "title": "MyDay",
+        "type": "object"
+      },
       "NoteIn": {
         "properties": {
           "text": {
@@ -6678,6 +6732,49 @@
         "summary": "Customer Timeline",
         "tags": [
           "customers"
+        ]
+      }
+    },
+    "/v1/dashboard/me": {
+      "get": {
+        "operationId": "my_day_v1_dashboard_me_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyDay"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "My Day",
+        "tags": [
+          "dashboard"
         ]
       }
     },

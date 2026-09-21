@@ -457,6 +457,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/dashboard/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** My Day */
+        get: operations["my_day_v1_dashboard_me_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/invites/accept": {
         parameters: {
             query?: never;
@@ -1832,6 +1849,21 @@ export interface components {
             amount_minor: number;
             /** Currency */
             currency: string;
+        };
+        /** MyDay */
+        MyDay: {
+            /** Accepting Chats */
+            accepting_chats: boolean;
+            /** Due Today */
+            due_today: components["schemas"]["dealerai__routes__tasks__TaskOut"][];
+            /** Hot Leads */
+            hot_leads: components["schemas"]["LeadOut"][];
+            /** Median First Response Seconds */
+            median_first_response_seconds: number | null;
+            /** Replied Today */
+            replied_today: number;
+            /** Waiting On You */
+            waiting_on_you: components["schemas"]["ConversationSummary"][];
         };
         /** NoteIn */
         NoteIn: {
@@ -3617,6 +3649,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TimelinePage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    my_day_v1_dashboard_me_get: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyDay"];
                 };
             };
             /** @description Validation Error */

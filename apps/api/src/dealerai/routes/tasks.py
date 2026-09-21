@@ -83,20 +83,25 @@ def task_out(row: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
-def window(bucket: Bucket, timezone: str, now: datetime) -> tuple[datetime | None, datetime | None]:
-    """Midnight to midnight where the dealership is.
+def day_start(timezone: str, now: datetime) -> datetime:
+    """Midnight where the dealership is.
 
-    A task due at nine tonight in Dubai is due today for the person in Dubai,
-    whatever the server's clock thinks — which is why the tenant's timezone is
-    read rather than assumed.
+    Nine tonight in Dubai belongs to today for the person in Dubai, whatever the
+    server's clock thinks — which is why the tenant's timezone is read rather
+    than assumed. An unknown timezone falls back to UTC instead of breaking a
+    screen over a settings typo.
     """
     try:
-        local_midnight = now.astimezone(ZoneInfo(timezone)).replace(
-            hour=0, minute=0, second=0, microsecond=0
-        )
-    except Exception:  # noqa: BLE001 - an unknown timezone must not break the list
-        local_midnight = now.astimezone(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
-    tomorrow = local_midnight + timedelta(days=1)
+        here = now.astimezone(ZoneInfo(timezone))
+    except Exception:  # noqa: BLE001 - a settings typo must not break the list
+        here = now.astimezone(UTC)
+    return here.replace(hour=0, minute=0, second=0, microsecond=0)
+
+
+def window(bucket: Bucket, timezone: str, now: datetime) -> tuple[datetime | None, datetime | None]:
+    """The half-open range a bucket covers: overdue is everything before now,
+    today is the rest of today, upcoming starts at tomorrow's midnight."""
+    tomorrow = day_start(timezone, now) + timedelta(days=1)
     if bucket == "overdue":
         return None, now
     if bucket == "today":
