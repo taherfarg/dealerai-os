@@ -8,7 +8,7 @@ import { keys } from "@/lib/api/keys";
 import { getBrowserAccessToken } from "@/lib/auth/token";
 
 /** Ids only — the screen refetches the truth over REST. */
-type LiveEvent = { type: string; conversation_id?: string | null };
+type LiveEvent = { type: string; id?: string | null; conversation_id?: string | null };
 
 const MAX_BACKOFF_MS = 30_000;
 
@@ -51,8 +51,20 @@ export function useLiveEvents(): void {
       if (event.type === "notification.created") {
         queryClient.invalidateQueries({ queryKey: keys.notifications(tenantId) });
       }
+      if (event.type === "lead.updated") {
+        queryClient.invalidateQueries({ queryKey: keys.leadList(tenantId) });
+        if (event.id) queryClient.invalidateQueries({ queryKey: keys.lead(tenantId, event.id) });
+        queryClient.invalidateQueries({ queryKey: keys.myDay(tenantId) });
+        return; // a lead move is not a conversation change
+      }
+      if (event.type === "task.updated") {
+        queryClient.invalidateQueries({ queryKey: keys.taskList(tenantId) });
+        queryClient.invalidateQueries({ queryKey: keys.myDay(tenantId) });
+        return;
+      }
       queryClient.invalidateQueries({ queryKey: keys.conversationList(tenantId) });
       queryClient.invalidateQueries({ queryKey: keys.counts(tenantId) });
+      queryClient.invalidateQueries({ queryKey: keys.myDay(tenantId) });
     };
 
     const read = async () => {

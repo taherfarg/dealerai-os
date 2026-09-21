@@ -1855,7 +1855,7 @@ export interface components {
             /** Accepting Chats */
             accepting_chats: boolean;
             /** Due Today */
-            due_today: components["schemas"]["dealerai__routes__tasks__TaskOut"][];
+            due_today: components["schemas"]["SalesTask"][];
             /** Hot Leads */
             hot_leads: components["schemas"]["LeadOut"][];
             /** Median First Response Seconds */
@@ -2024,7 +2024,7 @@ export interface components {
             /** Summary */
             summary?: string | null;
             /** Tasks */
-            tasks: components["schemas"]["dealerai__routes__runs__TaskOut"][];
+            tasks: components["schemas"]["TaskOut"][];
             /** Trigger Type */
             trigger_type: string;
         };
@@ -2059,6 +2059,44 @@ export interface components {
             summary?: string | null;
             /** Trigger Type */
             trigger_type: string;
+        };
+        /** SalesTask */
+        SalesTask: {
+            assignee: components["schemas"]["UserRef"] | null;
+            /** Completed At */
+            completed_at: string | null;
+            contact: components["schemas"]["dealerai__routes__tasks__ContactRef"] | null;
+            /** Conversation Id */
+            conversation_id: string | null;
+            /**
+             * Due At
+             * Format: date-time
+             */
+            due_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "follow_up" | "call" | "meeting" | "todo";
+            /** Lead Id */
+            lead_id: string | null;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "human" | "ai" | "rule";
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "open" | "done" | "cancelled";
+            /** Title */
+            title: string;
         };
         /** ScoreReason */
         ScoreReason: {
@@ -2210,6 +2248,27 @@ export interface components {
             lead_id?: string | null;
             /** Title */
             title: string;
+        };
+        /** TaskOut */
+        TaskOut: {
+            /** Agent */
+            agent: string;
+            /** Attempts */
+            attempts: number;
+            /** Cost Usd */
+            cost_usd: number;
+            /** Depends On */
+            depends_on: string[];
+            /** Error */
+            error?: string | null;
+            /** Output */
+            output?: {
+                [key: string]: unknown;
+            } | null;
+            /** Status */
+            status: string;
+            /** Task Key */
+            task_key: string;
         };
         /** TaskPatch */
         TaskPatch: {
@@ -2629,27 +2688,6 @@ export interface components {
             /** Currency */
             currency: string;
         };
-        /** TaskOut */
-        dealerai__routes__runs__TaskOut: {
-            /** Agent */
-            agent: string;
-            /** Attempts */
-            attempts: number;
-            /** Cost Usd */
-            cost_usd: number;
-            /** Depends On */
-            depends_on: string[];
-            /** Error */
-            error?: string | null;
-            /** Output */
-            output?: {
-                [key: string]: unknown;
-            } | null;
-            /** Status */
-            status: string;
-            /** Task Key */
-            task_key: string;
-        };
         /** ContactRef */
         dealerai__routes__tasks__ContactRef: {
             /**
@@ -2659,44 +2697,6 @@ export interface components {
             id: string;
             /** Name */
             name: string | null;
-        };
-        /** TaskOut */
-        dealerai__routes__tasks__TaskOut: {
-            assignee: components["schemas"]["UserRef"] | null;
-            /** Completed At */
-            completed_at: string | null;
-            contact: components["schemas"]["dealerai__routes__tasks__ContactRef"] | null;
-            /** Conversation Id */
-            conversation_id: string | null;
-            /**
-             * Due At
-             * Format: date-time
-             */
-            due_at: string;
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /**
-             * Kind
-             * @enum {string}
-             */
-            kind: "follow_up" | "call" | "meeting" | "todo";
-            /** Lead Id */
-            lead_id: string | null;
-            /**
-             * Source
-             * @enum {string}
-             */
-            source: "human" | "ai" | "rule";
-            /**
-             * Status
-             * @enum {string}
-             */
-            status: "open" | "done" | "cancelled";
-            /** Title */
-            title: string;
         };
         /** MemberOut */
         dealerai__routes__team__MemberOut: {
@@ -4355,7 +4355,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["dealerai__routes__tasks__TaskOut"][];
+                    "application/json": components["schemas"]["SalesTask"][];
                 };
             };
             /** @description Validation Error */
@@ -4390,7 +4390,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["dealerai__routes__tasks__TaskOut"];
+                    "application/json": components["schemas"]["SalesTask"];
                 };
             };
             /** @description Validation Error */
@@ -4427,7 +4427,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["dealerai__routes__tasks__TaskOut"];
+                    "application/json": components["schemas"]["SalesTask"];
                 };
             };
             /** @description Validation Error */

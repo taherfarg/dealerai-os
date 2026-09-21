@@ -2364,7 +2364,7 @@
           },
           "due_today": {
             "items": {
-              "$ref": "#/components/schemas/dealerai__routes__tasks__TaskOut"
+              "$ref": "#/components/schemas/SalesTask"
             },
             "title": "Due Today",
             "type": "array"
@@ -2812,7 +2812,7 @@
           },
           "tasks": {
             "items": {
-              "$ref": "#/components/schemas/dealerai__routes__runs__TaskOut"
+              "$ref": "#/components/schemas/TaskOut"
             },
             "title": "Tasks",
             "type": "array"
@@ -2928,6 +2928,123 @@
           "started_at"
         ],
         "title": "RunOut",
+        "type": "object"
+      },
+      "SalesTask": {
+        "properties": {
+          "assignee": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UserRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "contact": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/dealerai__routes__tasks__ContactRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "conversation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conversation Id"
+          },
+          "due_at": {
+            "format": "date-time",
+            "title": "Due At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "follow_up",
+              "call",
+              "meeting",
+              "todo"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "lead_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lead Id"
+          },
+          "source": {
+            "enum": [
+              "human",
+              "ai",
+              "rule"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "open",
+              "done",
+              "cancelled"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "kind",
+          "due_at",
+          "status",
+          "completed_at",
+          "source",
+          "assignee",
+          "contact",
+          "lead_id",
+          "conversation_id"
+        ],
+        "title": "SalesTask",
         "type": "object"
       },
       "ScoreReason": {
@@ -3381,6 +3498,70 @@
           "due_at"
         ],
         "title": "TaskCreate",
+        "type": "object"
+      },
+      "TaskOut": {
+        "properties": {
+          "agent": {
+            "title": "Agent",
+            "type": "string"
+          },
+          "attempts": {
+            "title": "Attempts",
+            "type": "integer"
+          },
+          "cost_usd": {
+            "title": "Cost Usd",
+            "type": "number"
+          },
+          "depends_on": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Depends On",
+            "type": "array"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "output": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "task_key": {
+            "title": "Task Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "task_key",
+          "agent",
+          "depends_on",
+          "status",
+          "attempts",
+          "cost_usd"
+        ],
+        "title": "TaskOut",
         "type": "object"
       },
       "TaskPatch": {
@@ -4685,70 +4866,6 @@
         "title": "Money",
         "type": "object"
       },
-      "dealerai__routes__runs__TaskOut": {
-        "properties": {
-          "agent": {
-            "title": "Agent",
-            "type": "string"
-          },
-          "attempts": {
-            "title": "Attempts",
-            "type": "integer"
-          },
-          "cost_usd": {
-            "title": "Cost Usd",
-            "type": "number"
-          },
-          "depends_on": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Depends On",
-            "type": "array"
-          },
-          "error": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Error"
-          },
-          "output": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Output"
-          },
-          "status": {
-            "title": "Status",
-            "type": "string"
-          },
-          "task_key": {
-            "title": "Task Key",
-            "type": "string"
-          }
-        },
-        "required": [
-          "task_key",
-          "agent",
-          "depends_on",
-          "status",
-          "attempts",
-          "cost_usd"
-        ],
-        "title": "TaskOut",
-        "type": "object"
-      },
       "dealerai__routes__tasks__ContactRef": {
         "properties": {
           "id": {
@@ -4773,123 +4890,6 @@
           "name"
         ],
         "title": "ContactRef",
-        "type": "object"
-      },
-      "dealerai__routes__tasks__TaskOut": {
-        "properties": {
-          "assignee": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/UserRef"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "completed_at": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Completed At"
-          },
-          "contact": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/dealerai__routes__tasks__ContactRef"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "conversation_id": {
-            "anyOf": [
-              {
-                "format": "uuid",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Conversation Id"
-          },
-          "due_at": {
-            "format": "date-time",
-            "title": "Due At",
-            "type": "string"
-          },
-          "id": {
-            "format": "uuid",
-            "title": "Id",
-            "type": "string"
-          },
-          "kind": {
-            "enum": [
-              "follow_up",
-              "call",
-              "meeting",
-              "todo"
-            ],
-            "title": "Kind",
-            "type": "string"
-          },
-          "lead_id": {
-            "anyOf": [
-              {
-                "format": "uuid",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Lead Id"
-          },
-          "source": {
-            "enum": [
-              "human",
-              "ai",
-              "rule"
-            ],
-            "title": "Source",
-            "type": "string"
-          },
-          "status": {
-            "enum": [
-              "open",
-              "done",
-              "cancelled"
-            ],
-            "title": "Status",
-            "type": "string"
-          },
-          "title": {
-            "title": "Title",
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "title",
-          "kind",
-          "due_at",
-          "status",
-          "completed_at",
-          "source",
-          "assignee",
-          "contact",
-          "lead_id",
-          "conversation_id"
-        ],
-        "title": "TaskOut",
         "type": "object"
       },
       "dealerai__routes__team__MemberOut": {
@@ -7917,7 +7917,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/dealerai__routes__tasks__TaskOut"
+                    "$ref": "#/components/schemas/SalesTask"
                   },
                   "title": "Response List Tasks V1 Tasks Get",
                   "type": "array"
@@ -7972,7 +7972,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/dealerai__routes__tasks__TaskOut"
+                  "$ref": "#/components/schemas/SalesTask"
                 }
               }
             },
@@ -8036,7 +8036,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/dealerai__routes__tasks__TaskOut"
+                  "$ref": "#/components/schemas/SalesTask"
                 }
               }
             },

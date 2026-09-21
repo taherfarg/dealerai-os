@@ -18,7 +18,7 @@ from ..db.session import tenant_session
 from ..deps import Ctx
 from .inbox import ConversationSummary, summary
 from .leads import LeadOut, lead_out
-from .tasks import TaskOut, day_start, task_out, window
+from .tasks import SalesTask, day_start, task_out, window
 
 router = APIRouter(prefix="/v1/dashboard", tags=["dashboard"])
 
@@ -53,7 +53,7 @@ class MyDay(BaseModel):
     median_first_response_seconds: int | None
     accepting_chats: bool
     waiting_on_you: list[ConversationSummary]
-    due_today: list[TaskOut]
+    due_today: list[SalesTask]
     hot_leads: list[LeadOut]
 
 

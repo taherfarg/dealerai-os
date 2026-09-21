@@ -37,11 +37,6 @@ _MAX_TAGS = 20
 _MAX_TAG = 40
 
 
-class Money(BaseModel):
-    amount_minor: int
-    currency: str
-
-
 class Identity(BaseModel):
     id: UUID
     kind: str

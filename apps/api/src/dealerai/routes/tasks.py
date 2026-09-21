@@ -27,7 +27,7 @@ class ContactRef(BaseModel):
     name: str | None
 
 
-class TaskOut(BaseModel):
+class SalesTask(BaseModel):
     id: UUID
     title: str
     kind: Literal["follow_up", "call", "meeting", "todo"]
@@ -118,7 +118,7 @@ async def _row_or_404(conn: Any, task_id: UUID) -> dict[str, Any]:
     return dict(row)
 
 
-@router.get("", response_model=list[TaskOut])
+@router.get("", response_model=list[SalesTask])
 async def list_tasks(
     ctx: Ctx,
     assignee: Annotated[str, Query()] = "me",
@@ -146,7 +146,7 @@ async def list_tasks(
     return [task_out(row) for row in rows]
 
 
-@router.post("", response_model=TaskOut, status_code=201)
+@router.post("", response_model=SalesTask, status_code=201)
 async def create_task(ctx: Ctx, body: TaskCreate) -> dict[str, Any]:
     """Mine unless it says otherwise. Everything it points at has to be
     something the caller can already see, or this is a way to probe for rows."""
@@ -186,7 +186,7 @@ async def create_task(ctx: Ctx, body: TaskCreate) -> dict[str, Any]:
         return task_out(await _row_or_404(conn, task_id))
 
 
-@router.patch("/{task_id}", response_model=TaskOut)
+@router.patch("/{task_id}", response_model=SalesTask)
 async def edit_task(ctx: Ctx, task_id: UUID, body: TaskPatch) -> dict[str, Any]:
     """Completing, snoozing and renaming are the same call.
 
