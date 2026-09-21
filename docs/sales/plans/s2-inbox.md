@@ -3411,6 +3411,71 @@ git commit -m "docs(sales): S2 inbox complete, with the exit run recorded"
 
 ---
 
+## Review — 2026-09-21
+
+The slice was built task by task with the suite green at every commit, and then the exit path was
+run in a browser: Ahmed Nasser signed in at `/dev-login`, Sara Mansour signed in as a second real
+session watching the same queue over `GET /v1/stream`. Everything below was invisible to 874
+passing tests.
+
+| Found | Why it mattered | Fixed in |
+|---|---|---|
+| A reply never stopped the timer: the send handler marked the message `sent` and left `waiting_since`, `sla_due_at` and `first_response_at` untouched | The queue went on saying a customer who had just been answered had been waiting twenty-four minutes, on the salesperson's screen and the manager's, and the waiting counts never fell. [05](../05-workflows.md) § 3 says to do it; only the phone-echo path did | `5744671` |
+| `test_a_reply_stops_the_timer` did the clearing itself, in SQL, then asserted the quiet that followed | A test that stubs the step that is missing. It is why the gap survived a task whose whole subject was the waiting timer | `5744671` |
+| On a phone the queue and the thread were one long page, and the composer sat behind the bottom bar | Nobody could answer a customer from a phone — on a WhatsApp-first product. The layout's own docstring described the rule that hides the list, and the rule had never been written; the pane height was a guessed `100dvh-8rem` that no longer matched the chrome | `5744671` |
+| The notification popover opened off the left edge of the screen | The bell lives in the sidebar, not a top bar, so an end-anchored popover hangs off the side. Half of it was unreadable | `10d0b31` |
+| The unread count vanished from the tab title on the first navigation | Next writes the title from each page's metadata *after* the effect, so the count has to be re-applied whenever the title changes underneath — which makes applying it twice something that must be a no-op | `10d0b31` |
+| The window countdown said "closes <1m" for a window with twenty hours left | `formatRelative` measures how long ago something was; nothing had ever passed it a future timestamp. It is the one number in the header a salesperson acts on | `5f3d46b` |
+| The first version of the seed's shape test compared Ahmed's and Sara's *total* unread counts — which came out equal, 5 and 5, while every row differed | It passed for the wrong reason. Unread is per conversation; the totals matching was a coincidence of the seed | `5744671` |
+
+Sound as built, and left alone: the migration and its triggers, `app.suppress_rt`, the pick-then-lock
+assignment, business hours, the cursor pagination, the signed media links, the SSE hub's
+`may_see` filtering, and the invalidate-only live updates.
+
+Known and deliberately not changed in S2:
+
+- Notification titles are written by the worker in English; the bell shows them as written. Per-user
+  localisation of worker text needs the recipient's locale on the row, and waits for S7.
+- "Mark all read" clears the badge and leaves the notifications listed, rather than emptying the list
+  as this plan first said: the list is also the record of what somebody was told, which is the first
+  thing asked for after a customer is missed.
+- The second person in the exit run was a real signed-in session driven over the API, not a second
+  browser window — the built-in browser has one cookie jar, so two people cannot be signed in at
+  once in it. Ahmed's screen was the browser; Sara's was her own `/v1/stream` connection and the
+  same REST calls the list makes.
+- A seeded "due soon" row becomes a missed one about ninety seconds later. That is the product
+  working; re-seed before a demo.
+
+**Verified end to end on 2026-09-21**, with the API, the worker and the web app running, seeded
+fresh:
+
+1. Ahmed's inbox opened on his queue, waiting customers first: Omar "Missed 22m 9s", Mona
+   "Due soon 3m 39s", each with an unread badge; "Unassigned 1" beside it.
+2. `npm run wa:simulate voice -- --customer AE.seed.1` — with no refresh, Omar's row moved to the
+   top, its preview became "Voice note", the unread badge went to 2 and the tab title to "(3)".
+   Sara's session received `message.created`, `notification.created` and then the `message.updated`
+   that carried the transcript.
+3. The thread showed the voice note's player and, beneath it, *"Hello, is the white Land Cruiser
+   still available? What is your best price?"* — transcribed live. The signed media link returned
+   200.
+4. A reply appeared instantly, was delivered by the worker and turned ✓; the timer disappeared from
+   Ahmed's row and header, the "Mine" count fell from 2 to 1, and within the same second Sara's row
+   for Omar dropped out of the waiting order with `sla_state: null`.
+5. `npm run wa:simulate status --message-id … --text delivered` turned ✓ into ✓✓ live.
+6. In Arabic the whole layout mirrored — sidebar, list, bubbles, timer and composer — with no
+   horizontal scroll, and at 360 px the queue and the thread are separate screens with the composer
+   above the bottom bar.
+
+Three things about running it locally, none of them product bugs. `uvicorn --reload` cannot restart
+while an SSE stream is open, so it hangs waiting for connections to close. Stopping `npm run worker`
+can leave the Python grandchild alive, which then goes on handling events with the old code — which
+is what made this fix look like it had not worked. And a worker attached to the development database
+will claim the suite's events out from under it: `test_the_run_finishes_completed` failed once for
+exactly that reason and passes with nothing else running. The suite and a worker want separate
+databases; until they have them, stop the worker before `npm run check`.
+
+---
+
 ## Spec coverage
 
 | Requirement | Where |
