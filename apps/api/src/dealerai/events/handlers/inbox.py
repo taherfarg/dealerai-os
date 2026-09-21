@@ -11,6 +11,7 @@ import structlog
 from ...db.session import tenant_session
 from ...sales.assignment import Candidate, choose, route_to_team
 from ...sales.settings import SalesSettings
+from ...sales.timeline import event_line
 from ..bus import Event, emit, handler
 from .notify import notify
 
@@ -63,21 +64,6 @@ _NOTIFICATIONS: dict[str, tuple[str, str | None]] = {
     "channel_disconnected": ("WhatsApp was disconnected", "Reconnect it in Settings → Channels."),
     "channel_quality": ("WhatsApp flagged this number's quality", None),
 }
-
-
-async def _event_line(
-    conn: asyncpg.Connection, tenant_id: UUID, conversation_id: UUID, kind: str, text: str
-) -> None:
-    """A grey line in the thread: a conversation's history belongs in the thread,
-    not in an audit nobody opens."""
-    await conn.execute(
-        """insert into messages (tenant_id, conversation_id, kind, type, direction, sender,
-                                 origin, event)
-           values ($1, $2, 'event', 'text', 'out', 'system', 'system', $3)""",
-        tenant_id,
-        conversation_id,
-        {"type": kind, "text": text},
-    )
 
 
 @handler("conversation.assign_requested")
@@ -154,7 +140,7 @@ async def on_assign_requested(event: Event) -> None:
             chosen,
         )
         name = await conn.fetchval("select full_name from profiles where id = $1", chosen)
-        await _event_line(
+        await event_line(
             conn, tenant_id, conversation_id, "assigned", f"Assigned to {name or 'a colleague'}"
         )
         await notify(

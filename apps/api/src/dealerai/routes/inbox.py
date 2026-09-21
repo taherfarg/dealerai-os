@@ -40,6 +40,7 @@ from ..sales.messaging import (
     variable_numbers,
     window_is_open,
 )
+from ..sales.timeline import event_line
 
 router = APIRouter(prefix="/v1/conversations", tags=["inbox"])
 #: Retrying a send names the message, not the conversation it sits in.
@@ -608,7 +609,7 @@ async def assign_conversation(
             if body.user_id
             else None
         )
-        await _thread_event(
+        await event_line(
             conn,
             ctx.tenant_id,
             conversation_id,
@@ -646,7 +647,7 @@ async def set_conversation_status(
             body.status,
         )
         said = {"open": "Reopened", "closed": "Closed", "spam": "Marked as spam"}[body.status]
-        await _thread_event(
+        await event_line(
             conn,
             ctx.tenant_id,
             conversation_id,
@@ -654,20 +655,6 @@ async def set_conversation_status(
             said,
         )
         return await _summary_of(conn, ctx.user.id, conversation_id)
-
-
-async def _thread_event(
-    conn: Any, tenant_id: UUID, conversation_id: UUID, kind: str, text: str
-) -> None:
-    """A grey line in the thread — where a conversation keeps its own history."""
-    await conn.execute(
-        """insert into messages (tenant_id, conversation_id, kind, type, direction, sender,
-                                 origin, event)
-           values ($1, $2, 'event', 'text', 'out', 'system', 'system', $3)""",
-        tenant_id,
-        conversation_id,
-        {"type": kind, "text": text},
-    )
 
 
 @messages_router.post(

@@ -56,22 +56,63 @@ select id, kind, value, is_primary from contact_identities
  where contact_id = $1 order by kind, is_primary desc, value
 """
 
-#: Open leads for the panel and the 360, best first.
-OPEN_LEADS = """
-select l.id, l.score, l.intent_band, l.budget_minor, l.currency, l.stage_entered_at,
-       l.conversation_id, l.pipeline_id, pl.name as pipeline_name,
+#: One lead, everywhere a lead is shown: the board's card, the customer panel
+#: and the drawer. `next_action_at` is the earliest open task, computed rather
+#: than stored, which is why leads.next_action_at was dropped.
+LEAD_SELECT = """
+select l.id, l.contact_id, ct.full_name as contact_name, ct.country as contact_country,
+       l.score, l.intent_band, l.score_signals, l.budget_minor, l.currency,
+       l.stage_entered_at, l.conversation_id, l.lost_reason, l.source, l.created_at,
+       l.pipeline_id, pl.name as pipeline_name,
        l.stage_id, s.name as stage_name, s.category as stage_category,
        l.vehicle_id, v.make, v.model, v.model_year,
        l.owner_id, o.full_name as owner_name,
        (select min(t.due_at) from tasks t
          where t.lead_id = l.id and t.status = 'open') as next_action_at
   from leads l
+  join contacts ct on ct.id = l.contact_id
   join pipeline_stages s on s.id = l.stage_id
   join pipelines pl on pl.id = l.pipeline_id
   left join vehicles v on v.id = l.vehicle_id
   left join profiles o on o.id = l.owner_id
+"""
+
+#: The customer panel and the 360. $2 true asks for open leads only.
+OPEN_LEADS = f"""
+{LEAD_SELECT}
  where l.contact_id = $1 and ($2::boolean is not true or s.category = 'open')
  order by s.category, l.score desc nulls last, l.created_at desc
+"""
+
+#: The board, in board order: the column, then the best lead in it.
+LEADS_LIST = f"""
+{LEAD_SELECT}
+ where ($1::uuid is null or l.pipeline_id = $1)
+   and ($2::uuid is null or l.owner_id = $2)
+   and ($3::text is null or l.intent_band = $3)
+   and ($4::text is null or ct.full_name ilike '%' || $4 || '%')
+ order by s.position, l.score desc nulls last, l.created_at desc
+ limit $5
+"""
+
+ONE_LEAD = f"{LEAD_SELECT} where l.id = $1"
+
+#: Where it has been. Written by the API on every stage move, read by the drawer.
+STAGE_HISTORY = """
+select a.occurs_at, a.body, a.meta, p.full_name as actor_name
+  from activities a
+  left join profiles p on p.id::text = a.actor_id
+ where a.lead_id = $1 and a.kind = 'stage_change'
+ order by a.occurs_at desc
+"""
+
+LEAD_TASKS = """
+select t.id, t.title, t.kind, t.due_at, t.status, t.assignee_id,
+       p.full_name as assignee_name
+  from tasks t
+  left join profiles p on p.id = t.assignee_id
+ where t.lead_id = $1
+ order by t.status, t.due_at
 """
 
 OPEN_TASK_COUNT = "select count(*) from tasks where contact_id = $1 and status = 'open'"

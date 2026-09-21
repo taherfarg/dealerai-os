@@ -27,6 +27,7 @@ from ..deps import Ctx, TenantContext, require_permission
 from ..events.bus import emit
 from ..sales import profile as profile_fields
 from .inbox import UserRef
+from .leads import LeadOut, lead_out
 
 router = APIRouter(prefix="/v1/customers", tags=["customers"])
 
@@ -48,32 +49,6 @@ class Identity(BaseModel):
     is_primary: bool
 
 
-class StageRef(BaseModel):
-    id: UUID
-    name: str
-    category: Literal["open", "won", "lost"]
-
-
-class VehicleRef(BaseModel):
-    id: UUID
-    label: str
-
-
-class LeadSummary(BaseModel):
-    id: UUID
-    pipeline_id: UUID
-    pipeline_name: str
-    stage: StageRef
-    vehicle: VehicleRef | None
-    budget: Money | None
-    score: int | None
-    band: Literal["hot", "warm", "cold"] | None
-    owner: UserRef | None
-    conversation_id: UUID | None
-    stage_entered_at: datetime
-    next_action_at: datetime | None
-
-
 class CustomerSummary(BaseModel):
     id: UUID
     name: str | None
@@ -92,7 +67,7 @@ class CustomerDetail(CustomerSummary):
     #: `{field: {value, source, evidence_message_id, updated_at}}` — see sales/profile.py.
     profile: dict[str, Any]
     profile_updated_at: datetime | None
-    leads: list[LeadSummary]
+    leads: list[LeadOut]
     open_tasks: int
 
 
@@ -144,31 +119,6 @@ def summary(row: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
-def lead_summary(row: Mapping[str, Any]) -> dict[str, Any]:
-    vehicle = None
-    if row["vehicle_id"]:
-        year = f" {row['model_year']}" if row["model_year"] else ""
-        vehicle = {"id": row["vehicle_id"], "label": f"{row['make']} {row['model']}{year}".strip()}
-    return {
-        "id": row["id"],
-        "pipeline_id": row["pipeline_id"],
-        "pipeline_name": row["pipeline_name"],
-        "stage": {
-            "id": row["stage_id"],
-            "name": row["stage_name"],
-            "category": row["stage_category"],
-        },
-        "vehicle": vehicle,
-        "budget": _money(row["budget_minor"], row["currency"]),
-        "score": row["score"],
-        "band": row["intent_band"],
-        "owner": _owner(row["owner_id"], row["owner_name"]),
-        "conversation_id": row["conversation_id"],
-        "stage_entered_at": row["stage_entered_at"],
-        "next_action_at": row["next_action_at"],
-    }
-
-
 def encode_cursor(row: Mapping[str, Any]) -> str:
     """Two sort keys, base64'd so nobody is tempted to build one by hand."""
     raw = f"{row['last_seen_at'].isoformat()}|{row['id']}"
@@ -214,7 +164,7 @@ async def _detail(conn: Any, tenant_id: UUID, customer_id: UUID) -> dict[str, An
         "identities": [dict(identity) for identity in identities],
         "profile": dict(row["profile"] or {}),
         "profile_updated_at": row["profile_updated_at"],
-        "leads": [lead_summary(lead) for lead in leads],
+        "leads": [lead_out(lead) for lead in leads],
         "open_tasks": open_tasks or 0,
     }
 

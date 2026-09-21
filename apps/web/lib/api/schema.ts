@@ -474,6 +474,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/leads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Leads
+         * @description The board, in board order. The whole board: a dealership's open leads fit
+         *     in one page, and the columns count and total what they were given.
+         */
+        get: operations["list_leads_v1_leads_get"];
+        put?: never;
+        /**
+         * Create Lead
+         * @description A lead starts where the customer already is: their owner, their team, the
+         *     default board's first open stage.
+         */
+        post: operations["create_lead_v1_leads_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/leads/{lead_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Lead */
+        get: operations["get_lead_v1_leads__lead_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Edit Lead
+         * @description A stage move is three writes: the lead, its history, and a line in the
+         *     conversation the customer is having.
+         */
+        patch: operations["edit_lead_v1_leads__lead_id__patch"];
+        trace?: never;
+    };
     "/v1/me": {
         parameters: {
             query?: never;
@@ -1150,6 +1198,18 @@ export interface components {
             /** Platform */
             platform: string;
         };
+        /** ContactRef */
+        ContactRef: {
+            /** Country */
+            country: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string | null;
+        };
         /** ContactSummary */
         ContactSummary: {
             /** Country */
@@ -1263,7 +1323,7 @@ export interface components {
              */
             last_seen_at: string;
             /** Leads */
-            leads: components["schemas"]["LeadSummary"][];
+            leads: components["schemas"]["LeadOut"][];
             /** Name */
             name: string | null;
             /** Open Tasks */
@@ -1436,18 +1496,41 @@ export interface components {
             /** Type */
             type: string;
         };
-        /** LeadSummary */
-        LeadSummary: {
+        /** LeadCreate */
+        LeadCreate: {
+            budget?: components["schemas"]["Money-Input"] | null;
+            /**
+             * Contact Id
+             * Format: uuid
+             */
+            contact_id: string;
+            /** Pipeline Id */
+            pipeline_id?: string | null;
+            /** Vehicle Id */
+            vehicle_id?: string | null;
+        };
+        /** LeadDetail */
+        LeadDetail: {
             /** Band */
             band: ("hot" | "warm" | "cold") | null;
-            budget: components["schemas"]["dealerai__routes__customers__Money"] | null;
+            budget: components["schemas"]["dealerai__routes__leads__Money"] | null;
+            contact: components["schemas"]["ContactRef"];
             /** Conversation Id */
             conversation_id: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** History */
+            history: components["schemas"]["StageMove"][];
             /**
              * Id
              * Format: uuid
              */
             id: string;
+            /** Lost Reason */
+            lost_reason: string | null;
             /** Next Action At */
             next_action_at: string | null;
             owner: components["schemas"]["UserRef"] | null;
@@ -1460,6 +1543,54 @@ export interface components {
             pipeline_name: string;
             /** Score */
             score: number | null;
+            /** Score Reasons */
+            score_reasons: components["schemas"]["ScoreReason"][];
+            /** Source */
+            source: string | null;
+            stage: components["schemas"]["StageRef"];
+            /**
+             * Stage Entered At
+             * Format: date-time
+             */
+            stage_entered_at: string;
+            /** Tasks */
+            tasks: components["schemas"]["LeadTask"][];
+            vehicle: components["schemas"]["VehicleRef"] | null;
+        };
+        /** LeadOut */
+        LeadOut: {
+            /** Band */
+            band: ("hot" | "warm" | "cold") | null;
+            budget: components["schemas"]["dealerai__routes__leads__Money"] | null;
+            contact: components["schemas"]["ContactRef"];
+            /** Conversation Id */
+            conversation_id: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Lost Reason */
+            lost_reason: string | null;
+            /** Next Action At */
+            next_action_at: string | null;
+            owner: components["schemas"]["UserRef"] | null;
+            /**
+             * Pipeline Id
+             * Format: uuid
+             */
+            pipeline_id: string;
+            /** Pipeline Name */
+            pipeline_name: string;
+            /** Score */
+            score: number | null;
+            /** Source */
+            source: string | null;
             stage: components["schemas"]["StageRef"];
             /**
              * Stage Entered At
@@ -1467,6 +1598,38 @@ export interface components {
              */
             stage_entered_at: string;
             vehicle: components["schemas"]["VehicleRef"] | null;
+        };
+        /** LeadPatch */
+        LeadPatch: {
+            budget?: components["schemas"]["Money-Input"] | null;
+            /** Lost Reason */
+            lost_reason?: string | null;
+            /** Owner Id */
+            owner_id?: string | null;
+            /** Stage Id */
+            stage_id?: string | null;
+            /** Vehicle Id */
+            vehicle_id?: string | null;
+        };
+        /** LeadTask */
+        LeadTask: {
+            assignee: components["schemas"]["UserRef"] | null;
+            /**
+             * Due At
+             * Format: date-time
+             */
+            due_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Kind */
+            kind: string;
+            /** Status */
+            status: string;
+            /** Title */
+            title: string;
         };
         /** MeOut */
         MeOut: {
@@ -1622,6 +1785,13 @@ export interface components {
             data: components["schemas"]["MessageOut"][];
             /** Next Cursor */
             next_cursor: string | null;
+        };
+        /** Money */
+        "Money-Input": {
+            /** Amount Minor */
+            amount_minor: number;
+            /** Currency */
+            currency: string;
         };
         /** NoteIn */
         NoteIn: {
@@ -1818,6 +1988,17 @@ export interface components {
             /** Trigger Type */
             trigger_type: string;
         };
+        /** ScoreReason */
+        ScoreReason: {
+            /** Evidence Message Id */
+            evidence_message_id: string | null;
+            /** Label */
+            label: string;
+            /** Points */
+            points: number;
+            /** Signal */
+            signal: string;
+        };
         /** SendMessageIn */
         SendMessageIn: {
             /** Reply To Id */
@@ -1857,6 +2038,18 @@ export interface components {
             id?: string | null;
             /** Name */
             name: string;
+        };
+        /** StageMove */
+        StageMove: {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** By */
+            by: string | null;
+            /** Text */
+            text: string | null;
         };
         /** StageRef */
         StageRef: {
@@ -2332,7 +2525,7 @@ export interface components {
             trim?: string | null;
         };
         /** Money */
-        dealerai__routes__customers__Money: {
+        dealerai__routes__leads__Money: {
             /** Amount Minor */
             amount_minor: number;
             /** Currency */
@@ -3322,6 +3515,148 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["dealerai__routes__tenants__MemberOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_leads_v1_leads_get: {
+        parameters: {
+            query?: {
+                pipeline_id?: string | null;
+                owner_id?: string | null;
+                band?: ("hot" | "warm" | "cold") | null;
+                q?: string;
+                limit?: number;
+            };
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeadOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_lead_v1_leads_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LeadCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeadDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_lead_v1_leads__lead_id__get: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                lead_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeadDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    edit_lead_v1_leads__lead_id__patch: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                lead_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LeadPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeadDetail"];
                 };
             };
             /** @description Validation Error */
