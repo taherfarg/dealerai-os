@@ -221,3 +221,146 @@ create trigger leads_rt after insert or update on leads
   for each row execute function app.notify_rt('lead.updated');
 create trigger tasks_rt after insert or update on tasks
   for each row execute function app.notify_rt('task.updated');
+
+-- =============================================================================
+-- SINGLE WRITERS (docs/sales/02-data-model.md § 4, 05-workflows.md § 9-§ 10)
+-- SECURITY DEFINER because they must move rows the caller cannot see: a
+-- salesperson hands a customer to a colleague whose rows are invisible to them.
+-- The route decides who may call; the function decides what moving means.
+-- =============================================================================
+create or replace function app.reassign_contact(
+  p_contact_id uuid, p_new_owner uuid, p_actor uuid
+) returns void
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $fn$
+declare
+  v_tenant uuid;
+  v_old_owner uuid;
+  v_owner_name text;
+  v_conversation record;
+begin
+  select tenant_id, owner_id into v_tenant, v_old_owner
+    from contacts where id = p_contact_id for update;
+  if v_tenant is null then
+    raise exception 'no such contact' using errcode = 'no_data_found';
+  end if;
+  select full_name into v_owner_name from profiles where id = p_new_owner;
+
+  update contacts set owner_id = p_new_owner where id = p_contact_id;
+
+  -- owner_id and assigned_to move together: a conversation owned by one person
+  -- and answered by another is the state the inbox cannot explain.
+  for v_conversation in
+    select id from conversations where contact_id = p_contact_id and status = 'open'
+  loop
+    update conversations
+       set owner_id = p_new_owner, assigned_to = p_new_owner
+     where id = v_conversation.id;
+    -- A grey line in the thread, the same shape the API writes
+    -- (routes/inbox.py _thread_event): a conversation keeps its own history.
+    insert into messages (tenant_id, conversation_id, kind, type, direction, sender, origin, event)
+      values (v_tenant, v_conversation.id, 'event', 'text', 'out', 'system', 'system',
+              jsonb_build_object(
+                'type', 'reassigned',
+                'text', 'Reassigned to ' || coalesce(v_owner_name, 'a colleague'),
+                'to', p_new_owner::text));
+  end loop;
+
+  -- Won and lost leads stay with whoever closed them: moving them would rewrite
+  -- somebody's month.
+  update leads l set owner_id = p_new_owner
+    from pipeline_stages s
+   where s.id = l.stage_id and l.contact_id = p_contact_id and s.category = 'open';
+  update tasks set assignee_id = p_new_owner
+   where contact_id = p_contact_id and status = 'open';
+
+  insert into audit_log (tenant_id, actor_type, actor_id, action, entity_type, entity_id,
+                         before, after)
+    values (v_tenant, 'user', p_actor::text, 'contact.reassigned', 'contact', p_contact_id,
+            jsonb_build_object('owner_id', v_old_owner),
+            jsonb_build_object('owner_id', p_new_owner));
+end $fn$;
+
+create or replace function app.merge_contacts(
+  p_keep_id uuid, p_merge_id uuid, p_actor uuid
+) returns void
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $fn$
+declare
+  v_tenant uuid;
+  v_keep jsonb;
+  v_merged jsonb;
+begin
+  if p_keep_id = p_merge_id then
+    raise exception 'a customer cannot be merged into itself' using errcode = 'check_violation';
+  end if;
+  select tenant_id into v_tenant from contacts where id = p_keep_id for update;
+  select to_jsonb(c) into v_merged from contacts c where c.id = p_merge_id for update;
+  if v_tenant is null or v_merged is null then
+    raise exception 'no such contact' using errcode = 'no_data_found';
+  end if;
+  if (v_merged->>'tenant_id')::uuid <> v_tenant then
+    raise exception 'customers are in different workspaces' using errcode = 'check_violation';
+  end if;
+  select to_jsonb(c) into v_keep from contacts c where c.id = p_keep_id;
+
+  -- Identities move wholesale, and none of them arrives primary: unique
+  -- (tenant_id, kind, value) means two customers in one workspace can never
+  -- hold the same number, so there is nothing to collide with — and the kept
+  -- customer's own primary number stays the primary one.
+  update contact_identities set contact_id = p_keep_id, is_primary = false
+   where contact_id = p_merge_id;
+
+  update conversations set contact_id = p_keep_id where contact_id = p_merge_id;
+  update leads set contact_id = p_keep_id where contact_id = p_merge_id;
+  update tasks set contact_id = p_keep_id where contact_id = p_merge_id;
+  update activities set contact_id = p_keep_id where contact_id = p_merge_id;
+
+  -- docs/sales/05-workflows.md § 10: the kept customer's human values win, then
+  -- its AI ones, then whatever only the duplicate knew. jsonb_object_agg keeps
+  -- the last value for a key, so the union runs in order of increasing
+  -- authority. The cost is real and deliberate: a person's answer on the
+  -- duplicate loses to a guess on the keeper. The merge dialog shows both sides
+  -- before anyone confirms, and the audit row keeps what lost.
+  update contacts set
+    profile = (
+      select coalesce(jsonb_object_agg(key, value), '{}'::jsonb)
+        from (
+          select key, value from jsonb_each(coalesce(v_merged->'profile', '{}'::jsonb))
+          union all
+          select key, value from jsonb_each(coalesce(v_keep->'profile', '{}'::jsonb))
+           where value->>'source' is distinct from 'human'
+          union all
+          select key, value from jsonb_each(coalesce(v_keep->'profile', '{}'::jsonb))
+           where value->>'source' = 'human'
+        ) merged_fields
+    ),
+    profile_updated_at = now(),
+    -- jsonb functions, not a cast: to_jsonb turned tags into a JSON array, and
+    -- ["vip"] is not a Postgres array literal.
+    tags = (select coalesce(array_agg(distinct tag), '{}'::text[])
+              from (
+                select jsonb_array_elements_text(coalesce(v_keep->'tags', '[]'::jsonb)) as tag
+                union
+                select jsonb_array_elements_text(coalesce(v_merged->'tags', '[]'::jsonb))
+              ) both_records)
+  where id = p_keep_id;
+
+  delete from contacts where id = p_merge_id;
+
+  -- Not undoable, so the snapshot of both sides is what a manual repair would
+  -- start from — and what the old URL reads to say where the customer went.
+  insert into audit_log (tenant_id, actor_type, actor_id, action, entity_type, entity_id,
+                         before, after, meta)
+    values (v_tenant, 'user', p_actor::text, 'contact.merged', 'contact', p_merge_id,
+            v_merged, v_keep, jsonb_build_object('keep_id', p_keep_id));
+end $fn$;
+
+revoke all on function app.reassign_contact(uuid, uuid, uuid) from public;
+revoke all on function app.merge_contacts(uuid, uuid, uuid) from public;
+grant execute on function app.reassign_contact(uuid, uuid, uuid) to dealerai_app;
+grant execute on function app.merge_contacts(uuid, uuid, uuid) to dealerai_app;
