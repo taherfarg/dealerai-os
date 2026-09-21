@@ -120,43 +120,20 @@ async def _wipe(conn: asyncpg.Connection) -> None:
     )
 
 
-#: The stages a new workspace starts with (docs/sales/02-data-model.md § 2).
-DEFAULT_STAGES = (
-    ("New", "open"),
-    ("Contacted", "open"),
-    ("Qualified", "open"),
-    ("Won", "won"),
-    ("Lost", "lost"),
-)
-
-
 async def _default_board(
     conn: asyncpg.Connection, tenant_id: uuid.UUID
 ) -> tuple[uuid.UUID, uuid.UUID]:
     """The default pipeline and its first open stage.
 
-    A lead cannot exist without a stage to sit on, so the fixtures create the
-    same board routes/tenants.py gives a real workspace.
+    Through app.seed_default_pipeline, the same function a real workspace goes
+    through, so the fixtures cannot quietly test a board nobody has.
     """
-    pipeline_id = await conn.fetchval(
-        """insert into pipelines (tenant_id, name, is_default) values ($1, 'Sales', true)
-           returning id""",
-        tenant_id,
+    pipeline_id = await conn.fetchval("select app.seed_default_pipeline($1)", tenant_id)
+    first_open = await conn.fetchval(
+        """select id from pipeline_stages
+            where pipeline_id = $1 and category = 'open' order by position limit 1""",
+        pipeline_id,
     )
-    first_open: uuid.UUID | None = None
-    for position, (name, category) in enumerate(DEFAULT_STAGES):
-        stage_id = await conn.fetchval(
-            """insert into pipeline_stages (tenant_id, pipeline_id, name, position, category)
-               values ($1, $2, $3, $4, $5) returning id""",
-            tenant_id,
-            pipeline_id,
-            name,
-            position,
-            category,
-        )
-        if category == "open" and first_open is None:
-            first_open = stage_id
-    assert first_open is not None
     return pipeline_id, first_open
 
 

@@ -51,6 +51,18 @@ class Conflict(AppError):
     title = "Conflict"
 
 
+class StageInUse(AppError):
+    """A pipeline stage that still holds leads cannot be deleted.
+
+    The detail says how many, because "409" on its own tells a manager nothing
+    about what to do next.
+    """
+
+    status = 409
+    slug = "stage-in-use"
+    title = "That stage still holds leads"
+
+
 class AlreadyMerged(AppError):
     """This customer was merged into another one.
 

@@ -87,28 +87,49 @@ alter table leads
   add column stage_entered_at timestamptz not null default now(),
   add column score_signals    jsonb not null default '[]'::jsonb;
 
+-- The board every workspace starts with, in one place: the backfill below, the
+-- bootstrap function and the test fixtures all call this, so "what a new
+-- dealership's pipeline looks like" cannot drift into three answers.
+create or replace function app.seed_default_pipeline(p_tenant uuid)
+returns uuid
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $fn$
+declare
+  pipeline uuid;
+  stage record;
+begin
+  insert into pipelines (tenant_id, name, position, is_default)
+  values (p_tenant, 'Sales', 0, true)
+  returning id into pipeline;
+
+  for stage in
+    select * from (values
+      ('New', 0, 'open'), ('Contacted', 1, 'open'), ('Qualified', 2, 'open'),
+      ('Appointment', 3, 'open'), ('Negotiation', 4, 'open'),
+      ('Won', 5, 'won'), ('Lost', 6, 'lost')
+    ) as s(name, position, category)
+  loop
+    insert into pipeline_stages (tenant_id, pipeline_id, name, position, category)
+    values (p_tenant, pipeline, stage.name, stage.position, stage.category);
+  end loop;
+
+  return pipeline;
+end $fn$;
+
+revoke all on function app.seed_default_pipeline(uuid) from public;
+grant execute on function app.seed_default_pipeline(uuid) to dealerai_app;
+
 -- Every existing tenant gets the default pipeline its leads already implied,
 -- and each lead lands on the stage its enum named.
 do $$
 declare
   t record;
   pipeline uuid;
-  stage record;
 begin
   for t in select id from tenants loop
-    insert into pipelines (tenant_id, name, position, is_default)
-      values (t.id, 'Sales', 0, true)
-      returning id into pipeline;
-    for stage in
-      select * from (values
-        ('New', 0, 'open'), ('Contacted', 1, 'open'), ('Qualified', 2, 'open'),
-        ('Appointment', 3, 'open'), ('Negotiation', 4, 'open'),
-        ('Won', 5, 'won'), ('Lost', 6, 'lost')
-      ) as s(name, position, category)
-    loop
-      insert into pipeline_stages (tenant_id, pipeline_id, name, position, category)
-        values (t.id, pipeline, stage.name, stage.position, stage.category);
-    end loop;
+    pipeline := app.seed_default_pipeline(t.id);
     update leads l set
       pipeline_id = pipeline,
       stage_id = (select s.id from pipeline_stages s
@@ -221,6 +242,49 @@ create trigger leads_rt after insert or update on leads
   for each row execute function app.notify_rt('lead.updated');
 create trigger tasks_rt after insert or update on tasks
   for each row execute function app.notify_rt('task.updated');
+
+-- =============================================================================
+-- A NEW WORKSPACE STARTS WITH A BOARD
+-- A lead cannot exist without a stage to sit on, so a workspace created without
+-- a pipeline is one whose first lead fails. It belongs in the same transaction
+-- as the workspace itself, next to the membership and the brand profile, rather
+-- than in a follow-up statement that can fail on its own.
+-- =============================================================================
+create or replace function app.create_tenant_with_owner(
+    p_slug     text,
+    p_name     text,
+    p_country  char(2),
+    p_timezone text,
+    p_currency char(3),
+    p_locales  text[],
+    p_owner    uuid
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $fn$
+declare
+    new_id uuid;
+begin
+    insert into tenants (slug, name, country, timezone, currency, locales)
+    values (p_slug, p_name, p_country, p_timezone, p_currency, p_locales)
+    returning id into new_id;
+
+    -- A tenant with no owner is unreachable: nobody can be invited into it and
+    -- nobody can delete it. The two writes are never allowed to diverge, so
+    -- they live in one function rather than two application statements.
+    insert into memberships (tenant_id, user_id, role)
+    values (new_id, p_owner, 'owner');
+
+    insert into brand_profiles (tenant_id, display_name)
+    values (new_id, p_name);
+
+    perform app.seed_default_pipeline(new_id);
+
+    return new_id;
+end;
+$fn$;
 
 -- =============================================================================
 -- ONE MORE THING WORTH BEING TOLD

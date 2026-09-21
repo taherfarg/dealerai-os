@@ -609,6 +609,49 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/pipelines": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Pipelines
+         * @description Every board in the workspace, default first, each with its stages in order.
+         */
+        get: operations["list_pipelines_v1_pipelines_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/pipelines/{pipeline_id}/stages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Replace Stages
+         * @description The list as sent becomes the board, in the order it arrives.
+         *
+         *     A stage that still holds leads cannot be deleted — moving them first is a
+         *     decision only a person can make, and the error says how many there are.
+         */
+        put: operations["replace_stages_v1_pipelines__pipeline_id__stages_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/runs": {
         parameters: {
             query?: never;
@@ -1619,6 +1662,22 @@ export interface components {
             /** Unread */
             unread: number;
         };
+        /** Pipeline */
+        Pipeline: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Is Default */
+            is_default: boolean;
+            /** Name */
+            name: string;
+            /** Position */
+            position: number;
+            /** Stages */
+            stages: components["schemas"]["Stage"][];
+        };
         /** PriceChange */
         PriceChange: {
             /** Amount Minor */
@@ -1770,6 +1829,35 @@ export interface components {
             /** Variables */
             variables?: string[];
         };
+        /** Stage */
+        Stage: {
+            /**
+             * Category
+             * @enum {string}
+             */
+            category: "open" | "won" | "lost";
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Position */
+            position: number;
+        };
+        /** StageIn */
+        StageIn: {
+            /**
+             * Category
+             * @enum {string}
+             */
+            category: "open" | "won" | "lost";
+            /** Id */
+            id?: string | null;
+            /** Name */
+            name: string;
+        };
         /** StageRef */
         StageRef: {
             /**
@@ -1784,6 +1872,11 @@ export interface components {
             id: string;
             /** Name */
             name: string;
+        };
+        /** StagesIn */
+        StagesIn: {
+            /** Stages */
+            stages: components["schemas"]["StageIn"][];
         };
         /** StatusChange */
         StatusChange: {
@@ -3495,6 +3588,74 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_pipelines_v1_pipelines_get: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Pipeline"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    replace_stages_v1_pipelines__pipeline_id__stages_put: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                pipeline_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StagesIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Pipeline"];
+                };
             };
             /** @description Validation Error */
             422: {

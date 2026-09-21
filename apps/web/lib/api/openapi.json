@@ -2075,6 +2075,43 @@
         "title": "NotificationPage",
         "type": "object"
       },
+      "Pipeline": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "is_default": {
+            "title": "Is Default",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "position": {
+            "title": "Position",
+            "type": "integer"
+          },
+          "stages": {
+            "items": {
+              "$ref": "#/components/schemas/Stage"
+            },
+            "title": "Stages",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "position",
+          "is_default",
+          "stages"
+        ],
+        "title": "Pipeline",
+        "type": "object"
+      },
       "PriceChange": {
         "properties": {
           "amount_minor": {
@@ -2500,6 +2537,77 @@
         "title": "SendMessageIn",
         "type": "object"
       },
+      "Stage": {
+        "properties": {
+          "category": {
+            "enum": [
+              "open",
+              "won",
+              "lost"
+            ],
+            "title": "Category",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "position": {
+            "title": "Position",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "position",
+          "category"
+        ],
+        "title": "Stage",
+        "type": "object"
+      },
+      "StageIn": {
+        "properties": {
+          "category": {
+            "enum": [
+              "open",
+              "won",
+              "lost"
+            ],
+            "title": "Category",
+            "type": "string"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "name": {
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "category"
+        ],
+        "title": "StageIn",
+        "type": "object"
+      },
       "StageRef": {
         "properties": {
           "category": {
@@ -2527,6 +2635,23 @@
           "category"
         ],
         "title": "StageRef",
+        "type": "object"
+      },
+      "StagesIn": {
+        "properties": {
+          "stages": {
+            "items": {
+              "$ref": "#/components/schemas/StageIn"
+            },
+            "minItems": 2,
+            "title": "Stages",
+            "type": "array"
+          }
+        },
+        "required": [
+          "stages"
+        ],
+        "title": "StagesIn",
         "type": "object"
       },
       "StatusChange": {
@@ -6220,6 +6345,118 @@
         "summary": "Mark Read",
         "tags": [
           "notifications"
+        ]
+      }
+    },
+    "/v1/pipelines": {
+      "get": {
+        "description": "Every board in the workspace, default first, each with its stages in order.",
+        "operationId": "list_pipelines_v1_pipelines_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Pipeline"
+                  },
+                  "title": "Response List Pipelines V1 Pipelines Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Pipelines",
+        "tags": [
+          "pipelines"
+        ]
+      }
+    },
+    "/v1/pipelines/{pipeline_id}/stages": {
+      "put": {
+        "description": "The list as sent becomes the board, in the order it arrives.\n\nA stage that still holds leads cannot be deleted — moving them first is a\ndecision only a person can make, and the error says how many there are.",
+        "operationId": "replace_stages_v1_pipelines__pipeline_id__stages_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pipeline_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Pipeline Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StagesIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Pipeline"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Replace Stages",
+        "tags": [
+          "pipelines"
         ]
       }
     },
