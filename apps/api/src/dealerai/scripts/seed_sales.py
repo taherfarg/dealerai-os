@@ -166,6 +166,11 @@ async def _seed(conn: asyncpg.Connection) -> None:
         json.dumps({"first_response_target_min": TARGET_MIN, "unassigned_visible_to_sales": True}),
     )
 
+    # The board a workspace gets on creation. The tenant above is inserted
+    # directly rather than through app.create_tenant_with_owner, so the seed has
+    # to ask for it — and a workspace whose first lead fails is a broken one.
+    await conn.execute("select app.seed_default_pipeline($1)", TENANT)
+
     teams: dict[str, UUID] = {}
     for key, name in (("local", "Local sales"), ("export", "Export")):
         teams[key] = await conn.fetchval(
