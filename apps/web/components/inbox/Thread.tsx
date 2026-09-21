@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { ApiError } from "@/lib/api/client";
 import {
   useAssignConversation,
@@ -15,6 +15,7 @@ import {
 import { useNow } from "@/lib/clock";
 import { countryFlag, formatUntil } from "@/lib/format";
 import { useT } from "@/lib/i18n-client";
+import { CustomerPanel } from "@/components/crm/CustomerPanel";
 import { Composer } from "./Composer";
 import { MessageBubble } from "./MessageBubble";
 import { WaitingTimer } from "./WaitingTimer";
@@ -30,6 +31,7 @@ export function Thread({ tenant, conversationId }: { tenant: string; conversatio
   const setStatus = useSetConversationStatus(conversationId);
   const retry = useRetryMessage(conversationId);
   const now = useNow();
+  const [panel, setPanel] = useState(false);
 
   // Opening it is reading it — for this person only.
   const { mutate: read } = markRead;
@@ -77,6 +79,14 @@ export function Thread({ tenant, conversationId }: { tenant: string; conversatio
                 {t("thread.assignToMe")}
               </button>
             )}
+            <button
+              type="button"
+              aria-pressed={panel}
+              onClick={() => setPanel((was) => !was)}
+              className="hover:bg-background min-h-11 rounded-md px-3 text-sm"
+            >
+              {t("customer.details")}
+            </button>
             {row.status === "open" ? (
               <button
                 type="button"
@@ -107,21 +117,39 @@ export function Thread({ tenant, conversationId }: { tenant: string; conversatio
         </p>
       </header>
 
-      <div className="min-h-0 flex-1 overflow-y-auto py-2">
-        {messages.hasNextPage && (
-          <button
-            type="button"
-            onClick={() => messages.fetchNextPage()}
-            className="text-muted mx-auto block min-h-11 px-3 text-xs underline"
-          >
-            {t("thread.older")}
-          </button>
+      <div className="flex min-h-0 flex-1">
+        <div className="min-h-0 flex-1 overflow-y-auto py-2">
+          {messages.hasNextPage && (
+            <button
+              type="button"
+              onClick={() => messages.fetchNextPage()}
+              className="text-muted mx-auto block min-h-11 px-3 text-xs underline"
+            >
+              {t("thread.older")}
+            </button>
+          )}
+          <ul>
+            {thread.map((message) => (
+              <MessageBubble key={message.id} message={message} onRetry={retry.mutate} />
+            ))}
+          </ul>
+        </div>
+
+        {panel && (
+          // A column beside the thread on a desktop, a sheet over it on a phone.
+          <aside className="border-border bg-surface fixed inset-y-0 end-0 z-30 w-80 overflow-y-auto border-s lg:static lg:z-auto lg:w-72">
+            <CustomerPanel
+              tenant={tenant}
+              contactId={row.contact.id}
+              onClose={() => setPanel(false)}
+              onEvidence={(messageId) => {
+                const bubble = document.getElementById(`message-${messageId}`);
+                bubble?.scrollIntoView({ block: "center" });
+                bubble?.animate([{ opacity: 0.35 }, { opacity: 1 }], { duration: 900 });
+              }}
+            />
+          </aside>
         )}
-        <ul>
-          {thread.map((message) => (
-            <MessageBubble key={message.id} message={message} onRetry={retry.mutate} />
-          ))}
-        </ul>
       </div>
 
       <Composer

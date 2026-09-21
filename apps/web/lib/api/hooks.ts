@@ -31,8 +31,19 @@ export function useMe() {
   const { api, tenantId, header } = useTenantApi();
   return useQuery({
     queryKey: keys.me(tenantId),
-    queryFn: async () =>
-      unwrap(await api.GET("/v1/me", { params: { header } })),
+    queryFn: async () => unwrap(await api.GET("/v1/me", { params: { header } })),
+  });
+}
+
+export type Member = components["schemas"]["dealerai__routes__team__MemberOut"];
+
+/** Everyone in the workspace — who a customer can be handed to, and whether
+ *  they are taking chats at all. */
+export function useMembers() {
+  const { api, tenantId, header } = useTenantApi();
+  return useQuery({
+    queryKey: keys.members(tenantId),
+    queryFn: async () => unwrap(await api.GET("/v1/members", { params: { header } })),
   });
 }
 
@@ -82,8 +93,7 @@ export function useConversationCounts() {
   const { api, tenantId, header } = useTenantApi();
   return useQuery({
     queryKey: keys.counts(tenantId),
-    queryFn: async () =>
-      unwrap(await api.GET("/v1/conversations/counts", { params: { header } })),
+    queryFn: async () => unwrap(await api.GET("/v1/conversations/counts", { params: { header } })),
   });
 }
 
@@ -265,10 +275,7 @@ export function useAssignConversation(conversationId: string) {
         }),
       ),
     onSuccess: (conversation) => {
-      queryClient.setQueryData(
-        keys.conversation(tenantId, conversationId),
-        conversation,
-      );
+      queryClient.setQueryData(keys.conversation(tenantId, conversationId), conversation);
       queryClient.invalidateQueries({
         queryKey: keys.conversationList(tenantId),
       });
@@ -292,10 +299,7 @@ export function useSetConversationStatus(conversationId: string) {
         }),
       ),
     onSuccess: (conversation) => {
-      queryClient.setQueryData(
-        keys.conversation(tenantId, conversationId),
-        conversation,
-      );
+      queryClient.setQueryData(keys.conversation(tenantId, conversationId), conversation);
       queryClient.invalidateQueries({
         queryKey: keys.conversationList(tenantId),
       });
@@ -315,8 +319,7 @@ export function useNotifications() {
   const { api, tenantId, header } = useTenantApi();
   return useQuery({
     queryKey: keys.notifications(tenantId),
-    queryFn: async () =>
-      unwrap(await api.GET("/v1/notifications", { params: { header } })),
+    queryFn: async () => unwrap(await api.GET("/v1/notifications", { params: { header } })),
   });
 }
 
@@ -331,8 +334,7 @@ export function useMarkNotificationsRead() {
           body: ids === "all" ? { all: true } : { ids, all: false },
         }),
       ),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: keys.notifications(tenantId) }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.notifications(tenantId) }),
   });
 }
 
@@ -452,9 +454,7 @@ export function useMergeCustomers() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (body: { keep_id: string; merge_id: string }) =>
-      unwrap(
-        await api.POST("/v1/customers/merge", { params: { header }, body }),
-      ),
+      unwrap(await api.POST("/v1/customers/merge", { params: { header }, body })),
     onSuccess: () => queryClient.invalidateQueries(),
   });
 }
@@ -467,8 +467,7 @@ export function usePipelines() {
   const { api, tenantId, header } = useTenantApi();
   return useQuery({
     queryKey: keys.pipelines(tenantId),
-    queryFn: async () =>
-      unwrap(await api.GET("/v1/pipelines", { params: { header } })),
+    queryFn: async () => unwrap(await api.GET("/v1/pipelines", { params: { header } })),
     // The shape of a board changes about once a quarter.
     staleTime: 5 * 60_000,
   });
@@ -478,9 +477,7 @@ export function useReplaceStages(pipelineId: string) {
   const { api, tenantId, header } = useTenantApi();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (
-      stages: { id?: string; name: string; category: Stage["category"] }[],
-    ) =>
+    mutationFn: async (stages: { id?: string; name: string; category: Stage["category"] }[]) =>
       unwrap(
         await api.PUT("/v1/pipelines/{pipeline_id}/stages", {
           params: { header, path: { pipeline_id: pipelineId } },
@@ -505,10 +502,7 @@ export function useLeads(filters: LeadFilters) {
   const { api, tenantId, header } = useTenantApi();
   return useQuery({
     queryKey: keys.leads(tenantId, JSON.stringify(filters)),
-    queryFn: async () =>
-      unwrap(
-        await api.GET("/v1/leads", { params: { header, query: filters } }),
-      ),
+    queryFn: async () => unwrap(await api.GET("/v1/leads", { params: { header, query: filters } })),
   });
 }
 
@@ -530,11 +524,8 @@ export function useCreateLead() {
   const { api, tenantId, header } = useTenantApi();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (body: {
-      contact_id: string;
-      pipeline_id?: string;
-      vehicle_id?: string;
-    }) => unwrap(await api.POST("/v1/leads", { params: { header }, body })),
+    mutationFn: async (body: { contact_id: string; pipeline_id?: string; vehicle_id?: string }) =>
+      unwrap(await api.POST("/v1/leads", { params: { header }, body })),
     onSuccess: (lead) => {
       queryClient.invalidateQueries({ queryKey: keys.leadList(tenantId) });
       queryClient.invalidateQueries({
@@ -583,9 +574,7 @@ export function useEditLead(leadId: string) {
         for (const [key, leads] of previous) {
           queryClient.setQueryData<Lead[]>(
             key,
-            leads?.map((lead) =>
-              lead.id === leadId ? { ...lead, stage: moved } : lead,
-            ),
+            leads?.map((lead) => (lead.id === leadId ? { ...lead, stage: moved } : lead)),
           );
         }
       }
@@ -622,10 +611,7 @@ export function useTasks(filters: TaskFilters) {
   const { api, tenantId, header } = useTenantApi();
   return useQuery({
     queryKey: keys.tasks(tenantId, JSON.stringify(filters)),
-    queryFn: async () =>
-      unwrap(
-        await api.GET("/v1/tasks", { params: { header, query: filters } }),
-      ),
+    queryFn: async () => unwrap(await api.GET("/v1/tasks", { params: { header, query: filters } })),
   });
 }
 
@@ -709,7 +695,6 @@ export function useMyDay() {
   const { api, tenantId, header } = useTenantApi();
   return useQuery({
     queryKey: keys.myDay(tenantId),
-    queryFn: async () =>
-      unwrap(await api.GET("/v1/dashboard/me", { params: { header } })),
+    queryFn: async () => unwrap(await api.GET("/v1/dashboard/me", { params: { header } })),
   });
 }

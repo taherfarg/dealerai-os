@@ -44,6 +44,7 @@ export function MessageBubble({
 
   return (
     <li
+      id={`message-${message.id}`}
       data-kind={message.kind}
       data-origin={message.origin}
       className={`flex ${note ? "justify-center" : ours ? "justify-end" : "justify-start"} px-3 py-1`}
@@ -108,11 +109,7 @@ export function MessageBubble({
             {t("thread.notDelivered")}
             {message.error?.message ? ` — ${String(message.error.message)}` : ""}{" "}
             {onRetry && (
-              <button
-                type="button"
-                onClick={() => onRetry(message.id)}
-                className="underline"
-              >
+              <button type="button" onClick={() => onRetry(message.id)} className="underline">
                 {t("thread.retry")}
               </button>
             )}

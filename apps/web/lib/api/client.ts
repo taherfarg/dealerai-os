@@ -3,8 +3,7 @@ import { getBrowserAccessToken } from "@/lib/auth/token";
 import type { paths } from "./schema";
 
 /** Where the API lives. Exported because the SSE reader opens its own fetch. */
-export const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+export const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 /** RFC 9457 problem+json — the only error shape the API emits. */
 export type Problem = {
@@ -27,11 +26,7 @@ export class ApiError extends Error {
  * openapi-fetch returns `{ data, error }`. Screens want a value or an exception,
  * because an exception is what React Query stores as the error state.
  */
-export function unwrap<T>(result: {
-  data?: T;
-  error?: unknown;
-  response: Response;
-}): T {
+export function unwrap<T>(result: { data?: T; error?: unknown; response: Response }): T {
   if (result.error !== undefined || !result.response.ok) {
     const e = (result.error ?? {}) as Partial<Problem>;
     throw new ApiError({
