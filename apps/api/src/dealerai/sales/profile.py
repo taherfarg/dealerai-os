@@ -38,8 +38,12 @@ _MAX_TEXT = 500
 _MAX_ITEMS = 20
 
 
-def _checked(key: str, value: Any) -> Any:
-    """The value as it will be stored, or a 422 naming the field."""
+def check(key: str, value: Any) -> Any:
+    """The value as it will be stored, or a 422 naming the field.
+
+    Public because the profile agent validates a proposed field before
+    applying it: one bad country code should cost that field, not the run.
+    """
     kind = FIELDS.get(key)
     if kind is None:
         raise Unusable(f"{key} is not something we record about a customer")
@@ -91,7 +95,7 @@ def apply(
     """
     updated = dict(profile)
     for key, raw in changes.items():
-        value = _checked(key, raw)
+        value = check(key, raw)
         held = updated.get(key)
         if source == "ai" and isinstance(held, dict) and held.get("source") == "human":
             continue

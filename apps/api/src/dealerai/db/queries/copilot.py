@@ -284,3 +284,52 @@ update ai_suggestions set outcome = $2, outcome_at = now(), outcome_by = $3,
  where id = $1 and outcome is null
 returning id
 """
+
+# ---------------------------------------------------------------------------
+# What a quiet conversation taught us
+# ---------------------------------------------------------------------------
+
+#: Is there anything to learn, and has the customer written since?
+#:
+#: The cursor lives in `conversations.summary` rather than in a column of its
+#: own, because it is written every time a summary is, by definition — and a
+#: cursor that can fall out of step with the summary it belongs to is a cursor
+#: that will.
+IDLE_STATE = """
+select cv.contact_id, ct.profile, cv.summary,
+       (select count(*) from messages m
+         where m.conversation_id = cv.id and m.kind = 'message' and m.direction = 'in'
+           and (cv.summary->>'cursor_message_id' is null
+                or m.created_at > (select created_at from messages
+                                    where id = (cv.summary->>'cursor_message_id')::uuid))
+       ) as new_since_cursor,
+       (select count(*) from messages m
+         where m.conversation_id = cv.id and m.kind = 'message' and m.direction = 'in'
+           and m.created_at > (select created_at from messages where id = $2)
+       ) as newer_inbound
+  from conversations cv join contacts ct on ct.id = cv.contact_id
+ where cv.id = $1
+"""
+
+#: When the customer wrote, and how long we took to answer. Both signals code
+#: can see for itself: pace, and silence.
+REPLY_PACE = """
+select m.created_at,
+       (select min(reply.created_at) from messages reply
+         where reply.conversation_id = m.conversation_id and reply.kind = 'message'
+           and reply.direction = 'out' and reply.created_at > m.created_at
+       ) - m.created_at as latency
+  from messages m
+ where m.conversation_id = $1 and m.kind = 'message' and m.direction = 'in'
+ order by m.created_at desc limit 5
+"""
+
+#: The leads a conversation's customer has open, with what a notification needs.
+LEADS_TO_RESCORE = """
+select l.id, l.tenant_id, l.owner_id, l.score_signals, l.intent_band, l.conversation_id,
+       ct.full_name
+  from leads l
+  join pipeline_stages s on s.id = l.stage_id
+  join contacts ct on ct.id = l.contact_id
+ where l.contact_id = $1 and s.category = 'open'
+"""

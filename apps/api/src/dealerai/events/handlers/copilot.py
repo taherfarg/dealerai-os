@@ -16,9 +16,10 @@ import structlog
 from ...agents.sales import copilot
 from ...agents.sales.copilot import Draft
 from ...agents.sales.intent import Read, classify
+from ...agents.sales.profile import PROPOSABLE, Learned, coerce, study
 from ...ai.embeddings import embed, literal
 from ...ai.gateway import assert_within_budget
-from ...core.errors import BudgetExceeded
+from ...core.errors import BudgetExceeded, Unusable
 from ...db.queries import copilot as q
 from ...db.session import tenant_session
 from ...guards import Finding, Findings
@@ -29,11 +30,13 @@ from ...guards import pii as pii_guard
 from ...guards import price as price_guard
 from ...guards import script as script_guard
 from ...media import storage
-from ...sales import confidence, grounding, knowledge
+from ...sales import confidence, grounding, knowledge, scoring
+from ...sales import profile as profile_fields
 from ...sales.grounding import Ground
 from ...sales.knowledge import Passage, chunk, embeddable, extract
 from ...sales.messaging import render_template
 from ...sales.runs import Run, agent_run
+from ...sales.settings import SalesSettings
 from ...sales.timeline import event_line
 from ..bus import Event, handler
 from .notify import notify
@@ -505,12 +508,219 @@ async def _tell_the_owners_once(tenant_id: UUID) -> None:
             )
 
 
+# ---------------------------------------------------------------------------
+# What a quiet conversation taught us — docs/sales/04-ai-copilot.md § 4, § 5
+# ---------------------------------------------------------------------------
+
+#: Below this there is nothing new to learn and a model call is waste. At
+#: Pollux's volume this one decision is a couple of thousand calls a month.
+MIN_NEW_MESSAGES = 2
+
+#: How much of the conversation the profile agent reads.
+STUDY_TAIL = 60
+
+
 @handler("conversation.idle")
 async def on_conversation_idle(event: Event) -> None:
-    """Placeholder until Task 10.
+    """Fifteen minutes of quiet: write down what we learned."""
+    if event.tenant_id is None:
+        raise ValueError("conversation.idle requires a tenant")
+    tenant_id = event.tenant_id
+    conversation_id = UUID(str(event.payload["conversation_id"]))
+    message_id = UUID(str(event.payload["message_id"]))
 
-    Here rather than in parked.py because this module now owns the type, and
-    `bus.register` refuses a second handler for one type — which is exactly the
-    check that stops a placeholder outliving its replacement.
+    async with tenant_session(tenant_id) as conn:
+        state = await conn.fetchrow(q.IDLE_STATE, conversation_id, message_id)
+        if state is None:
+            return
+        if state["newer_inbound"]:
+            return  # they are still writing; a later idle event will do this
+        if state["new_since_cursor"] < MIN_NEW_MESSAGES:
+            return
+        tail = await conn.fetch(q.TAIL, conversation_id, STUDY_TAIL)
+        leads = await conn.fetch(q.OPEN_LEADS, state["contact_id"])
+    if not tail:
+        return
+
+    try:
+        await assert_within_budget(tenant_id)
+    except BudgetExceeded:
+        await _tell_the_owners_once(tenant_id)
+        return
+
+    async with agent_run(
+        tenant_id,
+        goal="learn from a conversation",
+        goal_input={"conversation_id": str(conversation_id)},
+    ) as run:
+        studied = await study(
+            tenant_id=tenant_id,
+            run_id=run.id,
+            transcript=_transcript(tail),
+            profile_now=_profile_lines(state["profile"]),
+            leads_now=_lead_lines(leads),
+        )
+        run.cost_usd += studied.cost_usd
+        await _write_down(
+            tenant_id,
+            conversation_id,
+            contact_id=state["contact_id"],
+            learned=studied.learned,
+            ours={str(row["id"]) for row in tail},
+            cursor=tail[-1]["id"],
+            run=run,
+        )
+
+
+def _transcript(tail: list[Any]) -> str:
+    """The conversation with its message ids, because evidence is the point."""
+    return "\n".join(
+        f"[{row['id']}] {'CUSTOMER' if row['direction'] == 'in' else 'US'}: {row['text']}"
+        for row in tail
+    )
+
+
+def _profile_lines(profile: dict[str, Any] | None) -> str:
+    return "\n".join(
+        f"- {key}: {value.get('value')} (set by {value.get('source')})"
+        for key, value in sorted((profile or {}).items())
+        if isinstance(value, dict)
+    )
+
+
+def _lead_lines(leads: list[Any]) -> str:
+    return "\n".join(
+        f"- {row['pipeline']} · {row['stage']} · "
+        f"{(str(row['make'] or '') + ' ' + str(row['model'] or '')).strip() or 'no car yet'}"
+        for row in leads
+    )
+
+
+async def _write_down(
+    tenant_id: UUID,
+    conversation_id: UUID,
+    *,
+    contact_id: UUID,
+    learned: Learned,
+    ours: set[str],
+    cursor: UUID,
+    run: Run,
+) -> None:
+    """What is kept, and what is dropped. This is the half that is not a model.
+
+    Three filters, and a field failing any of them costs that field rather than
+    the run: one bad country code must not take the summary with it.
     """
-    log.info("conversation_idle_not_handled_yet", payload=event.payload)
+    now = datetime.now(UTC)
+    changes: list[tuple[str, Any, str]] = []
+    for update in learned.updates:
+        if update.evidence_message_id not in ours:
+            # The grounding check. A message id from another thread would put
+            # somebody else's words on this customer's record.
+            log.info("profile_update_ungrounded", field=update.field)
+            continue
+        try:
+            value = profile_fields.check(update.field, coerce(update.field, update.value))
+        except Unusable as exc:
+            log.info("profile_update_invalid", field=update.field, why=str(exc))
+            continue
+        changes.append((update.field, value, update.evidence_message_id))
+
+    # An unknown signal is worth nothing to the scorer already. Dropping it here
+    # keeps it out of the stored list too, so the drawer's reasons and the
+    # number above them cannot disagree.
+    signals = [
+        {"signal": seen.signal, "evidence_message_id": seen.evidence_message_id}
+        for seen in learned.signals
+        if seen.signal in PROPOSABLE and seen.evidence_message_id in ours
+    ]
+
+    async with tenant_session(tenant_id) as conn, conn.transaction():
+        for field, value, evidence in changes:
+            # One field at a time, so one evidence id belongs to one field.
+            # `apply` is what refuses to overwrite a person's answer.
+            current = await conn.fetchval("select profile from contacts where id = $1", contact_id)
+            await conn.execute(
+                "update contacts set profile = $2::jsonb, profile_updated_at = $3 where id = $1",
+                contact_id,
+                profile_fields.apply(
+                    current or {},
+                    {field: value},
+                    source="ai",
+                    now=now,
+                    evidence_message_id=evidence,
+                ),
+                now,
+            )
+
+        await conn.execute(
+            "update conversations set summary = $2::jsonb where id = $1",
+            conversation_id,
+            {
+                "text": learned.summary.text,
+                "next_action": learned.summary.next_action,
+                "cursor_message_id": str(cursor),
+                "at": now.isoformat(),
+            },
+        )
+
+        weights = SalesSettings.model_validate(
+            await conn.fetchval("select sales_settings from tenants where id = $1", tenant_id) or {}
+        ).scoring_weights
+        for lead in await conn.fetch(q.LEADS_TO_RESCORE, contact_id):
+            await _rescore(conn, lead, signals, weights, now)
+
+    run.summary = learned.summary.next_action or "nothing new"
+    log.info(
+        "conversation_studied",
+        conversation_id=str(conversation_id),
+        fields=[field for field, _, _ in changes],
+        signals=[signal["signal"] for signal in signals],
+    )
+
+
+async def _rescore(
+    conn: Any, lead: Any, signals: list[dict[str, Any]], weights: dict[str, int], now: datetime
+) -> None:
+    """Stored signals plus the two code can see, through the same pure function
+    the drawer's reasons come from (sales/scoring.py).
+
+    Keyed by name, so a second run does not count `asked_price` twice — and the
+    newer evidence wins, which is the one the salesperson would rather open.
+    """
+    stored = {row["signal"]: row for row in (lead["score_signals"] or [])}
+    stored.update({row["signal"]: row for row in signals})
+    merged = scoring.from_stored(list(stored.values()))
+
+    pace = (
+        await conn.fetch(q.REPLY_PACE, lead["conversation_id"]) if lead["conversation_id"] else []
+    )
+    observed = scoring.observed_signals(
+        inbound_at=[row["created_at"] for row in pace],
+        reply_latencies=[row["latency"] for row in pace if row["latency"] is not None],
+        now=now,
+    )
+    total, band, _ = scoring.score(merged + observed, weights)
+
+    await conn.execute(
+        "update leads set score = $2, intent_band = $3, score_signals = $4::jsonb where id = $1",
+        lead["id"],
+        total,
+        band,
+        [
+            {"signal": signal.name, "evidence_message_id": signal.evidence_message_id}
+            for signal in merged
+        ],
+    )
+    if band == "hot" and lead["intent_band"] != "hot" and lead["owner_id"]:
+        # The one notification this agent sends. A lead going cold is not news;
+        # a lead going hot is somebody's afternoon.
+        await notify(
+            conn,
+            tenant_id=lead["tenant_id"],
+            user_id=lead["owner_id"],
+            kind="lead_hot",
+            title=f"{lead['full_name'] or 'A customer'} is now a hot lead",
+            entity={"type": "lead", "id": str(lead["id"])},
+            dedupe_key=f"hot:{lead['id']}",
+        )
