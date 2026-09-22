@@ -2051,6 +2051,76 @@ git commit -m "docs(sales): S3 CRM complete, with the exit run recorded"
 
 ---
 
+## Review — 2026-09-22
+
+Fifteen tasks, each ending green, and then the exit path run in a browser:
+Ahmed Nasser signing in at `/dev-login`, correcting what the AI had guessed, winning a lead on the
+board, and Sara Mansour handing the customer to Mohamed Riad and merging his duplicate record away.
+Everything below was invisible to a suite that was passing at the time.
+
+| Found | Why it mattered | Fixed in |
+|---|---|---|
+| The board a new workspace starts with was written three times — the migration's backfill, `app.create_tenant_with_owner`, and the test fixtures — and the fixtures had already drifted to five stages nobody has | A test failed on its own setup. Worse, the fixtures were proving a board no real workspace would ever have. One `app.seed_default_pipeline`, four callers | `d3d5733` |
+| The merge's "drop an identity the keeper already has" guard could never fire | `unique (tenant_id, kind, value)` means two customers in one workspace cannot hold the same number, so the branch was dead code defending an impossible state — and its test failed on its own insert | `940d973` |
+| `contact_assigned` was not among the notification kinds | The handover notification crashed on a check constraint. The kinds are a constraint rather than a lookup table on purpose, so adding one is a migration a reviewer can read | `06c6cf4` |
+| A board's three rules answered with `400 {"field": "", "code": "value_error"}` | They were Pydantic validators. The person reshaping a board needs to read *which* rule they broke, so the rules moved into the route as 422s with sentences | `d3d5733` |
+| Cutting the old event-line copy out of the inbox handler took the `@handler` decorator above the next function with it | `conversation.assign_requested` had no handler at all, and every assignment test still passed — they call the function directly. Only `test_every_emitted_event_has_a_handler` noticed | `df6ea9f` |
+| Half the task tests created tasks due "now" | Which the product correctly calls overdue by the time the list is asked. The fixture now asks the same window function the route uses | `46356e4` |
+| `TaskOut` collided with the marketing agent's `TaskOut`, and the CRM had grown two `Money` models | FastAPI namespaced them into `dealerai__routes__tasks__TaskOut` in the browser's generated types. The sales one is `SalesTask`; customers now uses the `Money` in leads | `5909caa` |
+| A lead moved a second ago read **"-1 days here"** | The card's clock ticks once a minute, so it lags the move, and `Math.floor` turns a tiny negative into minus one | `51344cf` |
+| `"—"` shipped as both the English and the Arabic string | The catalogue guard reads an identical translation as an untranslated one, and it is right: a dash is punctuation, so it left the catalogue | `ca625bd` |
+| A budget was handed to the salesperson as "AED 235,000" to type over | Which is how you get "AED 235,000228000" — it happened the first time a human edited one. Money edits as a plain number now | `716a9ce` |
+| A deal already won stayed on My day under **Hot leads** | It is not something to chase this morning. That list asks for open leads only | `716a9ce` |
+
+Sound as built, and left alone: the migration and its backfill, the two single-writer functions and
+the ownership invariant, the profile's human-beats-AI rule, the scoring arithmetic, the customers
+cursor, the visibility matrix, and the invalidate-only live updates from S2.
+
+Known and deliberately not changed in S3:
+
+- **PDPL export and erasure** (`GET /v1/customers/{id}/export`, `DELETE /v1/customers/{id}`) are not
+  built. They need the retention job in [02](../02-data-model.md) § 7 and belong with S6 — but they
+  have to land before the pilot puts real customer data in S7.
+- AI-written profile values, AI signals in the score, automatic leads and the follow-up card are
+  S4's. The panel already marks and explains AI values; there is simply nothing writing them yet.
+- Bulk reassign from the customers list waits for S6; the single-customer path is here.
+- `PUT /v1/pipelines/{id}/stages` has no screen. A dealership reshapes its board by API until S6's
+  settings arrive.
+- Stage names are the dealership's own words, so they stay as typed in both languages. The Arabic UI
+  mirrors around them.
+- The merge keeps the surviving record's values where it has any, per
+  [05](../05-workflows.md) § 10 — which means a guess on the keeper beats a person's answer on the
+  duplicate. The dialog shows both sides first and the audit row keeps what lost, but it is worth
+  revisiting before the pilot.
+
+**Verified end to end on 2026-09-22**, with the API, the worker and the web app running against a
+freshly seeded workspace:
+
+1. **My day** as Ahmed: replied today 1, median first reply 6m, Omar "Missed 22m" and Mona
+   "Due soon 3m" waiting, one task due, one hot lead.
+2. **The panel beside the thread**: the budget the AI had guessed was corrected to AED 228,000 and
+   its marker changed from AI to a person's; the marker still on "Interested in" scrolled the thread
+   to the message it was inferred from and flashed it.
+3. **The board**: two pipelines, a lead in most columns of Local sale, and Omar's Land Cruiser moved
+   Negotiation → Won from the card's menu. The conversation said "Lead moved to Won" and the lead's
+   history said "Negotiation → Won".
+4. **My day again**: the won deal was gone from Hot leads — after the fix above.
+5. **Handing over** as Sara: the dialog listed what moves (0 open leads, 1 open task) and who is
+   taking chats, and afterwards the 360 said Mohamed Riad. The customer's timeline carried
+   "Reassigned to Mohamed Riad", and Mohamed's own tab read **"(1) DealerAI OS"** with
+   *"Omar Al Mazrouei is yours now — Handed over by Sara Mansour"* in the bell.
+6. **Merging** the duplicate: the dialog showed both records side by side, and afterwards one
+   customer held all three identities while the duplicate's URL answered
+   *"This customer was merged into another record."* with a link to the survivor.
+7. **Arabic**: the board, the filters and the cards mirror, with no horizontal scroll; at 360 px one
+   column fills the screen and the 360's tabs fit without wrapping.
+
+One thing about running it, unchanged from S2 and worth repeating: the suite shares the development
+database, so `npm run check` wipes the seeded workspace — it did it twice during this run. Re-seed
+before demonstrating anything.
+
+---
+
 ## Spec coverage
 
 | Requirement | Where |

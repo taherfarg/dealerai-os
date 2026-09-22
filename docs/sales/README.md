@@ -84,7 +84,7 @@ say so explicitly if you do.
 | Area | State |
 |---|---|
 | Documentation | Draft, 2026-09-16 — awaiting review |
-| Code | **S2 inbox complete** on `sales/phase-1`: the queue with views and counts, the thread with every message type, notes, assignment, read cursors, business-hours response targets, notifications and live updates over SSE. Next: S3, the CRM |
+| Code | **S3 CRM complete** on `sales/phase-1`: customers with a profile that says who set each value, the 360 and its merged timeline, reassign and merge, configurable pipelines, leads with stage history and an explainable score, tasks, and My day. PDPL export and erasure are the one gap, and must land before the pilot. Next: S4, the AI copilot |
 | Meta | Business verification and Tech Provider review not started (Pollux Motors). **Critical path** |
 | Supabase project | Schema live in ap-northeast-1 (Tokyo). Moving to Mumbai before real customer data is open question Q1 in [00](00-prd.md) |
 
