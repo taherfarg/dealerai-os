@@ -69,6 +69,15 @@ TRANSCRIPTION = ModelSpec("gemini-2.5-flash", 2_000, 0, 0.30, 2.50, 0.03, 1.00, 
 #: on the critical path of a customer reply.
 FLASH_LITE = ModelSpec("gemini-2.5-flash-lite", 2_000, 0, 0.10, 0.40, 0.01)
 
+#: How wide a stored embedding is. gemini-embedding-001 is a Matryoshka model —
+#: 3072 dimensions natively, with 1536 and 768 as supported truncations — and
+#: 1536 halves the index for no measurable recall loss on documents this size.
+#:
+#: It lives here rather than only in the migration because it is one fact in two
+#: places: `doc_chunks.embedding` is vector(1536) and every vector written to it
+#: must be that long. test_copilot_schema.py asserts the two agree.
+EMBEDDING_DIMENSIONS = 1536
+
 ROUTING: dict[TaskKind, ModelSpec] = {
     TaskKind.ORCHESTRATE: PRO,
     TaskKind.STRATEGY: PRO,
