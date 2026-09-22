@@ -158,3 +158,92 @@ select c.id, c.document_id, c.content, c.meta->>'heading' as heading,
  order by fused.score desc, c.id
  limit $5
 """
+
+# ---------------------------------------------------------------------------
+# The draft loop
+# ---------------------------------------------------------------------------
+
+#: Everything that decides whether to draft at all, in one read.
+#:
+#: Six `if` statements over six queries is six chances for the state to move
+#: underneath them. This returns the facts; the handler reads them in the order
+#: docs/sales/04-ai-copilot.md § 3 states.
+DRAFT_PRECONDITIONS = """
+select cv.status, cv.wa_window_expires_at,
+       ch.status as channel_status,
+       ct.consent,
+       coalesce((t.sales_settings->>'drafts_enabled')::boolean, true) as drafts_enabled,
+       (select m.id from messages m
+         where m.conversation_id = cv.id and m.kind = 'message' and m.direction = 'in'
+         order by m.created_at desc limit 1) as latest_inbound_id,
+       exists (
+         select 1 from messages m
+          where m.conversation_id = cv.id and m.kind = 'message' and m.direction = 'out'
+            and m.created_at > (select created_at from messages where id = $2)
+       ) as answered_already
+  from conversations cv
+  left join channels ch on ch.id = cv.channel_id
+  join contacts ct on ct.id = cv.contact_id
+  join tenants t on t.id = cv.tenant_id
+ where cv.id = $1
+"""
+
+#: A `generating` row whose worker died would otherwise block this conversation
+#: for ever, because of the partial unique index. Five minutes is thirty times
+#: the p95 the latency gate allows.
+RELEASE_STALE = """
+update ai_suggestions set status = 'superseded'
+ where conversation_id = $1 and status = 'generating'
+   and created_at < now() - interval '5 minutes'
+"""
+
+#: Supersede whatever is live, then claim the slot — one statement each, inside
+#: one transaction. The partial unique index then makes two workers drafting
+#: the same conversation impossible rather than merely unlikely.
+SUPERSEDE_LIVE = """
+update ai_suggestions set status = 'superseded'
+ where conversation_id = $1 and status in ('generating', 'ready')
+"""
+
+CLAIM = """
+insert into ai_suggestions (tenant_id, conversation_id, for_message_id, run_id, status, intent)
+values ($1, $2, $3, $4, 'generating', $5)
+returning id
+"""
+
+FINISH = """
+update ai_suggestions set
+    status = $2, text = $3, template = $4::jsonb, language = $5, confidence = $6,
+    sources = $7::jsonb, actions = $8::jsonb, needs_human = $9, blocked_reason = $10
+ where id = $1
+"""
+
+#: Does this customer already have an open lead — on this car, or on no car at
+#: all? Either one means we are not starting a second.
+OPEN_LEAD_EXISTS = """
+select exists (
+  select 1 from leads l join pipeline_stages s on s.id = l.stage_id
+   where l.contact_id = $1 and s.category = 'open'
+     and ($2::uuid is null or l.vehicle_id = $2 or l.vehicle_id is null)
+)
+"""
+
+#: Where an automatic lead lands: the Export board when the customer is
+#: exporting, otherwise the default one, and its first open stage.
+BOARD_FOR = """
+select p.id as pipeline_id, s.id as stage_id
+  from pipelines p
+  join pipeline_stages s on s.pipeline_id = p.id and s.category = 'open'
+ where p.tenant_id = $1
+ order by ($2::boolean and p.name ilike '%export%') desc, p.is_default desc, p.position,
+          s.position
+ limit 1
+"""
+
+#: A Click-to-WhatsApp referral on the conversation's first message is what
+#: makes a lead's source `ad` rather than `whatsapp`.
+CAME_FROM_AN_AD = """
+select exists (
+  select 1 from messages where conversation_id = $1 and referral is not null
+)
+"""
