@@ -12,6 +12,8 @@ dealership's outbound text; the legal position is docs/00-prd.md § PDPL.
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
+from difflib import SequenceMatcher
 
 from ..core.text import ascii_digits
 from . import Finding, Findings
@@ -57,3 +59,91 @@ def redact(text: str) -> tuple[str, Findings]:
 
 def check(text: str) -> Findings:
     return redact(text)[1]
+
+
+#: Words of overlap that mean a note was quoted rather than agreed with. Short
+#: runs are the model saying the same thing, which is what the note is for.
+NOTE_RUN_WORDS = 8
+
+
+def check_outbound(text: str, *, own_contacts: set[str], notes: Sequence[str] = ()) -> Findings:
+    """What a reply to *this* customer may not contain.
+
+    Different from `check`, which is for public content and treats every number
+    as a leak. A reply should be able to give the showroom's own number.
+
+    Two failures, one place. A phone number, email or Emirates ID that is not
+    one of the dealership's own published details belongs to somebody — most
+    likely another customer, whose thread the model has no business
+    remembering. And an internal note is written *about* a customer, not *to*
+    them: "he is desperate, push the Prado" reads very differently when it
+    arrives on their phone.
+
+    `own_contacts` are compared by their last few digits, so neither formatting
+    nor a country code can hide one: "+971 4 123 4567" and "04-123-4567" are
+    the same showroom.
+
+    ponytail: a suffix comparison, not a phone-number library. It can be fooled
+    by a stranger's number ending in the same seven digits, which costs one
+    un-blocked number that is almost ours. The alternative — matching only the
+    exact string — blocks every draft that gives out the showroom number in the
+    local format, which is how a guard gets switched off. Upgrade trigger: a
+    real collision, or a tenant with numbers in several countries.
+    """
+    permitted = {_key(value) for value in own_contacts}
+    findings: Findings = []
+    cleaned = ascii_digits(text)
+    for label, pattern in _PATTERNS:
+        for match in pattern.finditer(cleaned):
+            found = match.group()
+            if _key(found) in permitted:
+                continue
+            findings.append(
+                Finding(
+                    GUARD,
+                    f"this reply contains {label} that is not the dealership's own",
+                    detail=found,
+                )
+            )
+
+    words = _words(cleaned)
+    for note in notes:
+        run = _longest_run(words, _words(ascii_digits(note)))
+        if run >= NOTE_RUN_WORDS:
+            findings.append(
+                Finding(
+                    GUARD,
+                    f"{run} words of an internal note are quoted back to the customer",
+                    detail=note[:80],
+                )
+            )
+    return findings
+
+
+#: How much of a number identifies it. The subscriber part, which is what a
+#: person recognises as "our number" whichever way it was written.
+_SIGNIFICANT_DIGITS = 7
+
+
+def _key(value: str) -> str:
+    """What two ways of writing the same contact detail have in common."""
+    digits = "".join(char for char in value if char.isdigit())
+    if len(digits) >= _SIGNIFICANT_DIGITS:
+        return digits[-_SIGNIFICANT_DIGITS:]
+    return digits or value.casefold()
+
+
+def _words(text: str) -> list[str]:
+    return re.findall(r"\w+", text.casefold())
+
+
+def _longest_run(left: list[str], right: list[str]) -> int:
+    """The longest run of words the two share, by difflib's own matcher.
+
+    `autojunk` off: it treats anything appearing in more than 1% of a long
+    sequence as noise, which for word lists means "the" and "you" — exactly the
+    words that hold a quoted sentence together.
+    """
+    if not left or not right:
+        return 0
+    return SequenceMatcher(a=left, b=right, autojunk=False).find_longest_match().size

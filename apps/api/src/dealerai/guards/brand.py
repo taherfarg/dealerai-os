@@ -14,6 +14,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
+from ..core.text import contains_word
 from . import Finding, Findings
 
 GUARD = "brand"
@@ -76,36 +77,18 @@ def ctas_for(profile: dict[str, Any], locale: str) -> tuple[str, ...]:
     return tuple(out)
 
 
-def _contains(haystack: str, needle: str) -> bool:
-    """Word-boundary match where the language has word boundaries.
-
-    A plain substring test flags "guaranteed" inside "unguaranteed" and, worse,
-    flags Arabic words inside longer Arabic words constantly, because Arabic
-    prefixes attach directly. Falling back to a substring test for non-ASCII is
-    the honest trade: over-flagging Arabic beats missing it.
-    """
-    if not needle.isascii():
-        return needle in haystack
-    # A boundary only means something next to a word character. "#1" has none on
-    # its left, and \b there asserts a transition that never happens — so the
-    # single most common unsupportable claim would never match.
-    left = r"\b" if needle[:1].isalnum() else ""
-    right = r"\b" if needle[-1:].isalnum() else ""
-    return re.search(rf"{left}{re.escape(needle)}{right}", haystack, re.IGNORECASE) is not None
-
-
 def check(text: str, rules: BrandRules | None = None) -> Findings:
     rules = rules or BrandRules()
     findings: Findings = []
     lowered = text.lower()
 
     for word in rules.forbidden_words:
-        if _contains(lowered, word.lower()):
+        if contains_word(lowered, word.lower()):
             findings.append(Finding(GUARD, f"contains the forbidden word {word!r}", detail=word))
 
     if not rules.allow_unsupportable_claims:
         for claim in UNSUPPORTABLE:
-            if _contains(lowered, claim):
+            if contains_word(lowered, claim):
                 findings.append(
                     Finding(
                         GUARD,
@@ -124,7 +107,7 @@ def check(text: str, rules: BrandRules | None = None) -> Findings:
         )
 
     if rules.allowed_ctas and not any(
-        _contains(lowered, cta.lower()) for cta in rules.allowed_ctas
+        contains_word(lowered, cta.lower()) for cta in rules.allowed_ctas
     ):
         findings.append(
             Finding(

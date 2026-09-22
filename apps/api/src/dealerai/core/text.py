@@ -8,6 +8,7 @@ a wrong price reaches a customer.
 
 from __future__ import annotations
 
+import re
 import unicodedata
 
 #: Arabic separators, which are distinct characters from the ASCII ones and are
@@ -32,3 +33,25 @@ def ascii_digits(text: str) -> str:
     """
     converted = "".join(str(unicodedata.digit(c)) if c.isdigit() else c for c in text)
     return converted.translate(_TABLE)
+
+
+def contains_word(haystack: str, needle: str) -> bool:
+    """Substring match, with word boundaries where the language has them.
+
+    A plain substring test flags "guaranteed" inside "unguaranteed" and, far
+    worse, flags Arabic words inside longer Arabic words constantly, because
+    Arabic prefixes attach directly to the word. Falling back to a substring
+    test for non-ASCII is the honest trade: over-flagging Arabic beats missing
+    it, and a guard that misses is a guard that is not there.
+
+    Shared by the brand and commitments guards. Two copies of a matcher whose
+    whole subtlety is Arabic prefixes would be two behaviours.
+    """
+    if not needle.isascii():
+        return needle.casefold() in haystack.casefold()
+    # A boundary only means something next to a word character. "#1" has none on
+    # its left, and \b there asserts a transition that never happens — so the
+    # single most common unsupportable claim would never match.
+    left = r"\b" if needle[:1].isalnum() else ""
+    right = r"\b" if needle[-1:].isalnum() else ""
+    return re.search(rf"{left}{re.escape(needle)}{right}", haystack, re.IGNORECASE) is not None
