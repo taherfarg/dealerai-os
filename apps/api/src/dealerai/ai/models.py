@@ -33,6 +33,9 @@ class TaskKind(StrEnum):
     ENRICHMENT = "enrichment"
     TRANSCRIBE = "transcribe"
 
+    # embedding tier — no output tokens, priced per input token only
+    EMBED = "embed"
+
     # cheap tier — high volume, trivial decisions
     CLASSIFY_INTENT = "classify_intent"
     SPAM_FILTER = "spam_filter"
@@ -78,6 +81,11 @@ FLASH_LITE = ModelSpec("gemini-2.5-flash-lite", 2_000, 0, 0.10, 0.40, 0.01)
 #: must be that long. test_copilot_schema.py asserts the two agree.
 EMBEDDING_DIMENSIONS = 1536
 
+#: An embedding has no output tokens, so the output rate is zero and cost_usd()
+#: still comes out right. `max_tokens` is the input ceiling per chunk, which is
+#: what sales/knowledge.py sizes its chunks against.
+EMBEDDING = ModelSpec("gemini-embedding-001", 2_048, 0, 0.15, 0.0, 0.15)
+
 ROUTING: dict[TaskKind, ModelSpec] = {
     TaskKind.ORCHESTRATE: PRO,
     TaskKind.STRATEGY: PRO,
@@ -90,6 +98,7 @@ ROUTING: dict[TaskKind, ModelSpec] = {
     TaskKind.VISION: FLASH,
     TaskKind.ENRICHMENT: FLASH,
     TaskKind.TRANSCRIBE: TRANSCRIPTION,
+    TaskKind.EMBED: EMBEDDING,
     TaskKind.CLASSIFY_INTENT: FLASH_LITE,
     TaskKind.SPAM_FILTER: FLASH_LITE,
     TaskKind.ROUTE: FLASH_LITE,
