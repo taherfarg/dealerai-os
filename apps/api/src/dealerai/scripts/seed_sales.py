@@ -49,6 +49,182 @@ VEHICLES: tuple[tuple[str, str, int, int, str], ...] = (
     ("Changan", "X5 Plus", 2026, 7600000, "Grey"),
 )
 
+#: Pollux sells two ways, so it has two boards ([00](../../docs/sales/00-prd.md) § 5).
+#: Each needs exactly one won stage and somewhere to put a lost lead.
+BOARDS: tuple[tuple[str, bool, tuple[tuple[str, str], ...]], ...] = (
+    (
+        "Local sale",
+        True,
+        (
+            ("New", "open"),
+            ("Contacted", "open"),
+            ("Qualified", "open"),
+            ("Appointment", "open"),
+            ("Negotiation", "open"),
+            ("Won", "won"),
+            ("Lost", "lost"),
+        ),
+    ),
+    (
+        "Export",
+        False,
+        (
+            ("Enquiry", "open"),
+            ("Quoted", "open"),
+            ("Documents", "open"),
+            ("Shipping", "open"),
+            ("Won", "won"),
+            ("Lost", "lost"),
+        ),
+    ),
+)
+
+
+class Deal(NamedTuple):
+    """A lead on one of the boards.
+
+    `score` is the sum of its signals' points — the drawer recomputes the
+    reasons from the signals, so a stored score that disagrees with them would
+    be visible on screen.
+    """
+
+    customer: str
+    board: str
+    stage: str
+    vehicle: str
+    budget_minor: int
+    score: int
+    band: str
+    signals: tuple[str, ...]
+    lost_reason: str | None = None
+    #: How long ago it entered its stage, in days.
+    days_in_stage: int = 0
+
+
+DEALS: tuple[Deal, ...] = (
+    Deal(
+        "Omar Al Mazrouei",
+        "Local sale",
+        "Negotiation",
+        "Land Cruiser 4.0",
+        23500000,
+        80,
+        "hot",
+        (
+            "asked_price",
+            "asked_availability",
+            "negotiating_specific_car",
+            "requested_visit_or_test_drive",
+            "shared_id_or_asked_payment_details",
+            "responsive",
+        ),
+        days_in_stage=2,
+    ),
+    Deal(
+        "Mona Fathy",
+        "Local sale",
+        "Qualified",
+        "Land Cruiser 4.0",
+        23500000,
+        20,
+        "cold",
+        ("asked_price", "asked_availability"),
+        days_in_stage=1,
+    ),
+    Deal(
+        "James Whitfield",
+        "Local sale",
+        "New",
+        "Hilux GR Sport",
+        16500000,
+        10,
+        "cold",
+        ("asked_availability",),
+    ),
+    Deal(
+        "Karim Benali",
+        "Export",
+        "Quoted",
+        "Hilux 2.8 Diesel",
+        12800000,
+        45,
+        "warm",
+        (
+            "asked_price",
+            "asked_availability",
+            "asked_export_or_documents",
+            "gave_budget_or_timeline_30d",
+            "responsive",
+        ),
+        days_in_stage=3,
+    ),
+    Deal(
+        "Youssef El Idrissi",
+        "Export",
+        "Won",
+        "X5 Plus",
+        7600000,
+        75,
+        "hot",
+        (
+            "asked_price",
+            "asked_export_or_documents",
+            "gave_budget_or_timeline_30d",
+            "negotiating_specific_car",
+            "shared_id_or_asked_payment_details",
+            "responsive",
+        ),
+        days_in_stage=6,
+    ),
+    Deal(
+        "Omar Al Mazrouei",
+        "Local sale",
+        "Lost",
+        "Seal 05",
+        8900000,
+        25,
+        "cold",
+        ("asked_price", "asked_availability", "responsive"),
+        lost_reason="Bought a used Prado from another dealer",
+        days_in_stage=9,
+    ),
+)
+
+
+class Chore(NamedTuple):
+    title: str
+    assignee: str
+    customer: str | None
+    kind: str
+    #: Hours from now; negative is overdue.
+    due_in_hours: float
+    done: bool = False
+
+
+CHORES: tuple[Chore, ...] = (
+    Chore("Send Karim the export quote", "Salem Bousaid", "Karim Benali", "todo", -26),
+    Chore("Call Omar about the passport copy", "Ahmed Nasser", "Omar Al Mazrouei", "call", 2),
+    Chore("Book the Land Cruiser inspection", "Ahmed Nasser", "Mona Fathy", "meeting", 72),
+    Chore("Chase Mona for the deposit", "Ahmed Nasser", "Mona Fathy", "follow_up", -30, done=True),
+)
+
+#: What the AI inferred and what a person answered, on the same two customers —
+#: so the panel shows both markers the first time anybody opens it.
+PROFILES: dict[str, dict[str, tuple[object, str]]] = {
+    "Omar Al Mazrouei": {
+        "interest": ("Land Cruiser 4.0, white", "ai"),
+        "budget": ({"amount_minor": 23500000, "currency": "AED"}, "ai"),
+        "purchase_type": ("local", "human"),
+        "timeline": ("This month", "ai"),
+    },
+    "Karim Benali": {
+        "purchase_type": ("export", "human"),
+        "destination": ("DZ", "human"),
+        "payment": ("finance", "ai"),
+        "objections": (["Shipping cost", "Customs paperwork"], "ai"),
+    },
+}
+
 #: Minutes a customer may wait for a first reply before the inbox says so.
 TARGET_MIN = 5
 
@@ -140,6 +316,10 @@ CUSTOMERS: tuple[Customer, ...] = (
 VOICE_NOTE = "هل لاند كروزر الأبيض ما زالت متوفرة؟ وكم أفضل سعر عندكم؟"
 
 
+def _stages_of(board: str) -> tuple[tuple[str, str], ...]:
+    return next(stages for name, _, stages in BOARDS if name == board)
+
+
 def person_id(full_name: str) -> UUID:
     """Stable across re-seeds, so a dev session survives `npm run db:seed`."""
     return uuid5(_PEOPLE_NS, full_name)
@@ -166,10 +346,29 @@ async def _seed(conn: asyncpg.Connection) -> None:
         json.dumps({"first_response_target_min": TARGET_MIN, "unassigned_visible_to_sales": True}),
     )
 
-    # The board a workspace gets on creation. The tenant above is inserted
-    # directly rather than through app.create_tenant_with_owner, so the seed has
-    # to ask for it — and a workspace whose first lead fails is a broken one.
-    await conn.execute("select app.seed_default_pipeline($1)", TENANT)
+    # Pollux's own boards rather than the default one every new workspace gets:
+    # this dealership sells locally and exports, and the two are different work.
+    boards: dict[str, dict[str, UUID]] = {}
+    for position, (board_name, is_default, stages) in enumerate(BOARDS):
+        pipeline_id = await conn.fetchval(
+            """insert into pipelines (tenant_id, name, position, is_default)
+               values ($1, $2, $3, $4) returning id""",
+            TENANT,
+            board_name,
+            position,
+            is_default,
+        )
+        boards[board_name] = {}
+        for stage_position, (stage_name, category) in enumerate(stages):
+            boards[board_name][stage_name] = await conn.fetchval(
+                """insert into pipeline_stages (tenant_id, pipeline_id, name, position, category)
+                   values ($1, $2, $3, $4, $5) returning id""",
+                TENANT,
+                pipeline_id,
+                stage_name,
+                stage_position,
+                category,
+            )
 
     teams: dict[str, UUID] = {}
     for key, name in (("local", "Local sales"), ("export", "Export")):
@@ -248,6 +447,9 @@ async def _seed(conn: asyncpg.Connection) -> None:
     # worth looking at, so this is not a reason to refuse to seed.
     stored_voice = await _store_voice_note() if get_settings().storage_dir else None
     conversations: dict[str, UUID] = {}
+    contacts: dict[str, UUID] = {}
+    #: The message a profile field can point at as its evidence.
+    first_messages: dict[str, UUID] = {}
     voice_at: datetime | None = None
 
     for i, customer in enumerate(CUSTOMERS):
@@ -301,8 +503,8 @@ async def _seed(conn: asyncpg.Connection) -> None:
             """insert into conversations
                  (tenant_id, contact_id, channel_id, surface, owner_id, team_id,
                   assigned_to, status, last_message_at, last_inbound_at,
-                  wa_window_expires_at, waiting_since, sla_due_at)
-               values ($1,$2,$3,'whatsapp',$4,$5,$4,$6,$7,$8,$9,$10,$11)
+                  wa_window_expires_at, waiting_since, sla_due_at, first_response_at)
+               values ($1,$2,$3,'whatsapp',$4,$5,$4,$6,$7,$8,$9,$10,$11,$12)
                returning id""",
             TENANT,
             contact_id,
@@ -315,16 +517,20 @@ async def _seed(conn: asyncpg.Connection) -> None:
             now + timedelta(hours=24 - i),
             waiting_since,
             waiting_since + timedelta(minutes=TARGET_MIN) if waiting_since else None,
+            # When somebody answered: the number My day shows as the median.
+            next((at for at, direction, _ in said if direction == "out"), None),
         )
         conversations[customer.name] = conversation_id
+        contacts[customer.name] = contact_id
 
         for n, (at, direction, body) in enumerate(said):
             spoken = body is None
-            await conn.execute(
+            message_id = await conn.fetchval(
                 """insert into messages
                      (tenant_id, conversation_id, kind, type, direction, sender, origin,
                       author_user_id, body, media, transcript, external_id, status, created_at)
-                   values ($1,$2,'message',$3,$4,$5,$6,$7,$8,$9::jsonb,$10::jsonb,$11,$12,$13)""",
+                   values ($1,$2,'message',$3,$4,$5,$6,$7,$8,$9::jsonb,$10::jsonb,$11,$12,$13)
+                   returning id""",
                 TENANT,
                 conversation_id,
                 "audio" if spoken else "text",
@@ -351,6 +557,131 @@ async def _seed(conn: asyncpg.Connection) -> None:
                 "sent" if direction == "in" else "delivered",
                 at,
             )
+            if direction == "in" and customer.name not in first_messages:
+                first_messages[customer.name] = message_id
+
+    # ------------------------------------------------------------------
+    # What we know about them, and who said so
+    # ------------------------------------------------------------------
+    for name, fields in PROFILES.items():
+        profile = {
+            key: {
+                "value": value,
+                "source": source,
+                # An AI value points at the message it was inferred from; the
+                # panel's marker is a link to it.
+                "evidence_message_id": (
+                    str(first_messages[name]) if source == "ai" and name in first_messages else None
+                ),
+                "updated_at": now.isoformat(),
+            }
+            for key, (value, source) in fields.items()
+        }
+        await conn.execute(
+            """update contacts set profile = $2::jsonb, profile_updated_at = $3
+                where id = $1""",
+            contacts[name],
+            json.dumps(profile),
+            now,
+        )
+
+    # ------------------------------------------------------------------
+    # The board: something in most columns, one won and one lost
+    # ------------------------------------------------------------------
+    vehicles = {
+        row["model"]: row["id"]
+        for row in await conn.fetch("select id, model from vehicles where tenant_id = $1", TENANT)
+    }
+    for deal in DEALS:
+        stage_id = boards[deal.board][deal.stage]
+        entered = now - timedelta(days=deal.days_in_stage)
+        lead_id = await conn.fetchval(
+            """insert into leads (tenant_id, contact_id, conversation_id, pipeline_id, stage_id,
+                                  stage_entered_at, owner_id, team_id, vehicle_id, budget_minor,
+                                  currency, score, intent_band, score_signals, lost_reason, source,
+                                  created_at)
+               values ($1,$2,$3,(select pipeline_id from pipeline_stages where id = $4),$4,$5,
+                       (select owner_id from contacts where id = $2),
+                       (select team_id from contacts where id = $2),
+                       $6,$7,'AED',$8,$9,$10::jsonb,$11,'whatsapp',$12)
+               returning id""",
+            TENANT,
+            contacts[deal.customer],
+            conversations[deal.customer],
+            stage_id,
+            entered,
+            vehicles.get(deal.vehicle),
+            deal.budget_minor,
+            deal.score,
+            deal.band,
+            json.dumps(
+                [
+                    {
+                        "signal": signal,
+                        "evidence_message_id": str(first_messages.get(deal.customer))
+                        if deal.customer in first_messages
+                        else None,
+                    }
+                    for signal in deal.signals
+                ]
+            ),
+            deal.lost_reason,
+            entered - timedelta(days=2),
+        )
+        # Where it has been: the drawer reads this, and a lead that arrived
+        # already in Negotiation with no history looks like a bug.
+        if deal.stage not in ("New", "Enquiry"):
+            first_open = next(
+                name for name, category in _stages_of(deal.board) if category == "open"
+            )
+            await conn.execute(
+                """insert into activities (tenant_id, lead_id, contact_id, kind, body, meta,
+                                           actor_type, actor_id, occurs_at)
+                   values ($1,$2,$3,'stage_change',$4,$5::jsonb,'user',$6,$7)""",
+                TENANT,
+                lead_id,
+                contacts[deal.customer],
+                f"{first_open} → {deal.stage}",
+                json.dumps({"to": str(stage_id)}),
+                str(person_id("Ahmed Nasser")),
+                entered,
+            )
+
+    # ------------------------------------------------------------------
+    # A day with something already late in it
+    # ------------------------------------------------------------------
+    for chore in CHORES:
+        await conn.execute(
+            """insert into tasks (tenant_id, title, kind, due_at, status, completed_at,
+                                  assignee_id, created_by, contact_id, conversation_id)
+               values ($1,$2,$3,$4,$5,$6,$7,$7,$8,$9)""",
+            TENANT,
+            chore.title,
+            chore.kind,
+            now + timedelta(hours=chore.due_in_hours),
+            "done" if chore.done else "open",
+            now - timedelta(hours=1) if chore.done else None,
+            person_id(chore.assignee),
+            contacts.get(chore.customer or ""),
+            conversations.get(chore.customer or ""),
+        )
+
+    # ------------------------------------------------------------------
+    # The duplicate, so the merge dialog has something real to merge
+    # ------------------------------------------------------------------
+    duplicate = await conn.fetchval(
+        """insert into contacts (tenant_id, full_name, locale, country, team_id, last_seen_at)
+           values ($1, 'Omar Al Mazrouei', 'ar', 'AE', $2, $3) returning id""",
+        TENANT,
+        teams["local"],
+        now - timedelta(days=3),
+    )
+    await conn.execute(
+        """insert into contact_identities (tenant_id, contact_id, kind, value, is_primary)
+           values ($1, $2, 'phone', '+971500000201', true)""",
+        TENANT,
+        duplicate,
+    )
 
     # Two people, two different unread counts, because a manager's view of the
     # queue is not a salesperson's: Sara has looked at the missed conversation
@@ -392,7 +723,8 @@ async def seed() -> int:
         await conn.close()
     print(
         f"seeded {TENANT_SLUG}: {len(PEOPLE)} people, {len(VEHICLES)} vehicles, "
-        f"{len(CUSTOMERS)} customers, {len(CUSTOMERS)} conversations"
+        f"{len(CUSTOMERS)} customers, {len(CUSTOMERS)} conversations, "
+        f"{len(BOARDS)} boards, {len(DEALS)} leads, {len(CHORES)} tasks"
     )
     return 0
 

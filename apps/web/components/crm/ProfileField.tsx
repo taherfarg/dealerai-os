@@ -51,11 +51,18 @@ export function ProfileField({
   const [editing, setEditing] = useState(false);
   const shown = display(name, field, t);
   const choices = CHOICES[name];
+  // A money field edits as a plain number. Handing somebody "AED 235,000" to
+  // type over invites "AED 235,000228000", which is what it did the first time
+  // this was driven by hand.
+  const editable =
+    name === "budget" && field?.value && typeof field.value === "object"
+      ? String((field.value as { amount_minor: number }).amount_minor / 100)
+      : (shown ?? "");
 
   const save = (raw: string) => {
     setEditing(false);
     const trimmed = raw.trim();
-    if (trimmed === (shown ?? "")) return;
+    if (trimmed === editable) return;
     if (!trimmed) return onSave(null);
     if (name === "budget") {
       const digits = Number(trimmed.replace(/[^\d]/g, ""));
@@ -94,7 +101,7 @@ export function ProfileField({
         ) : (
           <input
             autoFocus
-            defaultValue={shown ?? ""}
+            defaultValue={editable}
             aria-label={t(`profile.${name}` as MessageKey)}
             onBlur={(event) => save(event.target.value)}
             onKeyDown={(event) => {

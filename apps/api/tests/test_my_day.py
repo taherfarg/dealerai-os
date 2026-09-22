@@ -205,6 +205,34 @@ async def _leads() -> None:
         await conn.close()
 
 
+def test_a_deal_already_won_is_not_something_to_chase_this_morning(
+    client: TestClient,
+) -> None:
+    """Found by winning one on the board and watching it stay on My day."""
+    asyncio.run(_leads())
+    assert [lead["contact"]["name"] for lead in _my_day(client)["hot_leads"]] == [
+        "Omar Al Mazrouei"
+    ]
+
+    asyncio.run(_win_omars_lead())
+
+    assert _my_day(client)["hot_leads"] == []
+
+
+async def _win_omars_lead() -> None:
+    conn = await asyncpg.connect(get_settings().migration_dsn)
+    try:
+        await conn.execute(
+            """update leads set stage_id = (select id from pipeline_stages
+                                             where tenant_id = $1 and category = 'won' limit 1)
+                where contact_id = (select id from contacts
+                                     where tenant_id = $1 and full_name = 'Omar Al Mazrouei')""",
+            TENANT_A,
+        )
+    finally:
+        await conn.close()
+
+
 def test_the_taking_chats_switch_reads_the_membership(client: TestClient) -> None:
     assert _my_day(client)["accepting_chats"] is True
     client.patch("/v1/me", json={"accepting_chats": False}, headers=_auth(SALES_1))

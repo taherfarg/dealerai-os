@@ -95,6 +95,15 @@ LEADS_LIST = f"""
  limit $5
 """
 
+#: My day's hot leads: mine, hot, and still open. A won deal is not something
+#: to chase this morning — which is what the board is for.
+HOT_LEADS = f"""
+{LEAD_SELECT}
+ where l.owner_id = $1 and l.intent_band = 'hot' and s.category = 'open'
+ order by l.score desc nulls last, l.stage_entered_at
+ limit $2
+"""
+
 ONE_LEAD = f"{LEAD_SELECT} where l.id = $1"
 
 #: Where it has been. Written by the API on every stage move, read by the drawer.

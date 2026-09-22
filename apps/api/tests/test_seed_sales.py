@@ -7,6 +7,7 @@ from types import SimpleNamespace
 import pytest
 
 from dealerai.db.session import tenant_session
+from dealerai.sales.scoring import from_stored, score
 from dealerai.scripts import seed_sales
 from dealerai.scripts.seed_sales import CHANNEL, CUSTOMERS, PEOPLE, TENANT, person_id, seed
 
@@ -16,7 +17,8 @@ async def test_the_seed_can_run_twice(db: None) -> None:
     assert await seed() == 0, "a second run must replace the workspace, not collide with it"
     async with tenant_session(TENANT) as conn:
         assert await conn.fetchval("select count(*) from memberships") == len(PEOPLE)
-        assert await conn.fetchval("select count(*) from contacts") == len(CUSTOMERS)
+        # One more than the customers: the duplicate the merge dialog needs.
+        assert await conn.fetchval("select count(*) from contacts") == len(CUSTOMERS) + 1
         assert await conn.fetchval("select count(*) from conversations") == len(CUSTOMERS)
         assert await conn.fetchval("select count(*) from message_templates") == 3
         assert await conn.fetchval("select external_id from channels where id=$1", CHANNEL)
@@ -82,6 +84,97 @@ async def test_the_seeded_queue_looks_like_a_monday_morning(db: None) -> None:
         sara = {row[0]: row[1] for row in await conn.fetch(unread, person_id("Sara Mansour"))}
         assert sara["Omar Al Mazrouei"] == 0 and ahmed["Omar Al Mazrouei"] > 0
         assert sara["Mona Fathy"] > ahmed["Mona Fathy"] > 0
+
+
+async def test_the_seeded_board_has_somewhere_to_start_and_somewhere_to_finish(
+    db: None,
+) -> None:
+    """The board is the demo too: a column with nothing in it teaches nobody
+    anything, and a board with no won or lost lead hides half the screen."""
+    assert await seed() == 0
+    async with tenant_session(TENANT) as conn:
+        boards = await conn.fetch(
+            """select p.name, count(s.id) as stages from pipelines p
+                 join pipeline_stages s on s.pipeline_id = p.id
+                where p.tenant_id = $1 group by p.name, p.position order by p.position""",
+            TENANT,
+        )
+        assert [row["name"] for row in boards] == ["Local sale", "Export"]
+
+        by_category = dict(
+            await conn.fetch(
+                """select s.category, count(*) from leads l
+                     join pipeline_stages s on s.id = l.stage_id
+                    group by s.category"""
+            )
+        )
+        assert by_category["won"] == 1
+        assert by_category["lost"] == 1
+        assert by_category["open"] >= 3, "most columns should have something in them"
+
+        lost = await conn.fetchrow(
+            """select l.lost_reason from leads l join pipeline_stages s on s.id = l.stage_id
+                where s.category = 'lost'"""
+        )
+        assert lost is not None and lost["lost_reason"], (
+            "a lost lead without a reason teaches nothing"
+        )
+
+        # The score on a lead has to agree with the signals the drawer explains
+        # it with, or the screen argues with itself.
+        # The pool decodes jsonb, so score_signals arrives as a list already.
+        leads = await conn.fetch("select score, score_signals from leads where score is not null")
+        for lead in leads:
+            total, _, _ = score(from_stored(lead["score_signals"]))
+            assert total == lead["score"]
+
+
+async def test_the_seeded_day_has_something_late_in_it(db: None) -> None:
+    assert await seed() == 0
+    async with tenant_session(TENANT) as conn:
+        buckets = await conn.fetchrow(
+            """select count(*) filter (where status = 'open' and due_at < now())   as overdue,
+                      count(*) filter (where status = 'open' and due_at >= now()
+                                         and due_at < now() + interval '1 day')    as soon,
+                      count(*) filter (where status = 'open'
+                                         and due_at >= now() + interval '1 day')   as later,
+                      count(*) filter (where status = 'done')                      as done
+                 from tasks"""
+        )
+        assert buckets is not None
+        assert (buckets["overdue"], buckets["soon"], buckets["later"], buckets["done"]) == (
+            1,
+            1,
+            1,
+            1,
+        )
+
+
+async def test_a_duplicate_customer_is_waiting_to_be_merged(db: None) -> None:
+    """The merge dialog needs two records of one person to be worth opening."""
+    assert await seed() == 0
+    async with tenant_session(TENANT) as conn:
+        assert (
+            await conn.fetchval(
+                "select count(*) from contacts where full_name = 'Omar Al Mazrouei'"
+            )
+            == 2
+        )
+
+
+async def test_the_panel_can_show_both_markers_the_first_time_it_opens(db: None) -> None:
+    """One customer with an AI value that points at a message, and a human one."""
+    assert await seed() == 0
+    async with tenant_session(TENANT) as conn:
+        profile = await conn.fetchval(
+            """select profile from contacts
+                where full_name = 'Omar Al Mazrouei' and profile <> '{}'::jsonb limit 1"""
+        )
+    assert profile["purchase_type"]["source"] == "human"
+    assert profile["interest"]["source"] == "ai"
+    assert profile["interest"]["evidence_message_id"], (
+        "an AI value with no evidence explains nothing"
+    )
 
 
 async def test_visibility_holds_on_the_seeded_workspace(db: None) -> None:

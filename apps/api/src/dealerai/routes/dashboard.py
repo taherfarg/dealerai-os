@@ -12,7 +12,7 @@ from typing import Any
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from ..db.queries.crm import LEADS_LIST, TASKS_LIST
+from ..db.queries.crm import HOT_LEADS, TASKS_LIST
 from ..db.queries.inbox import list_sql
 from ..db.session import tenant_session
 from ..deps import Ctx
@@ -76,7 +76,7 @@ async def my_day(ctx: Ctx) -> dict[str, Any]:
         ]
 
         tasks = await conn.fetch(TASKS_LIST, ctx.user.id, False, today_from, today_until, SHOWN)
-        leads = await conn.fetch(LEADS_LIST, None, ctx.user.id, "hot", None, SHOWN)
+        leads = await conn.fetch(HOT_LEADS, ctx.user.id, SHOWN)
 
         return {
             "replied_today": await conn.fetchval(REPLIED_TODAY, ctx.user.id, midnight) or 0,

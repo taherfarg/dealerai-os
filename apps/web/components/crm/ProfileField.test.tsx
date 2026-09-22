@@ -94,6 +94,13 @@ describe("ProfileField", () => {
     expect(options).toEqual(["Not known yet", "local", "export"]);
   });
 
+  it("hands a plain number to whoever is typing over a budget", () => {
+    // "AED 235,000" in an editable box is how you get "AED 235,000228000".
+    show("budget", ai({ amount_minor: 23500000, currency: "AED" }));
+    fireEvent.click(screen.getByRole("button", { name: "AED 235,000" }));
+    expect((screen.getByRole("textbox") as HTMLInputElement).value).toBe("235000");
+  });
+
   it("reads a budget back as money, not as fils", () => {
     const onSave = vi.fn();
     show("budget", null, { onSave });
