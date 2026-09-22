@@ -247,3 +247,34 @@ def test_the_prompt_keeps_its_arabic_and_french_examples() -> None:
     ]
     assert arabic_examples
     assert all("AED 235,000" in line or "AED 165,000" in line for line in arabic_examples)
+
+
+def _free_form_objects(schema: Any, path: str = "") -> list[str]:
+    """Every place a schema says "any object at all"."""
+    found: list[str] = []
+    if isinstance(schema, dict):
+        if schema.get("additionalProperties") not in (None, False):
+            found.append(path or "<root>")
+        for key, value in schema.items():
+            found += _free_form_objects(value, f"{path}.{key}" if path else key)
+    elif isinstance(schema, list):
+        for index, value in enumerate(schema):
+            found += _free_form_objects(value, f"{path}[{index}]")
+    return found
+
+
+def test_no_schema_we_send_asks_for_a_free_form_object() -> None:
+    """Gemini's Developer API refuses `additionalProperties` outright:
+
+        additionalProperties is only supported in Gemini Enterprise Agent
+        Platform mode, not in Gemini Developer API mode
+
+    A `dict[str, Any]` field is exactly what renders it. Every unit test
+    stubbed the model and passed; the first live draft failed on it, twelve
+    seconds and half a cent in.
+    """
+    from dealerai.agents.sales.intent import Read as IntentRead
+
+    for model in (copilot.Draft, copilot.ProposedAction, IntentRead):
+        offenders = _free_form_objects(model.model_json_schema())
+        assert not offenders, f"{model.__name__} has free-form objects at {offenders}"

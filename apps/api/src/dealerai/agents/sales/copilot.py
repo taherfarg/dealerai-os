@@ -15,7 +15,7 @@ latency whose only possible contribution is disagreeing with it.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Literal
+from typing import Literal
 from uuid import UUID
 
 import structlog
@@ -44,12 +44,30 @@ TOOLS = ["search_inventory", "get_vehicle", "search_knowledge"]
 
 
 class ProposedAction(BaseModel):
-    """Something for the salesperson to do in one click. Never done by the AI."""
+    """Something for the salesperson to do in one click. Never done by the AI.
+
+    Flat and explicitly typed rather than `params: dict[str, Any]`, which is
+    what a free-form object looks like to Pydantic — and which Gemini's
+    Developer API refuses outright: "additionalProperties is only supported in
+    Gemini Enterprise Agent Platform mode". Every unit test stubbed the model
+    and passed; the first live draft failed on it.
+
+    Each field belongs to one `kind`. The chip is a proposal, and the endpoint
+    behind it validates what it is given, so a nonsense `due_at` costs one
+    422 with a sentence rather than a bad row.
+    """
 
     kind: Literal["create_lead", "create_task", "update_profile"]
-    params: dict[str, Any] = Field(default_factory=dict)
     #: What the chip says, in the UI language.
     label: str = Field(max_length=60)
+    #: create_lead
+    vehicle_id: str | None = None
+    #: create_task
+    title: str | None = Field(default=None, max_length=120)
+    due_at: str | None = None
+    #: update_profile
+    field: str | None = None
+    value: str | None = Field(default=None, max_length=200)
 
 
 class Draft(BaseModel):
