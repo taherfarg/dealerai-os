@@ -2608,6 +2608,46 @@
         "title": "NotificationPage",
         "type": "object"
       },
+      "OutcomeIn": {
+        "properties": {
+          "final_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Final Text"
+          },
+          "outcome": {
+            "enum": [
+              "sent",
+              "edited",
+              "discarded"
+            ],
+            "title": "Outcome",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "required": [
+          "outcome"
+        ],
+        "title": "OutcomeIn",
+        "type": "object"
+      },
       "Pipeline": {
         "properties": {
           "id": {
@@ -3185,6 +3225,18 @@
             ],
             "title": "Reply To Id"
           },
+          "suggestion_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Suggestion Id"
+          },
           "template_id": {
             "anyOf": [
               {
@@ -3507,6 +3559,159 @@
           "last_content_at"
         ],
         "title": "StockRow",
+        "type": "object"
+      },
+      "Suggestion": {
+        "properties": {
+          "actions": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Actions",
+            "type": "array"
+          },
+          "blocked_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Blocked Reason"
+          },
+          "confidence": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confidence"
+          },
+          "conversation_id": {
+            "format": "uuid",
+            "title": "Conversation Id",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "for_message_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "For Message Id"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Intent"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          },
+          "needs_human": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Needs Human"
+          },
+          "sources": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Sources",
+            "type": "array"
+          },
+          "status": {
+            "enum": [
+              "generating",
+              "ready",
+              "blocked",
+              "superseded"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "template": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Template"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          }
+        },
+        "required": [
+          "id",
+          "conversation_id",
+          "for_message_id",
+          "status",
+          "text",
+          "template",
+          "language",
+          "confidence",
+          "intent",
+          "sources",
+          "actions",
+          "needs_human",
+          "blocked_reason",
+          "created_at"
+        ],
+        "title": "Suggestion",
         "type": "object"
       },
       "TaskCreate": {
@@ -6380,6 +6585,126 @@
         ]
       }
     },
+    "/v1/conversations/{conversation_id}/suggestion": {
+      "get": {
+        "description": "The live draft, or null.\n\nVisibility is the conversation's, enforced by RLS on ai_suggestions — a\ndraft on a colleague's conversation is not there, rather than forbidden.",
+        "operationId": "get_suggestion_v1_conversations__conversation_id__suggestion_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conversation_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Conversation Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/Suggestion"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Get Suggestion V1 Conversations  Conversation Id  Suggestion Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Suggestion",
+        "tags": [
+          "suggestions"
+        ]
+      }
+    },
+    "/v1/conversations/{conversation_id}/suggestion/regenerate": {
+      "post": {
+        "description": "Ask for another one.\n\n`forced` skips the two staleness checks and nothing else: a person pressing\nthis wants a draft for the conversation as it is now, even though they have\nalready replied to it.\n\nThe live draft is left alone. The handler supersedes it in the same\ntransaction that claims the next one, so a worker that dies does not leave\nthe salesperson looking at an empty panel.",
+        "operationId": "regenerate_v1_conversations__conversation_id__suggestion_regenerate_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conversation_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Conversation Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Regenerate V1 Conversations  Conversation Id  Suggestion Regenerate Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Regenerate",
+        "tags": [
+          "suggestions"
+        ]
+      }
+    },
     "/v1/customers": {
       "get": {
         "operationId": "list_customers_v1_customers_get",
@@ -8091,6 +8416,63 @@
         "summary": "Stream",
         "tags": [
           "stream"
+        ]
+      }
+    },
+    "/v1/suggestions/{suggestion_id}/outcome": {
+      "post": {
+        "description": "Say what became of a draft.\n\nSending one records itself, in the same transaction as the message\n(routes/inbox.py). This is how Dismiss is recorded, and it is the reason\nthe discard column in the eval report has anything in it.",
+        "operationId": "record_outcome_v1_suggestions__suggestion_id__outcome_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "suggestion_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Suggestion Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OutcomeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Record Outcome",
+        "tags": [
+          "suggestions"
         ]
       }
     },

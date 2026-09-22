@@ -356,6 +356,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/conversations/{conversation_id}/suggestion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Suggestion
+         * @description The live draft, or null.
+         *
+         *     Visibility is the conversation's, enforced by RLS on ai_suggestions — a
+         *     draft on a colleague's conversation is not there, rather than forbidden.
+         */
+        get: operations["get_suggestion_v1_conversations__conversation_id__suggestion_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/conversations/{conversation_id}/suggestion/regenerate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Regenerate
+         * @description Ask for another one.
+         *
+         *     `forced` skips the two staleness checks and nothing else: a person pressing
+         *     this wants a draft for the conversation as it is now, even though they have
+         *     already replied to it.
+         *
+         *     The live draft is left alone. The handler supersedes it in the same
+         *     transaction that claims the next one, so a worker that dies does not leave
+         *     the salesperson looking at an empty panel.
+         */
+        post: operations["regenerate_v1_conversations__conversation_id__suggestion_regenerate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/customers": {
         parameters: {
             query?: never;
@@ -811,6 +862,30 @@ export interface paths {
         get: operations["stream_v1_stream_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/suggestions/{suggestion_id}/outcome": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Record Outcome
+         * @description Say what became of a draft.
+         *
+         *     Sending one records itself, in the same transaction as the message
+         *     (routes/inbox.py). This is how Dismiss is recorded, and it is the reason
+         *     the discard column in the eval report has anything in it.
+         */
+        post: operations["record_outcome_v1_suggestions__suggestion_id__outcome_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1980,6 +2055,18 @@ export interface components {
             /** Unread */
             unread: number;
         };
+        /** OutcomeIn */
+        OutcomeIn: {
+            /** Final Text */
+            final_text?: string | null;
+            /**
+             * Outcome
+             * @enum {string}
+             */
+            outcome: "sent" | "edited" | "discarded";
+            /** Reason */
+            reason?: string | null;
+        };
         /** Pipeline */
         Pipeline: {
             /**
@@ -2189,6 +2276,8 @@ export interface components {
         SendMessageIn: {
             /** Reply To Id */
             reply_to_id?: string | null;
+            /** Suggestion Id */
+            suggestion_id?: string | null;
             /** Template Id */
             template_id?: string | null;
             /** Text */
@@ -2300,6 +2389,55 @@ export interface components {
             status: "draft" | "available" | "reserved" | "sold" | "archived";
             /** Stock Number */
             stock_number: string | null;
+        };
+        /** Suggestion */
+        Suggestion: {
+            /** Actions */
+            actions: {
+                [key: string]: unknown;
+            }[];
+            /** Blocked Reason */
+            blocked_reason: string | null;
+            /** Confidence */
+            confidence: string | null;
+            /**
+             * Conversation Id
+             * Format: uuid
+             */
+            conversation_id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** For Message Id */
+            for_message_id: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Intent */
+            intent: string | null;
+            /** Language */
+            language: string | null;
+            /** Needs Human */
+            needs_human: string | null;
+            /** Sources */
+            sources: {
+                [key: string]: unknown;
+            }[];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "generating" | "ready" | "blocked" | "superseded";
+            /** Template */
+            template: {
+                [key: string]: unknown;
+            } | null;
+            /** Text */
+            text: string | null;
         };
         /** TaskCreate */
         TaskCreate: {
@@ -3521,6 +3659,74 @@ export interface operations {
             };
         };
     };
+    get_suggestion_v1_conversations__conversation_id__suggestion_get: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Suggestion"] | null;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    regenerate_v1_conversations__conversation_id__suggestion_regenerate_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_customers_v1_customers_get: {
         parameters: {
             query?: {
@@ -4495,6 +4701,41 @@ export interface operations {
                 content: {
                     "application/json": unknown;
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    record_outcome_v1_suggestions__suggestion_id__outcome_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                suggestion_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OutcomeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

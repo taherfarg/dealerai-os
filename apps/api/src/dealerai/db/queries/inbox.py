@@ -73,7 +73,13 @@ select cv.id, cv.status, cv.last_message_at, cv.waiting_since, cv.sla_due_at,
          where unread.conversation_id = cv.id and unread.direction = 'in'
            and unread.kind = 'message'
            and unread.created_at > coalesce(reads.last_read_at, '-infinity'::timestamptz)
-       ) as unread_count
+       ) as unread_count,
+       -- The dot on the row. `ready` only: a draft still being written is not
+       -- something to promise, and a blocked one is not a draft.
+       exists (
+         select 1 from ai_suggestions s
+          where s.conversation_id = cv.id and s.status = 'ready' and s.outcome is null
+       ) as has_ai_draft
 from conversations cv
 join contacts ct on ct.id = cv.contact_id
 left join profiles owner on owner.id = ct.owner_id

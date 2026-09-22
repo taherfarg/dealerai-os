@@ -20,6 +20,7 @@ from ..core.errors import (
     Unusable,
     WindowClosed,
 )
+from ..db.queries import copilot as copilot_queries
 from ..db.queries.inbox import (
     COUNTS,
     MESSAGE,
@@ -41,6 +42,7 @@ from ..sales.messaging import (
     window_is_open,
 )
 from ..sales.timeline import event_line
+from .suggestions import edit_ratio
 
 router = APIRouter(prefix="/v1/conversations", tags=["inbox"])
 #: Retrying a send names the message, not the conversation it sits in.
@@ -114,7 +116,8 @@ class ConversationSummary(BaseModel):
     sla_due_at: datetime | None
     sla_state: Literal["ok", "due_soon", "breached"] | None
     window_expires_at: datetime | None
-    #: Always false in S2; the copilot arrives in S4 and this is what the row reads.
+    #: A draft is waiting on this conversation. The row shows a dot; the
+    #: thread shows the panel.
     has_ai_draft: bool = False
 
 
@@ -195,7 +198,7 @@ def summary(row: Mapping[str, Any], now: datetime) -> dict[str, Any]:
         "sla_due_at": row["sla_due_at"],
         "sla_state": _sla_state(row["waiting_since"], row["sla_due_at"], now),
         "window_expires_at": row["wa_window_expires_at"],
-        "has_ai_draft": False,
+        "has_ai_draft": row["has_ai_draft"],
     }
 
 
@@ -399,6 +402,11 @@ class SendMessageIn(BaseModel):
     template_id: UUID | None = None
     variables: list[str] = Field(default_factory=list, max_length=20)
     reply_to_id: UUID | None = None
+    #: The draft this reply came from, if any. Sending it is what records
+    #: whether the AI was any use, in the same transaction as the message: an
+    #: outcome written afterwards is an outcome that can be lost, and this is
+    #: the number the slice is judged on (docs/sales/00-prd.md § 7).
+    suggestion_id: UUID | None = None
 
     @model_validator(mode="after")
     def exactly_one_kind(self) -> SendMessageIn:
@@ -514,6 +522,15 @@ async def send_message(
             body.reply_to_id,
             idempotency_key,
         )
+        if body.suggestion_id is not None:
+            await _record_the_draft_was_used(
+                conn,
+                suggestion_id=body.suggestion_id,
+                conversation_id=conversation_id,
+                sent_text=text,
+                message_id=row["id"],
+                user_id=ctx.user.id,
+            )
         await emit(
             conn,
             "whatsapp.send_requested",
@@ -523,6 +540,40 @@ async def send_message(
             priority=10,
         )
         return QueuedMessage.model_validate(dict(row))
+
+
+async def _record_the_draft_was_used(
+    conn: Any,
+    *,
+    suggestion_id: UUID,
+    conversation_id: UUID,
+    sent_text: str | None,
+    message_id: UUID,
+    user_id: UUID,
+) -> None:
+    """Sent unchanged, or edited first — and how much was changed.
+
+    A suggestion belonging to another conversation is not worth failing a send
+    over: the message is already written, and refusing it would lose a real
+    reply to a bookkeeping mistake. It is worth not recording.
+    """
+    draft = await conn.fetchrow(
+        "select text from ai_suggestions where id = $1 and conversation_id = $2",
+        suggestion_id,
+        conversation_id,
+    )
+    if draft is None:
+        return
+    ratio = edit_ratio(draft["text"], sent_text)
+    await conn.fetchval(
+        copilot_queries.RECORD_OUTCOME,
+        suggestion_id,
+        "sent" if ratio == 0.0 else "edited",
+        user_id,
+        ratio,
+        None,
+        message_id,
+    )
 
 
 @router.get("/{conversation_id}", response_model=ConversationSummary)

@@ -35,6 +35,7 @@ from .routes import (
     pipelines,
     runs,
     stream,
+    suggestions,
     tasks,
     team,
     tenants,
@@ -103,6 +104,8 @@ def create_app() -> FastAPI:
     app.include_router(dashboard.router)
     app.include_router(notifications.router)
     app.include_router(media.router)
+    app.include_router(suggestions.conversations_router)
+    app.include_router(suggestions.router)
     app.include_router(stream.router)
     # Local sign-in as a seeded person. Never mounted outside ENV=local.
     if settings.env == "local":

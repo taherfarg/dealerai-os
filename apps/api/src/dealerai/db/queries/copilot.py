@@ -247,3 +247,40 @@ select exists (
   select 1 from messages where conversation_id = $1 and referral is not null
 )
 """
+
+# ---------------------------------------------------------------------------
+# The draft over HTTP
+# ---------------------------------------------------------------------------
+
+#: What the composer shows. A superseded draft is not live and is not shown; a
+#: blocked one is, as one muted line, because a salesperson who sees nothing
+#: assumes the AI is broken and one who reads the reason learns what it will
+#: not do.
+LIVE_SUGGESTION = """
+select id, conversation_id, for_message_id, status, text, template, language, confidence,
+       intent, sources, actions, needs_human, blocked_reason, created_at
+  from ai_suggestions
+ where conversation_id = $1 and status in ('generating', 'ready', 'blocked')
+   and outcome is null
+ order by created_at desc limit 1
+"""
+
+LATEST_INBOUND = """
+select id from messages
+ where conversation_id = $1 and kind = 'message' and direction = 'in'
+ order by created_at desc limit 1
+"""
+
+#: `outcome is null` in the WHERE is what makes an outcome final: recording a
+#: second one would move the acceptance metric after the fact.
+#:
+#: The status leaves the live set whatever the outcome was — `superseded` here
+#: means "no longer the draft on screen", and what ended it is `outcome`. It
+#: has to leave: the partial unique index is what allows the next draft to
+#: claim the conversation.
+RECORD_OUTCOME = """
+update ai_suggestions set outcome = $2, outcome_at = now(), outcome_by = $3,
+       edit_ratio = $4, discard_reason = $5, final_message_id = $6, status = 'superseded'
+ where id = $1 and outcome is null
+returning id
+"""
