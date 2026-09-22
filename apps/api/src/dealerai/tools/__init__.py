@@ -7,6 +7,6 @@ registry, and the failure is silent.
 
 from __future__ import annotations
 
-from . import brand, content, inventory
+from . import brand, content, inventory, knowledge
 
-__all__ = ["brand", "content", "inventory"]
+__all__ = ["brand", "content", "inventory", "knowledge"]

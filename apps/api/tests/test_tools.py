@@ -380,3 +380,48 @@ async def test_brand_rules_can_be_checked_before_a_caption_is_finished(
 
     good = await registry.call("check_brand_rules", ctx_for(), {"text": "A fine car. DM to book."})
     assert good["ok"] is True
+
+
+async def test_search_knowledge_declares_a_question_and_not_a_tenant() -> None:
+    """The model does not choose which dealership it is reading. The executor
+    does, from the run row, and a tenant id the model could name is one it
+    could name wrongly."""
+    entry = registry.get("search_knowledge")
+    assert entry is not None and entry.mutates is False
+    schema = entry.params.model_json_schema()
+    assert set(schema["properties"]) == {"question"}
+    assert "policies" in entry.description
+
+
+async def test_search_knowledge_reads_only_this_dealerships_documents(
+    db: None, su: asyncpg.Connection, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from dealerai.ai.embeddings import literal
+    from dealerai.ai.models import EMBEDDING_DIMENSIONS
+    from dealerai.sales import knowledge
+
+    async def fake(texts: Any, **kwargs: Any) -> list[list[float]]:
+        return [[1.0] + [0.0] * (EMBEDDING_DIMENSIONS - 1)]
+
+    monkeypatch.setattr(knowledge, "embed", fake)
+    await reseed()
+    for tenant_id, text in ((TENANT_A, "Alpha ships weekly."), (TENANT_B, "Beta ships daily.")):
+        document_id = await su.fetchval(
+            """insert into documents (tenant_id, kind, title, source, status)
+               values ($1, 'export_policy', 'Policy', 'upload', 'ready') returning id""",
+            tenant_id,
+        )
+        await su.execute(
+            """insert into doc_chunks (tenant_id, document_id, chunk_index, content, embedding)
+               values ($1, $2, 0, $3, $4::vector)""",
+            tenant_id,
+            document_id,
+            text,
+            literal([1.0] + [0.0] * (EMBEDDING_DIMENSIONS - 1)),
+        )
+
+    ctx = TenantContext(
+        tenant_id=TENANT_A, user=AuthedUser(id=USER_A, email=None, claims={}), role="sales"
+    )
+    found = await registry.call("search_knowledge", ctx, {"question": "how often do you ship"})
+    assert [row["text"] for row in found] == ["Alpha ships weekly."]

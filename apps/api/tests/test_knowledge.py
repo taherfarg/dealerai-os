@@ -3,9 +3,15 @@
 from __future__ import annotations
 
 import io
+import uuid
+from collections.abc import Sequence
+from typing import Any
 
+import asyncpg
 import pytest
 
+from conftest import TENANT_A, TENANT_B
+from dealerai.ai.models import EMBEDDING_DIMENSIONS
 from dealerai.core.errors import Unusable
 from dealerai.sales import knowledge
 
@@ -130,3 +136,150 @@ def test_a_real_pdf_is_read() -> None:
     # A blank page has no text; what matters is that it parses rather than
     # raising, so an empty document fails later with a sentence about text.
     assert knowledge.extract(buffer.getvalue(), knowledge.PDF) == ""
+
+
+# ---------------------------------------------------------------------------
+# Retrieval. The embedder is stubbed so the vectors are ours to choose; what is
+# being tested is the fusion, and the filters that keep it honest.
+# ---------------------------------------------------------------------------
+
+
+def _vector(seed: float) -> list[float]:
+    """A vector that is close to itself and far from the others."""
+    return [seed] + [0.0] * (EMBEDDING_DIMENSIONS - 1)
+
+
+@pytest.fixture
+def stub_embed(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
+    """Whatever the question was, embed it as the vector we chose for it."""
+    state: dict[str, Any] = {"calls": [], "answer": _vector(1.0)}
+
+    async def fake(texts: Sequence[str], **kwargs: Any) -> list[list[float]]:
+        state["calls"].append(list(texts))
+        return [state["answer"] for _ in texts]
+
+    monkeypatch.setattr(knowledge, "embed", fake)
+    return state
+
+
+async def _a_document(
+    su: asyncpg.Connection,
+    chunks: list[tuple[str, list[float]]],
+    *,
+    status: str = "ready",
+    tenant_id: uuid.UUID = TENANT_A,
+    title: str = "Export policy",
+) -> uuid.UUID:
+    from dealerai.ai.embeddings import literal
+
+    document_id = await su.fetchval(
+        """insert into documents (tenant_id, kind, title, source, status)
+           values ($1, 'export_policy', $2, 'upload', $3) returning id""",
+        tenant_id,
+        title,
+        status,
+    )
+    for index, (content, vector) in enumerate(chunks):
+        await su.execute(
+            """insert into doc_chunks (tenant_id, document_id, chunk_index, content, embedding)
+               values ($1, $2, $3, $4, $5::vector)""",
+            tenant_id,
+            document_id,
+            index,
+            content,
+            literal(vector),
+        )
+    return uuid.UUID(str(document_id))
+
+
+async def test_the_nearest_paragraph_comes_back_first(
+    db: None, su: asyncpg.Connection, seeded: None, stub_embed: dict[str, Any]
+) -> None:
+    await _a_document(
+        su,
+        [
+            ("Shipping runs weekly from Jebel Ali.", _vector(1.0)),
+            ("Warranty is two years or 60,000 km.", _vector(-1.0)),
+        ],
+    )
+    passages = await knowledge.search(TENANT_A, "when do you ship")
+    assert passages[0].content.startswith("Shipping")
+    assert passages[0].title == "Export policy"
+
+
+async def test_a_word_only_a_text_search_can_find_still_ranks(
+    db: None, su: asyncpg.Connection, seeded: None, stub_embed: dict[str, Any]
+) -> None:
+    """'Annex B' is a token, not a meaning. Vectors are poor at it, and this is
+    exactly what the second half of the fusion is for."""
+    await _a_document(
+        su,
+        [
+            ("Nothing relevant about shipping at all.", _vector(1.0)),
+            ("Annex B lists the customs codes.", _vector(-1.0)),
+        ],
+    )
+    passages = await knowledge.search(TENANT_A, "Annex B")
+    assert any("Annex B" in passage.content for passage in passages)
+
+
+async def test_a_document_still_processing_is_never_quoted(
+    db: None, su: asyncpg.Connection, seeded: None, stub_embed: dict[str, Any]
+) -> None:
+    await _a_document(su, [("Shipping runs weekly.", _vector(1.0))], status="processing")
+    assert await knowledge.search(TENANT_A, "shipping") == []
+
+
+async def test_a_deleted_document_stops_being_quoted_immediately(
+    db: None, su: asyncpg.Connection, seeded: None, stub_embed: dict[str, Any]
+) -> None:
+    document_id = await _a_document(su, [("Shipping runs weekly.", _vector(1.0))])
+    assert await knowledge.search(TENANT_A, "shipping")
+    await su.execute("delete from documents where id = $1", document_id)
+    assert await knowledge.search(TENANT_A, "shipping") == []
+
+
+async def test_another_workspaces_policy_is_invisible(
+    db: None, su: asyncpg.Connection, seeded: None, stub_embed: dict[str, Any]
+) -> None:
+    """The one that matters most: retrieval is a query somebody could write
+    without a tenant filter, and the failure would be silent."""
+    await _a_document(su, [("Beta's secret shipping terms.", _vector(1.0))], tenant_id=TENANT_B)
+    assert await knowledge.search(TENANT_A, "shipping") == []
+
+
+async def test_only_as_many_passages_as_asked_for(
+    db: None, su: asyncpg.Connection, seeded: None, stub_embed: dict[str, Any]
+) -> None:
+    await _a_document(su, [(f"Clause {n} about shipping.", _vector(1.0)) for n in range(6)])
+    assert len(await knowledge.search(TENANT_A, "shipping", use=2)) == 2
+
+
+async def test_an_empty_question_costs_nothing(
+    db: None, seeded: None, stub_embed: dict[str, Any]
+) -> None:
+    """Guards against embedding a blank string every time the model calls the
+    tool with no arguments."""
+    assert await knowledge.search(TENANT_A, "   ") == []
+    assert stub_embed["calls"] == []
+
+
+async def test_a_question_is_embedded_as_a_question(
+    db: None,
+    su: asyncpg.Connection,
+    seeded: None,
+    stub_embed: dict[str, Any],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A query and a document go into the same space by different instructions,
+    and using one for both measurably costs recall."""
+    kinds: list[str] = []
+
+    async def fake(texts: Sequence[str], **kwargs: Any) -> list[list[float]]:
+        kinds.append(str(kwargs["kind"]))
+        return [_vector(1.0)]
+
+    monkeypatch.setattr(knowledge, "embed", fake)
+    await _a_document(su, [("Shipping runs weekly.", _vector(1.0))])
+    await knowledge.search(TENANT_A, "shipping")
+    assert kinds == ["query"]

@@ -15,8 +15,12 @@ from __future__ import annotations
 import io
 import re
 from dataclasses import dataclass
+from uuid import UUID
 
+from ..ai.embeddings import embed, literal
 from ..core.errors import Unusable
+from ..db.queries import copilot as q
+from ..db.session import tenant_session
 
 #: Roughly four characters to a token — near enough for a size bound, and there
 #: is no tokenizer in this process. The spec's 400–800 tokens becomes this.
@@ -156,3 +160,54 @@ def _split(body: str) -> list[str]:
         tail = pieces.pop()
         pieces[-1] = f"{pieces[-1]}\n\n{tail}"
     return pieces
+
+
+# ---------------------------------------------------------------------------
+# Retrieval
+# ---------------------------------------------------------------------------
+
+#: Retrieved, then used. Fetching more than we show is what makes the fusion
+#: worth doing — the fourth vector hit is often the first text hit.
+RETRIEVE = 8
+USE = 4
+
+
+@dataclass(frozen=True, slots=True)
+class Passage:
+    chunk_id: int
+    document_id: str
+    title: str
+    heading: str
+    content: str
+    score: float
+
+
+async def search(
+    tenant_id: UUID, query: str, *, use: int = USE, run_id: UUID | None = None
+) -> list[Passage]:
+    """The paragraphs most likely to answer this question, in this tenant only.
+
+    Hybrid, because the question arrives in Arabic and the policy is written in
+    English: vector search crosses the language, and full-text search catches
+    what vectors are worst at — an exact token like "Annex B", a port name, an
+    HS code.
+    """
+    text = query.strip()
+    if not text:
+        return []  # an empty question is not worth a vector
+    vectors = await embed([text], tenant_id=tenant_id, kind="query", run_id=run_id)
+    async with tenant_session(tenant_id) as conn:
+        rows = await conn.fetch(
+            q.SEARCH_KNOWLEDGE, tenant_id, literal(vectors[0]), text, RETRIEVE, use
+        )
+    return [
+        Passage(
+            chunk_id=row["id"],
+            document_id=str(row["document_id"]),
+            title=row["title"] or "",
+            heading=row["heading"] or "",
+            content=row["content"],
+            score=row["score"],
+        )
+        for row in rows
+    ]

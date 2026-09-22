@@ -114,3 +114,47 @@ OWN_CONTACTS = """
 select handle as phone from channels
  where tenant_id = $1 and platform = 'whatsapp' and handle is not null
 """
+
+#: Hybrid retrieval, fused by reciprocal rank (docs/sales/04-ai-copilot.md § 7).
+#:
+#: RRF rather than a weighted sum of scores: cosine distance and ts_rank_cd are
+#: not on the same scale and never will be, so any weighting is a constant
+#: somebody has to tune per tenant. Ranks are comparable by construction, and
+#: k = 60 is the value from the original paper that nobody has needed to move.
+#:
+#: Both halves are pre-filtered by tenant and by `status = 'ready'`: a document
+#: still processing has chunks with no embedding, and a withdrawn one must stop
+#: being quoted the moment it is deleted.
+SEARCH_KNOWLEDGE = """
+with vector_hits as (
+  select c.id, row_number() over (order by c.embedding <=> $2::vector) as rank
+    from doc_chunks c join documents d on d.id = c.document_id
+   where c.tenant_id = $1 and d.status = 'ready' and c.embedding is not null
+   order by c.embedding <=> $2::vector
+   limit $4
+),
+text_hits as (
+  select c.id,
+         row_number() over (
+           order by ts_rank_cd(to_tsvector('simple', c.content), q) desc
+         ) as rank
+    from doc_chunks c
+    join documents d on d.id = c.document_id,
+         websearch_to_tsquery('simple', $3) q
+   where c.tenant_id = $1 and d.status = 'ready'
+     and to_tsvector('simple', c.content) @@ q
+   limit $4
+),
+fused as (
+  select id, sum(1.0 / (60 + rank)) as score
+    from (select * from vector_hits union all select * from text_hits) hits
+   group by id
+)
+select c.id, c.document_id, c.content, c.meta->>'heading' as heading,
+       d.title, d.kind, fused.score::float8 as score
+  from fused
+  join doc_chunks c on c.id = fused.id
+  join documents d on d.id = c.document_id
+ order by fused.score desc, c.id
+ limit $5
+"""
