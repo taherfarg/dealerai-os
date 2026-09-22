@@ -64,6 +64,12 @@ class SalesSettings(BaseModel):
     #: before spending anything. `db/queries/copilot.py` reads the same key in
     #: SQL, so the name must not drift.
     drafts_enabled: bool = True
+    #: Days to wait before each AI follow-up on one lead, measured from the one
+    #: before it. The list *is* the schedule: three entries means three
+    #: follow-ups and then silence, after which the `silent` signal carries the
+    #: lead to cold on its own — which is the correct ending
+    #: (docs/sales/04-ai-copilot.md § 6).
+    follow_up_cadence_days: list[int] = Field(default_factory=lambda: [2, 5, 14])
     #: Signal → points, overriding sales/scoring.py's defaults. No UI in Phase 1
     #: (docs/sales/04-ai-copilot.md § 5); a dealership that wants different
     #: arithmetic gets it by hand, and the reasons on screen stay honest either way.

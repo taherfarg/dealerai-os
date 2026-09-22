@@ -7,13 +7,16 @@ conversation went quiet, an hour passed.
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from typing import Any
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 import structlog
 
 from ...agents.sales import copilot
+from ...agents.sales import followup as followup_agent
 from ...agents.sales.copilot import Draft
 from ...agents.sales.intent import Read, classify
 from ...agents.sales.profile import PROPOSABLE, Learned, coerce, study
@@ -30,15 +33,15 @@ from ...guards import pii as pii_guard
 from ...guards import price as price_guard
 from ...guards import script as script_guard
 from ...media import storage
-from ...sales import confidence, grounding, knowledge, scoring
+from ...sales import confidence, followups, grounding, knowledge, scoring
 from ...sales import profile as profile_fields
 from ...sales.grounding import Ground
 from ...sales.knowledge import Passage, chunk, embeddable, extract
-from ...sales.messaging import render_template
+from ...sales.messaging import render_template, variable_numbers, window_is_open
 from ...sales.runs import Run, agent_run
 from ...sales.settings import SalesSettings
 from ...sales.timeline import event_line
-from ..bus import Event, handler
+from ..bus import Event, emit, handler
 from .notify import notify
 
 log = structlog.get_logger()
@@ -724,3 +727,297 @@ async def _rescore(
             entity={"type": "lead", "id": str(lead["id"])},
             dedupe_key=f"hot:{lead['id']}",
         )
+
+
+# ---------------------------------------------------------------------------
+# Follow-ups — docs/sales/04-ai-copilot.md § 6
+# ---------------------------------------------------------------------------
+
+#: Which approved template carries which reason, best first, when the 24-hour
+#: window has closed.
+TEMPLATES_FOR: dict[str, list[str]] = {
+    "price_drop": ["price_update", "vehicle_available"],
+    "similar_arrival": ["vehicle_available", "price_update"],
+    "no_reply_48h": ["vehicle_available"],
+}
+
+#: How long a customer may say nothing before a reply is worth chasing
+#: (docs/sales/04-ai-copilot.md § 6).
+NO_REPLY_AFTER = timedelta(hours=48)
+
+
+async def schedule_no_reply_check(
+    conn: Any, tenant_id: UUID, conversation_id: UUID, now: datetime
+) -> None:
+    """We replied; look again in two days.
+
+    Scheduled by the message that starts the wait, exactly as the response
+    target is (events/handlers/inbox.py). The spec asks for an hourly sweep,
+    and a sweep cannot work here: `system_session` has no tenant context and
+    under RLS sees nothing tenant-owned, so there is no query that enumerates
+    dealerships from a worker. Scheduling per conversation needs no
+    enumeration, no scheduler process, and is exact rather than up to an hour
+    late — and it inherits the queue's lock, retry and dead-letter.
+
+    Deduped per conversation per day, so a thread with six replies in it
+    schedules one check.
+    """
+    when = now + NO_REPLY_AFTER
+    await emit(
+        conn,
+        "followup.check",
+        {"trigger": "no_reply_48h", "conversation_id": str(conversation_id)},
+        tenant_id=tenant_id,
+        dedupe_key=f"followup:{conversation_id}:{when:%Y%m%d}",
+        run_after=when,
+        priority=2,
+    )
+
+
+@handler("followup.check")
+async def on_followup_check(event: Event) -> None:
+    """One lead, named directly or through the conversation we last replied in."""
+    if event.tenant_id is None:
+        raise ValueError("followup.check requires a tenant")
+    trigger = str(event.payload.get("trigger") or "no_reply_48h")
+    lead_id = event.payload.get("lead_id")
+    if lead_id is None:
+        async with tenant_session(event.tenant_id) as conn:
+            lead_id = await conn.fetchval(
+                q.LEAD_FOR_CONVERSATION, UUID(str(event.payload["conversation_id"]))
+            )
+        if lead_id is None:
+            return  # no open lead: nothing to follow up on
+    await _consider(event.tenant_id, UUID(str(lead_id)), trigger)
+
+
+@handler("vehicle.price_changed")
+async def on_price_changed(event: Event) -> None:
+    """A price that went *down* is news. One that went up is not."""
+    if event.tenant_id is None:
+        raise ValueError("vehicle.price_changed requires a tenant")
+    before = event.payload.get("before_minor")
+    after = event.payload.get("after_minor")
+    if before is None or after is None or int(after) >= int(before):
+        return
+    vehicle_id = UUID(str(event.payload["vehicle_id"]))
+    async with tenant_session(event.tenant_id) as conn, conn.transaction():
+        for lead in await conn.fetch(q.LEADS_ON_VEHICLE, vehicle_id):
+            await emit(
+                conn,
+                "followup.check",
+                {"trigger": "price_drop", "lead_id": str(lead["id"])},
+                tenant_id=event.tenant_id,
+                dedupe_key=f"followup:{lead['id']}:price:{after}",
+                priority=2,
+            )
+
+
+async def offer_a_new_arrival(conn: Any, tenant_id: UUID, vehicle_id: UUID) -> None:
+    """Called from the vehicle.created handler, which already holds a connection.
+
+    A second handler for `vehicle.created` is impossible — bus.register refuses
+    one — so this is a function rather than a handler, and inventory.py calls it
+    where it already knows the car is ready.
+    """
+    car = await conn.fetchrow("select make, model, status from vehicles where id = $1", vehicle_id)
+    if car is None or car["status"] != "available":
+        return
+    for lead in await conn.fetch(q.LEADS_WANTING, tenant_id, car["model"]):
+        await emit(
+            conn,
+            "followup.check",
+            {
+                "trigger": "similar_arrival",
+                "lead_id": str(lead["id"]),
+                "vehicle_id": str(vehicle_id),
+            },
+            tenant_id=tenant_id,
+            dedupe_key=f"followup:{lead['id']}:arrival:{vehicle_id}",
+            priority=2,
+        )
+
+
+async def _consider(tenant_id: UUID, lead_id: UUID, trigger: str) -> None:
+    """Eligibility in code, then — only then — ask whether there is anything to say."""
+    now = datetime.now(UTC)
+    async with tenant_session(tenant_id) as conn:
+        lead = await conn.fetchrow(q.FOLLOWUP_STATE, lead_id)
+    if lead is None or lead["category"] != "open":
+        return
+
+    if trigger == "no_reply_48h" and lead["last_direction"] != "out":
+        # They wrote back. Answering that is a person's job and the response
+        # target's, not a follow-up.
+        log.info("followup_skipped", lead_id=str(lead_id), because="the customer replied")
+        return
+
+    settings = SalesSettings.model_validate(lead["sales_settings"] or {})
+    verdict = followups.may_follow_up(
+        lead, trigger=trigger, now=now, settings=settings, tz=ZoneInfo(lead["timezone"])
+    )
+    if not verdict.allowed:
+        if verdict.retry_at is not None:
+            async with tenant_session(tenant_id) as conn:
+                await emit(
+                    conn,
+                    "followup.check",
+                    {"trigger": trigger, "lead_id": str(lead_id)},
+                    tenant_id=tenant_id,
+                    dedupe_key=f"followup:{lead_id}:{verdict.retry_at:%Y%m%d%H}",
+                    run_after=verdict.retry_at,
+                    priority=2,
+                )
+        log.info("followup_skipped", lead_id=str(lead_id), because=verdict.because)
+        return
+
+    try:
+        await assert_within_budget(tenant_id)
+    except BudgetExceeded:
+        await _tell_the_owners_once(tenant_id)
+        return
+
+    async with agent_run(
+        tenant_id,
+        goal="consider a follow-up",
+        goal_input={"lead_id": str(lead_id), "trigger": trigger},
+    ) as run:
+        async with tenant_session(tenant_id) as conn:
+            tail = await conn.fetch(q.FOLLOWUP_TAIL, lead["conversation_id"])
+        considered = await followup_agent.consider(
+            tenant_id=tenant_id,
+            run_id=run.id,
+            trigger=trigger,
+            context=_followup_context(lead, tail),
+        )
+        run.cost_usd += considered.cost_usd
+        written = considered.written
+
+        if written is None or not written.genuine_reason:
+            # The whole point. Nobody is interrupted and the cadence decides
+            # when to look again.
+            run.summary = "nothing new to say"
+            log.info("followup_declined", lead_id=str(lead_id), trigger=trigger)
+            return
+
+        findings = _inspect_followup(written.draft, lead, tail)
+        if findings:
+            run.summary = "; ".join(finding.message for finding in findings)[:200]
+            log.info("followup_blocked", lead_id=str(lead_id), because=run.summary)
+            return
+
+        await _raise_the_task(tenant_id, lead, written, trigger, now, settings)
+        run.summary = written.reason
+
+
+def _followup_context(lead: Any, tail: list[Any]) -> str:
+    currency = lead["tenant_currency"] or "AED"
+    car = f"{lead['make'] or ''} {lead['model'] or ''} {lead['model_year'] or ''}".strip()
+    lines = [
+        "## The lead",
+        f"- customer: {lead['full_name'] or 'unknown'} ({lead['country'] or '??'})",
+        f"- board: {lead['pipeline']} · {lead['stage']}",
+        f"- car: {car or 'none chosen yet'}",
+    ]
+    if lead["price_minor"] is not None:
+        lines.append(f"- price now: {grounding.money(lead['price_minor'], currency)}")
+    if lead["budget_minor"] is not None:
+        lines.append(f"- their budget: {grounding.money(lead['budget_minor'], currency)}")
+    conversation = "\n".join(
+        f"{'CUSTOMER' if row['direction'] == 'in' else 'US'}: {row['text']}" for row in tail
+    )
+    return (
+        "\n".join(lines)
+        + f"\n\n## The conversation so far\n<untrusted>\n{conversation}\n</untrusted>"
+    )
+
+
+def _inspect_followup(draft: str, lead: Any, tail: list[Any]) -> Findings:
+    """The guards that apply to a message with no thread in front of it.
+
+    Narrower than the draft loop's: there is no window state to check here (the
+    task decides that when it is sent) and no inventory beyond the one car,
+    which the eligibility rules already confirmed is available.
+    """
+    allowed = {
+        Decimal(value) / 100
+        for value in (lead["price_minor"], lead["budget_minor"])
+        if value is not None
+    }
+    customer_wrote = " ".join(row["text"] for row in tail if row["direction"] == "in")
+    return [
+        *price_guard.check(draft, allowed=allowed),
+        *commitments_guard.check(draft),
+        *brand_guard.check(draft),
+        *script_guard.check(draft, customer_wrote=customer_wrote),
+    ]
+
+
+async def _raise_the_task(
+    tenant_id: UUID,
+    lead: Any,
+    written: Any,
+    trigger: str,
+    now: datetime,
+    settings: SalesSettings,
+) -> None:
+    """The output is a task for the lead's owner, never a message."""
+    window_open = window_is_open(lead["wa_window_expires_at"], now)
+    draft: dict[str, Any] = {"reason": written.reason, "text": None}
+    if window_open:
+        draft["text"] = written.draft
+    else:
+        async with tenant_session(tenant_id) as conn:
+            template = await conn.fetchrow(
+                q.TEMPLATE_BY_NAME, lead["channel_id"], TEMPLATES_FOR.get(trigger, [])
+            )
+        if template is not None:
+            draft["template_id"] = str(template["id"])
+            draft["template_name"] = template["name"]
+            draft["variables"] = _variables(template, lead)
+        # No suitable approved template: a task with no draft. "Call the
+        # customer" is worth more than a message that cannot be sent.
+
+    async with tenant_session(tenant_id) as conn, conn.transaction():
+        task_id = await conn.fetchval(
+            """insert into tasks (tenant_id, title, kind, due_at, assignee_id, contact_id,
+                                  lead_id, conversation_id, source, ai_draft)
+               values ($1,$2,'follow_up',$3,$4,$5,$6,$7,'ai',$8::jsonb) returning id""",
+            tenant_id,
+            written.reason[:120],
+            now,
+            lead["owner_id"],
+            lead["contact_id"],
+            lead["id"],
+            lead["conversation_id"],
+            draft,
+        )
+        if lead["owner_id"]:
+            await notify(
+                conn,
+                tenant_id=tenant_id,
+                user_id=lead["owner_id"],
+                kind="followup_ready",
+                title=written.reason[:120],
+                body=lead["full_name"],
+                entity={"type": "task", "id": str(task_id)},
+                dedupe_key=f"followup:{task_id}",
+            )
+    log.info("followup_raised", lead_id=str(lead["id"]), task_id=str(task_id), trigger=trigger)
+
+
+def _variables(template: Any, lead: Any) -> list[str]:
+    """Fill {{1}}, {{2}}… from what we know, in order.
+
+    Names, then the car, then the price — the order every utility template in
+    this account uses. A template wanting something else gets blanks, which is
+    visible in the card rather than wrong on the customer's phone.
+    """
+    currency = lead["tenant_currency"] or "AED"
+    known = [
+        (lead["full_name"] or "").split()[0] if lead["full_name"] else "",
+        f"{lead['make'] or ''} {lead['model'] or ''}".strip(),
+        grounding.money(lead["price_minor"], currency) if lead["price_minor"] else "",
+    ]
+    wanted = variable_numbers(template["body"])
+    return [known[index - 1] if index <= len(known) else "" for index in wanted]

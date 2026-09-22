@@ -944,6 +944,35 @@ export interface paths {
         patch: operations["edit_task_v1_tasks__task_id__patch"];
         trace?: never;
     };
+    "/v1/tasks/{task_id}/send-draft": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send Draft
+         * @description Send the AI's follow-up and complete the task, in one tap.
+         *
+         *     Two writes that must not half-happen: a message sent with the task left
+         *     open gets sent a second time by a salesperson clearing their list.
+         *
+         *     The state it was drafted against is not the state it is sent in. A
+         *     follow-up written on Tuesday and sent on Thursday can have run out of
+         *     window, or the customer can have opted out in between — so every rule the
+         *     composer applies is applied again here, and the salesperson gets the same
+         *     sentence they would have got typing it themselves.
+         */
+        post: operations["send_draft_v1_tasks__task_id__send_draft_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/teams": {
         parameters: {
             query?: never;
@@ -2225,6 +2254,10 @@ export interface components {
         };
         /** SalesTask */
         SalesTask: {
+            /** Ai Draft */
+            ai_draft?: {
+                [key: string]: unknown;
+            } | null;
             assignee: components["schemas"]["UserRef"] | null;
             /** Completed At */
             completed_at: string | null;
@@ -4842,6 +4875,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SalesTask"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    send_draft_v1_tasks__task_id__send_draft_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+                "X-Tenant-Id": string;
+            };
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QueuedMessage"];
                 };
             };
             /** @description Validation Error */

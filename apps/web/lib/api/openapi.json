@@ -3061,6 +3061,18 @@
       },
       "SalesTask": {
         "properties": {
+          "ai_draft": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ai Draft"
+          },
           "assignee": {
             "anyOf": [
               {
@@ -8671,6 +8683,71 @@
           }
         },
         "summary": "Edit Task",
+        "tags": [
+          "tasks"
+        ]
+      }
+    },
+    "/v1/tasks/{task_id}/send-draft": {
+      "post": {
+        "description": "Send the AI's follow-up and complete the task, in one tap.\n\nTwo writes that must not half-happen: a message sent with the task left\nopen gets sent a second time by a salesperson clearing their list.\n\nThe state it was drafted against is not the state it is sent in. A\nfollow-up written on Tuesday and sent on Thursday can have run out of\nwindow, or the customer can have opted out in between — so every rule the\ncomposer applies is applied again here, and the salesperson gets the same\nsentence they would have got typing it themselves.",
+        "operationId": "send_draft_v1_tasks__task_id__send_draft_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Task Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "maxLength": 200,
+              "minLength": 1,
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueuedMessage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Send Draft",
         "tags": [
           "tasks"
         ]

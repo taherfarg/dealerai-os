@@ -8,16 +8,28 @@ from typing import Annotated, Any, Literal
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Header, Query, status
 from pydantic import BaseModel, Field
 
-from ..core.errors import NotFound
+from ..core.errors import (
+    ChannelUnavailable,
+    ConsentRequired,
+    NotFound,
+    Unusable,
+    WindowClosed,
+)
 from ..db.queries.crm import ONE_TASK, TASKS_LIST
 from ..db.session import tenant_session
-from ..deps import Ctx
-from .inbox import UserRef
+from ..deps import Ctx, TenantContext, require_permission
+from ..events.bus import emit
+from ..sales.messaging import render_template, template_block_reason, window_is_open
+from .inbox import QueuedMessage, UserRef
 
 router = APIRouter(prefix="/v1/tasks", tags=["tasks"])
+
+#: The columns a queued message comes back as, shared with the composer's
+#: send so the two shapes cannot drift.
+SEND_RETURNING = "id, conversation_id, type, body, status, idempotency_key, created_at"
 
 Bucket = Literal["overdue", "today", "upcoming", "done"]
 
@@ -40,6 +52,9 @@ class SalesTask(BaseModel):
     contact: ContactRef | None
     lead_id: UUID | None
     conversation_id: UUID | None
+    #: {reason, text | template_id + variables} — what the AI wrote, for the
+    #: follow-up card. Null on every task a person made.
+    ai_draft: dict[str, Any] | None = None
 
 
 class TaskCreate(BaseModel):
@@ -80,6 +95,7 @@ def task_out(row: Mapping[str, Any]) -> dict[str, Any]:
         ),
         "lead_id": row["lead_id"],
         "conversation_id": row["conversation_id"],
+        "ai_draft": row["ai_draft"],
     }
 
 
@@ -216,3 +232,116 @@ async def edit_task(ctx: Ctx, task_id: UUID, body: TaskPatch) -> dict[str, Any]:
                 body.cancel_reason,
             )
         return task_out(await _row_or_404(conn, task_id))
+
+
+@router.post(
+    "/{task_id}/send-draft", response_model=QueuedMessage, status_code=status.HTTP_202_ACCEPTED
+)
+async def send_draft(
+    ctx: Annotated[TenantContext, Depends(require_permission("inbox.send"))],
+    task_id: UUID,
+    idempotency_key: Annotated[str, Header(alias="Idempotency-Key", min_length=1, max_length=200)],
+) -> dict[str, Any]:
+    """Send the AI's follow-up and complete the task, in one tap.
+
+    Two writes that must not half-happen: a message sent with the task left
+    open gets sent a second time by a salesperson clearing their list.
+
+    The state it was drafted against is not the state it is sent in. A
+    follow-up written on Tuesday and sent on Thursday can have run out of
+    window, or the customer can have opted out in between — so every rule the
+    composer applies is applied again here, and the salesperson gets the same
+    sentence they would have got typing it themselves.
+    """
+    async with (
+        tenant_session(ctx.tenant_id, user_id=ctx.user.id, scope=ctx.scope) as conn,
+        conn.transaction(),
+    ):
+        existing = await conn.fetchrow(
+            f"select {SEND_RETURNING} from messages where tenant_id = $1 and idempotency_key = $2",  # noqa: S608
+            ctx.tenant_id,
+            idempotency_key,
+        )
+        if existing is not None:
+            return dict(existing)
+
+        task = await _row_or_404(conn, task_id)
+        draft = task["ai_draft"] or {}
+        if task["status"] != "open":
+            raise Unusable("That follow-up has already been dealt with.")
+        if task["conversation_id"] is None:
+            raise Unusable("That follow-up has no conversation to send in.")
+        if not draft.get("text") and not draft.get("template_id"):
+            raise Unusable("That follow-up has no draft to send. Open the conversation instead.")
+
+        conversation = await conn.fetchrow(
+            """select c.id, c.wa_window_expires_at, ct.consent, ch.status as channel_status
+                 from conversations c
+                 join contacts ct on ct.id = c.contact_id
+                 left join channels ch on ch.id = c.channel_id
+                where c.id = $1""",
+            task["conversation_id"],
+        )
+        if conversation is None:
+            raise NotFound("no such conversation")
+        if conversation["channel_status"] != "connected":
+            raise ChannelUnavailable("This WhatsApp number is not connected right now.")
+        if (conversation["consent"] or {}).get("opted_out_at"):
+            raise ConsentRequired("The customer asked not to be messaged.")
+
+        now = datetime.now(UTC)
+        if draft.get("template_id"):
+            template = await conn.fetchrow(
+                "select id, name, language, category, body from message_templates where id = $1",
+                UUID(str(draft["template_id"])),
+            )
+            if template is None:
+                raise Unusable("The template this follow-up used is no longer approved.")
+            reason = template_block_reason(template["category"], conversation["consent"] or {})
+            if reason:
+                raise ConsentRequired(reason)
+            variables = [str(value) for value in (draft.get("variables") or [])]
+            message_type = "template"
+            text = render_template(template["body"], variables)
+            template_data: dict[str, Any] | None = {
+                "id": str(template["id"]),
+                "name": template["name"],
+                "language": template["language"],
+                "category": template["category"],
+                "params": {str(index + 1): value for index, value in enumerate(variables)},
+            }
+        else:
+            if not window_is_open(conversation["wa_window_expires_at"], now):
+                # Drafted Tuesday, sent Thursday.
+                raise WindowClosed(
+                    "More than 24 hours since the customer's last message. "
+                    "Open the conversation and send an approved template."
+                )
+            message_type, text, template_data = "text", str(draft["text"]), None
+
+        row = await conn.fetchrow(
+            f"""insert into messages
+                 (tenant_id, conversation_id, direction, sender, origin, author_user_id,
+                  type, body, template, status, idempotency_key)
+               values ($1, $2, 'out', 'human', 'inbox', $3, $4, $5, $6, 'queued', $7)
+               returning {SEND_RETURNING}""",  # noqa: S608
+            ctx.tenant_id,
+            task["conversation_id"],
+            ctx.user.id,
+            message_type,
+            text,
+            template_data,
+            idempotency_key,
+        )
+        await conn.execute(
+            """update tasks set status = 'done', completed_at = now() where id = $1""", task_id
+        )
+        await emit(
+            conn,
+            "whatsapp.send_requested",
+            {"message_id": str(row["id"])},
+            tenant_id=ctx.tenant_id,
+            dedupe_key=f"send:{row['id']}",
+            priority=10,
+        )
+        return dict(row)

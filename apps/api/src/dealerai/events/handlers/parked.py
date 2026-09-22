@@ -25,7 +25,6 @@ log = structlog.get_logger()
 #: event type -> the slice that will own it (docs/sales/09-implementation-plan.md,
 #: docs/09-implementation-plan.md for the content milestones).
 PARKED: dict[str, str] = {
-    "vehicle.price_changed": "S7 follow-ups — a price drop worth a message",
     "vehicle.status_changed": "S7 follow-ups — the car a customer asked about moved",
     "vehicle.sold": "S7 follow-ups — stop offering a car that is gone",
     "vehicle.ready": "M4 publishing — a car with a full record can be marketed",

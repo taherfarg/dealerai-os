@@ -34,6 +34,36 @@ def is_open(moment: datetime, *, settings: SalesSettings, tz: ZoneInfo) -> bool:
     return hours is not None and hours.open <= local.time() < hours.close
 
 
+def next_opening(moment: datetime, *, settings: SalesSettings, tz: ZoneInfo) -> datetime:
+    """When the showroom is next open, or `moment` itself if it is open now.
+
+    A follow-up that lands at 02:00 is a follow-up that gets the number
+    blocked, and "send it tomorrow" has to mean a real instant the queue can
+    hold. A tenant with no hours is always open, like everywhere else here.
+    """
+    if not settings.business_hours:
+        return moment
+    cursor = moment.astimezone(tz)
+    for _ in range(_HORIZON_DAYS):
+        hours = _hours_for(cursor, settings)
+        if hours is None:  # a closed day
+            cursor = _next_midnight(cursor)
+            continue
+        opens = cursor.replace(
+            hour=hours.open.hour, minute=hours.open.minute, second=0, microsecond=0
+        )
+        closes = cursor.replace(
+            hour=hours.close.hour, minute=hours.close.minute, second=0, microsecond=0
+        )
+        if cursor < opens:
+            return opens.astimezone(moment.tzinfo)
+        if cursor < closes:
+            return moment  # open right now
+        cursor = _next_midnight(cursor)
+    # Hours that never open: send it rather than holding it for ever.
+    return moment
+
+
 def due_at(
     waiting_since: datetime,
     *,

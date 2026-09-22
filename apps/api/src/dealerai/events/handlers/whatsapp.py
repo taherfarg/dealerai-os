@@ -27,6 +27,7 @@ from ...sales.identity import resolve_whatsapp_identity
 from ...sales.messaging import is_opt_out, variable_numbers
 from ...sales.settings import SalesSettings
 from ..bus import Event, emit, handler
+from .copilot import schedule_no_reply_check
 
 log = structlog.get_logger()
 
@@ -605,6 +606,7 @@ async def on_send_requested(event: Event) -> None:
                    where id=$1""",
                 conversation_id,
             )
+            await schedule_no_reply_check(conn, event.tenant_id, conversation_id, datetime.now(UTC))
 
 
 @handler("whatsapp.send_watchdog")
@@ -797,6 +799,9 @@ async def on_echo_received(event: Event) -> None:
             conversation_id,
             sent_at,
         )
+        # A reply typed on the phone starts the same two-day clock as one sent
+        # from the inbox.
+        await schedule_no_reply_check(conn, event.tenant_id, conversation_id, sent_at)
         for asset in media:
             await emit(
                 conn,

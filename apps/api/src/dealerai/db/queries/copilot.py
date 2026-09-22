@@ -333,3 +333,89 @@ select l.id, l.tenant_id, l.owner_id, l.score_signals, l.intent_band, l.conversa
   join contacts ct on ct.id = l.contact_id
  where l.contact_id = $1 and s.category = 'open'
 """
+
+# ---------------------------------------------------------------------------
+# Follow-ups — docs/sales/04-ai-copilot.md § 6
+# ---------------------------------------------------------------------------
+
+#: Everything the eligibility rules need, in one read.
+FOLLOWUP_STATE = """
+select l.id, l.tenant_id, l.contact_id, l.conversation_id, l.owner_id, l.vehicle_id,
+       l.budget_minor, l.currency, l.created_at as lead_created_at,
+       ct.full_name, ct.locale, ct.country, ct.consent, ct.profile,
+       s.name as stage, p.name as pipeline, s.category,
+       v.make, v.model, v.model_year, v.price_minor, v.status as vehicle_status,
+       cv.wa_window_expires_at, cv.channel_id,
+       t.timezone, t.currency as tenant_currency, t.sales_settings,
+       (select count(*) from tasks k
+         where k.lead_id = l.id and k.source = 'ai' and k.kind = 'follow_up'
+       ) as ai_followups,
+       (select max(k.created_at) from tasks k
+         where k.lead_id = l.id and k.source = 'ai' and k.kind = 'follow_up'
+       ) as last_followup_at,
+       exists (
+         select 1 from tasks k
+          where k.lead_id = l.id and k.source = 'ai' and k.kind = 'follow_up'
+            and k.status = 'open'
+       ) as open_ai_task,
+       -- Ours was the last word. A customer who has written and is waiting is
+       -- the inbox's problem, not the follow-up agent's.
+       (select m.direction from messages m
+         where m.conversation_id = l.conversation_id and m.kind = 'message'
+         order by m.created_at desc limit 1) as last_direction
+  from leads l
+  join pipeline_stages s on s.id = l.stage_id
+  join pipelines p on p.id = l.pipeline_id
+  join contacts ct on ct.id = l.contact_id
+  join tenants t on t.id = l.tenant_id
+  left join vehicles v on v.id = l.vehicle_id
+  left join conversations cv on cv.id = l.conversation_id
+ where l.id = $1
+"""
+
+#: Leads on one car, for a price drop.
+LEADS_ON_VEHICLE = """
+select l.id from leads l
+  join pipeline_stages s on s.id = l.stage_id
+ where l.vehicle_id = $1 and s.category = 'open'
+"""
+
+#: Leads with no car yet, whose profile names this make and model. The match is
+#: a substring of what the customer themselves wrote — "Hilux GR Sport, white"
+#: contains "Hilux" — which is as much cleverness as an arrival alert deserves.
+LEADS_WANTING = """
+select l.id from leads l
+  join pipeline_stages s on s.id = l.stage_id
+  join contacts ct on ct.id = l.contact_id
+ where l.tenant_id = $1 and l.vehicle_id is null and s.category = 'open'
+   and ct.profile->'interest'->>'value' ilike '%' || $2 || '%'
+"""
+
+#: The tail a follow-up is judged against.
+FOLLOWUP_TAIL = """
+select direction, coalesce(nullif(body, ''), transcript->>'text', '') as text
+  from (
+    select * from messages
+     where conversation_id = $1 and kind = 'message'
+     order by created_at desc limit 10
+  ) recent
+ order by created_at
+"""
+
+#: A template that fits the reason, when the window has closed.
+TEMPLATE_BY_NAME = """
+select id, name, language, category, body, variables
+  from message_templates
+ where channel_id = $1 and status = 'approved' and name = any($2::text[])
+ order by array_position($2::text[], name)
+ limit 1
+"""
+
+#: The open lead a conversation belongs to, when the check was scheduled by a
+#: reply rather than aimed at a particular lead.
+LEAD_FOR_CONVERSATION = """
+select l.id from leads l
+  join pipeline_stages s on s.id = l.stage_id
+ where l.conversation_id = $1 and s.category = 'open'
+ order by l.created_at desc limit 1
+"""
