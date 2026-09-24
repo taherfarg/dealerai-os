@@ -3,7 +3,7 @@
 import { use, useState } from "react";
 import { TaskComposer } from "@/components/crm/TaskComposer";
 import { TaskRow } from "@/components/crm/TaskRow";
-import { useEditTask, useMe, useTasks, type Bucket } from "@/lib/api/hooks";
+import { useEditTask, useMe, useSendDraft, useTasks, type Bucket } from "@/lib/api/hooks";
 import { useFilters } from "@/lib/filters";
 import { useT } from "@/lib/i18n-client";
 
@@ -18,6 +18,7 @@ export default function TasksPage({ params }: { params: Promise<{ tenant: string
   const bucket = (BUCKETS.includes(filters.bucket as Bucket) ? filters.bucket : "today") as Bucket;
   const tasks = useTasks({ assignee: filters.assignee, bucket });
   const edit = useEditTask();
+  const sendDraft = useSendDraft();
   const [undo, setUndo] = useState<string | null>(null);
 
   const isManager = me.data?.role !== "sales";
@@ -81,6 +82,10 @@ export default function TasksPage({ params }: { params: Promise<{ tenant: string
                 setUndo(done ? task.id : null);
               }}
               onSnooze={(at) => edit.mutate({ id: task.id, due_at: at.toISOString() })}
+              onSendDraft={async (id) => { await sendDraft.mutateAsync(id); }}
+              onSkipDraft={async (id, reason) => {
+                await edit.mutateAsync({ id, status: "cancelled", cancel_reason: reason });
+              }}
             />
           ))}
         </ul>

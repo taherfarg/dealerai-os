@@ -5,6 +5,7 @@ import type { Task } from "@/lib/api/hooks";
 import { useNow } from "@/lib/clock";
 import { formatRelative } from "@/lib/format";
 import { useT } from "@/lib/i18n-client";
+import { FollowUpCard } from "./FollowUpCard";
 
 const KIND_ICON: Record<Task["kind"], string> = {
   follow_up: "↩",
@@ -42,6 +43,8 @@ export function TaskRow({
   showAssignee,
   onComplete,
   onSnooze,
+  onSendDraft,
+  onSkipDraft,
   now,
 }: {
   task: Task;
@@ -49,6 +52,8 @@ export function TaskRow({
   showAssignee?: boolean;
   onComplete: (done: boolean) => void;
   onSnooze: (at: Date) => void;
+  onSendDraft: (taskId: string) => Promise<void>;
+  onSkipDraft: (taskId: string, reason: string) => Promise<void>;
   /** Fixed clock, for tests. */
   now?: number;
 }) {
@@ -61,7 +66,7 @@ export function TaskRow({
     <li
       data-task={task.id}
       data-overdue={overdue}
-      className="flex items-center gap-3 border-b border-black/5 py-2 dark:border-white/10"
+      className="flex flex-wrap items-center gap-3 border-b border-black/5 py-2 dark:border-white/10"
     >
       <input
         type="checkbox"
@@ -124,6 +129,17 @@ export function TaskRow({
             </option>
           ))}
         </select>
+      )}
+
+      {!done && task.source === "ai" && task.ai_draft && (
+        <div className="basis-full ps-7">
+          <FollowUpCard
+            task={task}
+            tenant={tenant}
+            onSend={() => onSendDraft(task.id)}
+            onSkip={(reason) => onSkipDraft(task.id, reason)}
+          />
+        </div>
       )}
     </li>
   );

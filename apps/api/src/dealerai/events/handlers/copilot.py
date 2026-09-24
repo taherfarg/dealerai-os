@@ -418,6 +418,9 @@ def _sources(draft: Draft, ground: Ground) -> list[dict[str, Any]]:
                     "kind": "document",
                     "document_id": passage["document_id"],
                     "title": passage["title"],
+                    # "Export › Customs — Algeria": the chip names the section
+                    # as well as the document (08 §4).
+                    "section": passage["heading"],
                     "excerpt": passage["content"][:300],
                 }
             )

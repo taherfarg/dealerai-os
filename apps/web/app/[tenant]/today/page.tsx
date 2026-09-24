@@ -5,7 +5,7 @@ import { use } from "react";
 import { AvailabilitySwitch } from "@/components/AvailabilitySwitch";
 import { TaskRow } from "@/components/crm/TaskRow";
 import { WaitingTimer } from "@/components/inbox/WaitingTimer";
-import { useEditTask, useMe, useMyDay } from "@/lib/api/hooks";
+import { useEditTask, useMe, useMyDay, useSendDraft } from "@/lib/api/hooks";
 import { countryFlag, formatDuration, formatMoney } from "@/lib/format";
 import { useT } from "@/lib/i18n-client";
 
@@ -25,6 +25,7 @@ export default function TodayPage({ params }: { params: Promise<{ tenant: string
   const me = useMe();
   const day = useMyDay();
   const edit = useEditTask();
+  const sendDraft = useSendDraft();
 
   const name = (me.data?.user.name ?? "").split(" ")[0];
   const median = day.data?.median_first_response_seconds;
@@ -87,6 +88,10 @@ export default function TodayPage({ params }: { params: Promise<{ tenant: string
                     edit.mutate({ id: task.id, status: done ? "done" : "open" })
                   }
                   onSnooze={(at) => edit.mutate({ id: task.id, due_at: at.toISOString() })}
+                  onSendDraft={async (id) => { await sendDraft.mutateAsync(id); }}
+                  onSkipDraft={async (id, reason) => {
+                    await edit.mutateAsync({ id, status: "cancelled", cancel_reason: reason });
+                  }}
                 />
               ))}
             </ul>

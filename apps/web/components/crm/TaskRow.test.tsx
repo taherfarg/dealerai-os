@@ -35,6 +35,8 @@ const show = (
           showAssignee={showAssignee}
           onComplete={handlers.onComplete ?? (() => {})}
           onSnooze={handlers.onSnooze ?? (() => {})}
+          onSendDraft={async () => {}}
+          onSkipDraft={async () => {}}
         />
       </ul>
     </LocaleProvider>,
@@ -81,6 +83,16 @@ describe("TaskRow", () => {
   it("marks a task the copilot wrote", () => {
     show({ source: "ai" });
     expect(screen.getByText("AI")).toBeDefined();
+  });
+
+  it("puts the AI follow-up draft under its task", () => {
+    show({
+      source: "ai",
+      ai_draft: { reason: "Price dropped", text: "Good news, the price is lower." },
+      conversation_id: "conversation-1",
+    });
+    expect(screen.getByText("Price dropped")).toBeDefined();
+    expect(screen.getByText("Good news, the price is lower.")).toBeDefined();
   });
 
   it("renders a task with no customer without an empty link", () => {

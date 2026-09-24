@@ -16,6 +16,7 @@ export type Conversation = components["schemas"]["ConversationSummary"];
 export type ConversationPage = components["schemas"]["ConversationPage"];
 export type Message = components["schemas"]["MessageOut"];
 export type MessagePage = components["schemas"]["MessagePage"];
+export type Suggestion = components["schemas"]["Suggestion"];
 export type ConversationView = "mine" | "unassigned" | "team" | "all";
 
 export type InboxFilters = {
@@ -130,6 +131,79 @@ export function useMessages(conversationId: string) {
   });
 }
 
+/** A draft arrives after the message, and has its own live-update key. */
+export function useSuggestion(conversationId: string) {
+  const { api, tenantId, header } = useTenantApi();
+  return useQuery({
+    queryKey: keys.suggestion(tenantId, conversationId),
+    staleTime: 0,
+    queryFn: async () =>
+      unwrap(
+        await api.GET("/v1/conversations/{conversation_id}/suggestion", {
+          params: { header, path: { conversation_id: conversationId } },
+        }),
+      ),
+  });
+}
+
+export function useRegenerateSuggestion(conversationId: string) {
+  const { api, tenantId, header } = useTenantApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () =>
+      unwrap(
+        await api.POST("/v1/conversations/{conversation_id}/suggestion/regenerate", {
+          params: { header, path: { conversation_id: conversationId } },
+        }),
+      ),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: keys.suggestion(tenantId, conversationId) }),
+  });
+}
+
+export function useSuggestionOutcome(conversationId: string) {
+  const { api, tenantId, header } = useTenantApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      suggestionId,
+      reason,
+    }: {
+      suggestionId: string;
+      reason: "wrong_info" | "wrong_tone" | "not_needed" | "other";
+    }) =>
+      unwrap(
+        await api.POST("/v1/suggestions/{suggestion_id}/outcome", {
+          params: { header, path: { suggestion_id: suggestionId } },
+          body: { outcome: "discarded", reason },
+        }),
+      ),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: keys.suggestion(tenantId, conversationId) }),
+  });
+}
+
+export function useSendDraft() {
+  const { api, tenantId, header } = useTenantApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (taskId: string) =>
+      unwrap(
+        await api.POST("/v1/tasks/{task_id}/send-draft", {
+          params: {
+            header: { ...header, "Idempotency-Key": crypto.randomUUID() },
+            path: { task_id: taskId },
+          },
+        }),
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: keys.taskList(tenantId) });
+      queryClient.invalidateQueries({ queryKey: keys.myDay(tenantId) });
+      queryClient.invalidateQueries({ queryKey: keys.conversationList(tenantId) });
+    },
+  });
+}
+
 // --------------------------------------------------------------------------
 // acting on one
 // --------------------------------------------------------------------------
@@ -171,28 +245,40 @@ export function appendPending(
   return { ...data, pages };
 }
 
+export type SendReply =
+  | { text: string; suggestionId?: string }
+  | { templateId: string; variables: string[]; suggestionId?: string };
+
 export function useSendMessage(conversationId: string) {
   const { api, tenantId, header } = useTenantApi();
   const queryClient = useQueryClient();
   const key = keys.messages(tenantId, conversationId);
   return useMutation({
-    mutationFn: async (text: string) =>
+    mutationFn: async (reply: SendReply) =>
       unwrap(
         await api.POST("/v1/conversations/{conversation_id}/messages", {
           params: {
             header: { ...header, "Idempotency-Key": crypto.randomUUID() },
             path: { conversation_id: conversationId },
           },
-          body: { text },
+          body: "text" in reply
+            ? { text: reply.text, suggestion_id: reply.suggestionId ?? null }
+            : {
+                template_id: reply.templateId,
+                variables: reply.variables,
+                suggestion_id: reply.suggestionId ?? null,
+              },
         }),
       ),
     // The reply appears as it is typed; the server's row replaces it.
-    onMutate: async (text: string) => {
+    onMutate: async (reply: SendReply) => {
       await queryClient.cancelQueries({ queryKey: key });
       const previous = queryClient.getQueryData<InfiniteData<MessagePage>>(key);
-      queryClient.setQueryData<InfiniteData<MessagePage>>(key, (old) =>
-        appendPending(old, pendingMessage(conversationId, text)),
-      );
+      if ("text" in reply) {
+        queryClient.setQueryData<InfiniteData<MessagePage>>(key, (old) =>
+          appendPending(old, pendingMessage(conversationId, reply.text)),
+        );
+      }
       return { previous };
     },
     onError: (_error, _text, context) => {
@@ -205,6 +291,7 @@ export function useSendMessage(conversationId: string) {
         queryKey: keys.conversationList(tenantId),
       });
       queryClient.invalidateQueries({ queryKey: keys.counts(tenantId) });
+      queryClient.invalidateQueries({ queryKey: keys.suggestion(tenantId, conversationId) });
     },
   });
 }
@@ -659,6 +746,7 @@ export function useEditTask() {
       title?: string;
       due_at?: string;
       status?: Task["status"];
+      cancel_reason?: string;
     }) =>
       unwrap(
         await api.PATCH("/v1/tasks/{task_id}", {

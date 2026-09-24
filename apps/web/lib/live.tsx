@@ -1,6 +1,6 @@
 "use client";
 
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { API_BASE } from "@/lib/api/client";
 import { useTenantApi } from "@/lib/api/context";
@@ -23,6 +23,46 @@ export function parseFrame(frame: string): LiveEvent | null {
   }
 }
 
+/** Refresh only the state affected by an event. */
+export function invalidateLiveEvent(
+  queryClient: QueryClient,
+  tenantId: string,
+  event: LiveEvent,
+): void {
+  const conversationId = event.conversation_id ?? undefined;
+  if (event.type === "suggestion.ready") {
+    // Only the draft. A new suggestion changes no thread, list or count, and
+    // invalidating those would refetch four queries every time the AI finishes.
+    if (conversationId) {
+      queryClient.invalidateQueries({ queryKey: keys.suggestion(tenantId, conversationId) });
+    }
+    return;
+  }
+  if (conversationId) {
+    if (event.type.startsWith("message.")) {
+      queryClient.invalidateQueries({ queryKey: keys.messages(tenantId, conversationId) });
+    }
+    queryClient.invalidateQueries({ queryKey: keys.conversation(tenantId, conversationId) });
+  }
+  if (event.type === "notification.created") {
+    queryClient.invalidateQueries({ queryKey: keys.notifications(tenantId) });
+  }
+  if (event.type === "lead.updated") {
+    queryClient.invalidateQueries({ queryKey: keys.leadList(tenantId) });
+    if (event.id) queryClient.invalidateQueries({ queryKey: keys.lead(tenantId, event.id) });
+    queryClient.invalidateQueries({ queryKey: keys.myDay(tenantId) });
+    return; // a lead move is not a conversation change
+  }
+  if (event.type === "task.updated") {
+    queryClient.invalidateQueries({ queryKey: keys.taskList(tenantId) });
+    queryClient.invalidateQueries({ queryKey: keys.myDay(tenantId) });
+    return;
+  }
+  queryClient.invalidateQueries({ queryKey: keys.conversationList(tenantId) });
+  queryClient.invalidateQueries({ queryKey: keys.counts(tenantId) });
+  queryClient.invalidateQueries({ queryKey: keys.myDay(tenantId) });
+}
+
 /**
  * One SSE connection per tab, opened with fetch because the native EventSource
  * cannot send an Authorization header.
@@ -39,33 +79,6 @@ export function useLiveEvents(): void {
     const controller = new AbortController();
     let attempt = 0;
     let stopped = false;
-
-    const invalidate = (event: LiveEvent) => {
-      const conversationId = event.conversation_id ?? undefined;
-      if (conversationId) {
-        if (event.type.startsWith("message.")) {
-          queryClient.invalidateQueries({ queryKey: keys.messages(tenantId, conversationId) });
-        }
-        queryClient.invalidateQueries({ queryKey: keys.conversation(tenantId, conversationId) });
-      }
-      if (event.type === "notification.created") {
-        queryClient.invalidateQueries({ queryKey: keys.notifications(tenantId) });
-      }
-      if (event.type === "lead.updated") {
-        queryClient.invalidateQueries({ queryKey: keys.leadList(tenantId) });
-        if (event.id) queryClient.invalidateQueries({ queryKey: keys.lead(tenantId, event.id) });
-        queryClient.invalidateQueries({ queryKey: keys.myDay(tenantId) });
-        return; // a lead move is not a conversation change
-      }
-      if (event.type === "task.updated") {
-        queryClient.invalidateQueries({ queryKey: keys.taskList(tenantId) });
-        queryClient.invalidateQueries({ queryKey: keys.myDay(tenantId) });
-        return;
-      }
-      queryClient.invalidateQueries({ queryKey: keys.conversationList(tenantId) });
-      queryClient.invalidateQueries({ queryKey: keys.counts(tenantId) });
-      queryClient.invalidateQueries({ queryKey: keys.myDay(tenantId) });
-    };
 
     const read = async () => {
       while (!stopped) {
@@ -92,7 +105,7 @@ export function useLiveEvents(): void {
             buffer = frames.pop() ?? "";
             for (const frame of frames) {
               const event = parseFrame(frame);
-              if (event) invalidate(event);
+              if (event) invalidateLiveEvent(queryClient, tenantId, event);
             }
           }
         } catch {

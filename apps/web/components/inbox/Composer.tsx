@@ -16,14 +16,19 @@ export function Composer({
   conversationId,
   windowOpen,
   disabled,
+  draftToEdit,
+  onSent,
 }: {
   conversationId: string;
   windowOpen: boolean;
   disabled?: boolean;
+  draftToEdit?: { id?: string; text: string };
+  onSent?: () => void;
 }) {
   const t = useT();
-  const [text, setText] = useState("");
+  const [text, setText] = useState(draftToEdit?.text ?? "");
   const [isNote, setIsNote] = useState(false);
+  const [suggestionId, setSuggestionId] = useState<string | undefined>(draftToEdit?.id);
   const send = useSendMessage(conversationId);
   const note = useAddNote(conversationId);
   const action = isNote ? note : send;
@@ -36,7 +41,20 @@ export function Composer({
     const body = text.trim();
     if (!body || blocked) return;
     setText("");
-    action.mutate(body, { onError: () => setText(body) });
+    if (isNote) {
+      note.mutate(body, { onError: () => setText(body) });
+    } else {
+      send.mutate(
+        { text: body, suggestionId },
+        {
+          onError: () => setText(body),
+          onSuccess: () => {
+            setSuggestionId(undefined);
+            onSent?.();
+          },
+        },
+      );
+    }
   };
 
   return (
@@ -72,7 +90,9 @@ export function Composer({
           disabled={blocked}
           onChange={(event) => setText(event.target.value)}
           onKeyDown={(event) => {
-            if (event.key === "Enter" && !event.shiftKey) {
+            // Alt+Enter is the draft panel's: sending what is typed here as
+            // well would put two messages in front of the customer.
+            if (event.key === "Enter" && !event.shiftKey && !event.altKey) {
               event.preventDefault();
               submit();
             }

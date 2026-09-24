@@ -1,7 +1,7 @@
-import type { InfiniteData } from "@tanstack/react-query";
-import { describe, expect, it } from "vitest";
+import { QueryClient, type InfiniteData } from "@tanstack/react-query";
+import { describe, expect, it, vi } from "vitest";
 import { appendPending, pendingMessage, type MessagePage } from "./hooks";
-import { parseFrame } from "@/lib/live";
+import { invalidateLiveEvent, parseFrame } from "@/lib/live";
 
 const page = (texts: string[]): MessagePage => ({
   data: texts.map((text, index) => ({
@@ -43,6 +43,17 @@ describe("the optimistic reply", () => {
 });
 
 describe("the live stream", () => {
+  it("refreshes only the draft when a suggestion is ready", () => {
+    const client = new QueryClient();
+    const invalidate = vi.spyOn(client, "invalidateQueries");
+    invalidateLiveEvent(client, "tenant-1", {
+      type: "suggestion.ready",
+      conversation_id: "conversation-1",
+    });
+    expect(invalidate).toHaveBeenCalledExactlyOnceWith({
+      queryKey: ["suggestion", "tenant-1", "conversation-1"],
+    });
+  });
   it("reads an event out of a frame", () => {
     const frame = 'event: message.created\ndata: {"type":"message.created","conversation_id":"c1"}';
     expect(parseFrame(frame)).toEqual({ type: "message.created", conversation_id: "c1" });
