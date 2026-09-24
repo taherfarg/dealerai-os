@@ -20,8 +20,13 @@ from uuid import NAMESPACE_URL, UUID, uuid5
 
 import asyncpg
 
+from ..ai.embeddings import embed, literal
 from ..config import get_settings
+from ..db.session import close_pool, init_pool, pool_is_open
+from ..guards import commitments as commitments_guard
 from ..media.storage import object_path, upload
+from ..sales.knowledge import chunk, embeddable
+from ..sales.messaging import render_template
 
 TENANT = UUID("11111111-0000-4000-8000-000000000001")
 TENANT_SLUG = "pollux-motors"
@@ -264,7 +269,7 @@ CUSTOMERS: tuple[Customer, ...] = (
         "ar",
         "local",
         "Ahmed Nasser",
-        "السلام عليكم، عندكم هايلكس ٢٠٢٦ ديزل؟",
+        "السلام عليكم، عندكم هايلكس ٢٠٢٦ ديزل؟ وكم سعرها وهل يمكن تمويلها؟",
         waiting_min=22,
     ),
     Customer(
@@ -295,7 +300,7 @@ CUSTOMERS: tuple[Customer, ...] = (
         "en",
         "local",
         None,
-        "Is the Hilux GR Sport still available?",
+        "Is the Hilux GR Sport still available? Can you guarantee delivery tomorrow?",
         waiting_min=1,
     ),
     Customer(
@@ -315,6 +320,15 @@ CUSTOMERS: tuple[Customer, ...] = (
 #: What the seeded voice note says, as the transcriber would have heard it.
 VOICE_NOTE = "هل لاند كروزر الأبيض ما زالت متوفرة؟ وكم أفضل سعر عندكم؟"
 
+#: The same dealer policies used by the live recall eval, so the local demo
+#: retrieves from the documents whose answers the evaluation checks.
+POLICY_DIR = Path(__file__).parents[3] / "tests" / "evals" / "sales" / "policies"
+POLICIES = {
+    "export-policy": ("export_policy", "Export policy"),
+    "finance-faq": ("faq", "Finance FAQ"),
+    "warranty-and-trade-in": ("policy", "Warranty and trade-in"),
+}
+
 
 def _stages_of(board: str) -> tuple[tuple[str, str], ...]:
     return next(stages for name, _, stages in BOARDS if name == board)
@@ -329,7 +343,7 @@ def person_email(full_name: str) -> str:
     return full_name.split()[0].lower() + "@pollux.test"
 
 
-async def _seed(conn: asyncpg.Connection) -> None:
+async def _seed(conn: asyncpg.Connection) -> list[tuple[int, str]]:
     # Replace, never collide: the tenant cascades to memberships, teams and
     # customers; the people cascade to their profiles.
     await conn.execute("delete from tenants where id = $1", TENANT)
@@ -441,6 +455,64 @@ async def _seed(conn: asyncpg.Connection) -> None:
             )
         ],
     )
+    await conn.executemany(
+        """insert into message_templates
+             (tenant_id, channel_id, external_id, name, language, category, status,
+              body, variables)
+           values ($1,$2,$3,'price_update',$4,'utility','approved',$5,'{1,2,3}')""",
+        [
+            (TENANT, CHANNEL, f"seed-price-update-{language}", language, body)
+            for language, body in (
+                ("en_US", "Hello {{1}}, the {{2}} price is now {{3}}."),
+                ("ar", "مرحباً {{1}}، سعر {{2}} الآن {{3}}."),
+                ("fr", "Bonjour {{1}}, le prix de {{2}} est maintenant {{3}}."),
+            )
+        ],
+    )
+
+    # Upload the source files and record the chunks before embedding. The
+    # embedder uses a tenant-scoped pool, so it must run after this transaction
+    # commits and can see the new tenant. Until then these documents are not
+    # searchable: retrieval only reads ready documents with vectors.
+    document_chunks: list[tuple[int, str]] = []
+    first_passage: dict[str, dict[str, str]] = {}
+    for path in sorted(POLICY_DIR.glob("*.md")):
+        kind, title = POLICIES[path.stem]
+        data = path.read_bytes()
+        storage_path = await upload(
+            object_path(TENANT, "documents", "md"), data, content_type="text/markdown"
+        )
+        document_id = await conn.fetchval(
+            """insert into documents (tenant_id, kind, title, source, storage_path,
+                                      content, status)
+               values ($1, $2, $3, 'upload', $4, $5, 'processing') returning id""",
+            TENANT,
+            kind,
+            title,
+            storage_path,
+            data.decode("utf-8"),
+        )
+        for piece in chunk(data.decode("utf-8")):
+            chunk_id = await conn.fetchval(
+                """insert into doc_chunks
+                     (tenant_id, document_id, chunk_index, content, meta)
+                   values ($1,$2,$3,$4,$5::jsonb) returning id""",
+                TENANT,
+                document_id,
+                piece.index,
+                piece.content,
+                json.dumps({"heading": piece.heading}),
+            )
+            document_chunks.append((chunk_id, embeddable(piece)))
+            first_passage.setdefault(
+                path.stem,
+                {
+                    "document_id": str(document_id),
+                    "title": title,
+                    "section": piece.heading,
+                    "excerpt": piece.content[:300],
+                },
+            )
 
     now = datetime.now(UTC)
     # No local object store means no voice note; the rest of the queue is still
@@ -514,7 +586,11 @@ async def _seed(conn: asyncpg.Connection) -> None:
             customer.status,
             said[-1][0],
             max(at for at, direction, _ in said if direction == "in"),
-            now + timedelta(hours=24 - i),
+            (
+                now - timedelta(hours=1)
+                if customer.name == "Karim Benali"
+                else now + timedelta(hours=24 - i)
+            ),
             waiting_since,
             waiting_since + timedelta(minutes=TARGET_MIN) if waiting_since else None,
             # When somebody answered: the number My day shows as the median.
@@ -592,6 +668,7 @@ async def _seed(conn: asyncpg.Connection) -> None:
         row["model"]: row["id"]
         for row in await conn.fetch("select id, model from vehicles where tenant_id = $1", TENANT)
     }
+    lead_ids: dict[str, UUID] = {}
     for deal in DEALS:
         stage_id = boards[deal.board][deal.stage]
         entered = now - timedelta(days=deal.days_in_stage)
@@ -628,6 +705,7 @@ async def _seed(conn: asyncpg.Connection) -> None:
             deal.lost_reason,
             entered - timedelta(days=2),
         )
+        lead_ids[deal.customer] = lead_id
         # Where it has been: the drawer reads this, and a lead that arrived
         # already in Negotiation with no history looks like a bug.
         if deal.stage not in ("New", "Enquiry"):
@@ -666,6 +744,82 @@ async def _seed(conn: asyncpg.Connection) -> None:
             conversations.get(chore.customer or ""),
         )
 
+    # Two states the composer must explain immediately: Omar's grounded reply
+    # and James's request for a guarantee the dealership cannot give.
+    # Shaped exactly as the draft handler's _sources() writes them, and in the
+    # copilot's own rules: Latin digits and "AED 128,000" in Arabic as well.
+    await conn.execute(
+        """insert into ai_suggestions
+             (tenant_id, conversation_id, for_message_id, status, text, language,
+              intent, confidence, sources)
+           values ($1,$2,$3,'ready',$4,'ar','price','high',$5::jsonb)""",
+        TENANT,
+        conversations["Omar Al Mazrouei"],
+        first_messages["Omar Al Mazrouei"],
+        "وعليكم السلام يا عمر. هايلكس 2.8 ديزل 2026 البيضاء متوفرة، السعر AED 128,000. "
+        "التمويل متاح للمقيمين في الإمارات بهوية إماراتية سارية وثلاثة أشهر تحويل راتب، "
+        "والدفعة الأولى 20% على الأقل. تحب أرتب لك موعد تشوفها؟",
+        json.dumps(
+            [
+                {
+                    "kind": "vehicle",
+                    "vehicle_id": str(vehicles["Hilux 2.8 Diesel"]),
+                    "label": "Toyota Hilux 2.8 Diesel 2026",
+                },
+                {"kind": "document", **first_passage["finance-faq"]},
+            ]
+        ),
+    )
+    # The sentence the guard itself writes, about a draft it really blocks: the
+    # muted line on screen is one the product can actually produce.
+    refused = "Yes, the Hilux GR Sport is available, and it will be delivered to you tomorrow."
+    blocked_reason = "; ".join(finding.message for finding in commitments_guard.check(refused))
+    await conn.execute(
+        """insert into ai_suggestions
+             (tenant_id, conversation_id, for_message_id, status, language,
+              intent, confidence, blocked_reason)
+           values ($1,$2,$3,'blocked','en','availability','low',$4)""",
+        TENANT,
+        conversations["James Whitfield"],
+        first_messages["James Whitfield"],
+        blocked_reason,
+    )
+
+    # Karim has been answered, but the window has elapsed. The seeded price
+    # drop is therefore a template proposal, not free text that WhatsApp would
+    # reject. Its reason is visible on the follow-up card.
+    price_template = await conn.fetchrow(
+        """select id, body from message_templates
+            where tenant_id = $1 and name = 'price_update' and language = 'fr'""",
+        TENANT,
+    )
+    variables = ["Karim", "Toyota Hilux 2.8 Diesel", "AED 128,000"]
+    await conn.execute(
+        """insert into tasks
+             (tenant_id, title, kind, due_at, assignee_id, contact_id, lead_id,
+              conversation_id, source, ai_draft)
+           values ($1,$2,'follow_up',$3,$4,$5,$6,$7,'ai',$8::jsonb)""",
+        TENANT,
+        "Price drop: tell Karim the Hilux Diesel is now AED 128,000",
+        now + timedelta(hours=3),
+        person_id("Salem Bousaid"),
+        contacts["Karim Benali"],
+        lead_ids["Karim Benali"],
+        conversations["Karim Benali"],
+        json.dumps(
+            {
+                "reason": "The Hilux Diesel price dropped to AED 128,000.",
+                "text": None,
+                "template_id": str(price_template["id"]),
+                "template_name": "price_update",
+                "variables": variables,
+                # Shaped as the follow-up handler writes it: the card shows
+                # the message that would go, not the template's name.
+                "preview": render_template(price_template["body"], variables),
+            }
+        ),
+    )
+
     # ------------------------------------------------------------------
     # The duplicate, so the merge dialog has something real to merge
     # ------------------------------------------------------------------
@@ -699,6 +853,8 @@ async def _seed(conn: asyncpg.Connection) -> None:
             read_at,
         )
 
+    return document_chunks
+
 
 async def _store_voice_note() -> str:
     """The sample voice note, in the local object store, so the thread can play it."""
@@ -718,13 +874,38 @@ async def seed() -> int:
     conn = await asyncpg.connect(settings.migration_dsn)
     try:
         async with conn.transaction():
-            await _seed(conn)
+            document_chunks = await _seed(conn)
+        # The embedder writes its trace through the app's pool. Opened here only
+        # if nobody has, and closed only if so: left open, it outlives the loop
+        # `asyncio.run(seed())` made it on, and whatever touches the pool next
+        # fails with "Event loop is closed" — two unrelated suites did.
+        opened = not pool_is_open()
+        await init_pool()
+        try:
+            vectors = await embed(
+                [content for _, content in document_chunks], tenant_id=TENANT, kind="document"
+            )
+        finally:
+            if opened:
+                await close_pool()
+        async with conn.transaction():
+            for (chunk_id, _), vector in zip(document_chunks, vectors, strict=True):
+                await conn.execute(
+                    "update doc_chunks set embedding = $2::vector where id = $1",
+                    chunk_id,
+                    literal(vector),
+                )
+            await conn.execute(
+                """update documents set status = 'ready'
+                     where tenant_id = $1 and status = 'processing'""",
+                TENANT,
+            )
     finally:
         await conn.close()
     print(
         f"seeded {TENANT_SLUG}: {len(PEOPLE)} people, {len(VEHICLES)} vehicles, "
         f"{len(CUSTOMERS)} customers, {len(CUSTOMERS)} conversations, "
-        f"{len(BOARDS)} boards, {len(DEALS)} leads, {len(CHORES)} tasks"
+        f"{len(BOARDS)} boards, {len(DEALS)} leads, {len(CHORES) + 1} tasks"
     )
     return 0
 

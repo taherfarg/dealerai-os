@@ -40,6 +40,11 @@ async def init_pool(dsn: str | None = None) -> asyncpg.Pool:
     return _pool
 
 
+def pool_is_open() -> bool:
+    """For a caller that opens the pool only if nobody has, and closes only its own."""
+    return _pool is not None
+
+
 async def close_pool() -> None:
     global _pool
     if _pool is not None:

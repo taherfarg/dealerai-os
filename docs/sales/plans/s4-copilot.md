@@ -5121,3 +5121,110 @@ Task by task on `sales/phase-1`, with `superpowers:subagent-driven-development` 
 pure modules — nothing has called a model yet), after 9 (a draft over HTTP, provable with curl and
 the simulator), after 15 (the slice). Every task ends with a green suite and one commit — and Task
 15 ends with a browser and a customer, not a test run.
+
+## Review — 2026-09-24
+
+Fifteen tasks, then two runs that no test suite stands in for: the copilot eval, nineteen times
+over its forty synthetic bursts, and the exit path in a browser — Ahmed Nasser answering Omar with
+the AI's reply, editing an export answer, dismissing a haggle, Salem Bousaid sending a closed-window
+template, a price drop turning into a follow-up Mona received in one tap. Tasks 13–15 were started in
+a parallel Codex session and finished here. Everything below was invisible to a suite that was
+passing at the time.
+
+| Found | Why it mattered | Fixed in |
+|---|---|---|
+| The price guard read **"BYD Seal 05 2024"** as the grouped number `05 202` | A price no row holds, so every draft naming the car was blocked, and the retries taught the model to hedge. One `(?!\d)` after the thousands groups | `403eb6c` |
+| Empty drafts, three ways: the tool loop dropped an answer written without tools and asked for "what the tools returned"; `reply` was optional, so the model returned every field but it; a retry was told "change nothing else" about a draft it never saw | Up to seven drafts in twenty-three came back empty. The answer is kept, `reply` (and the follow-up's `reason` and `draft`) are required — schema decoding guarantees required fields and nothing else — and the rejected draft goes into the retry | `403eb6c` |
+| A string `max_length` on a model's output schema | Gemini does not enforce string lengths, so a reply forty characters long failed the *whole draft* | `403eb6c` |
+| A reply that repeated itself until the 8,000-token ceiling | Half a minute, cut-off JSON, and an exception that failed the event. Unparseable is one unusable attempt now; drafting thinks within 512 tokens and stops at 1,024 | `403eb6c` |
+| Latency was regenerations and lookups: p95 22.4 s against a 10 s gate | A retry, and the intents a lookup cannot help, are one model call; passages already retrieved are not searched for again; the loop skips a tool phase that has no tools. Final p95 9.0 s | `403eb6c` |
+| Where the drafts went wrong, the prompt was silent or wrong: the reply's script was never stated, the Arabizi example was in English, the Gulf example said "full option", opening hours were never said to be unknown, and a reserved Patrol kept being "متوفر" | Each is said where the model reads it — the reserved car on the turn itself — and enforced where a prompt did not hold | `403eb6c` |
+| Guards the drafts walked through: price-matching ("see if we can match your offer"), one Arabic word in an Arabizi reply, a reserved car called available under an Arabic name the name match cannot see, "any possible discounts" | Matching is a discount in three languages; a Latin-script customer gets no Arabic letters; a reserved car may be named but never called available; plurals count | `403eb6c`, `fe3f225` |
+| Every English reply about a reserved car was blocked twice | The inventory guard blocked the *name*. "It is reserved" is the right answer; only "available" is wrong | `403eb6c` |
+| "je reviens vers vous" blocked a French holding line | It is an empty follow-up opener *and* "I will come back to you". An inbox reply answers what the customer just wrote, so the follow-up rule does not apply to it | `403eb6c` |
+| The eval's judge was shown neither the policies nor the customer's name, marked an offered time and a salesperson's own promise as invented, and a failing floor never said which draft failed it; the harness flagged "the X5 is not available" for containing "available" | Nine defects in the harness and its judge, each of which failed a gate the copilot had not failed. Fixed without moving a gate | `403eb6c` |
+| Send, Alt+Enter and the refetch gap after a send | Each could put the same draft in front of the customer twice — and the composer took Alt+Enter as its own Enter, sending a half-typed reply beside the draft. One send per draft now | `bc456ea` |
+| A customer who switched from Arabic to English had the English draft blocked twice | The script guard judged the whole thread. It judges what they wrote since we last replied — what the draft answers | `fe3f225` |
+| A draft built on the export policy showed no document chip | Passages reached the model without the id it cites them by | `fe3f225` |
+| A closed-window draft would have sent Karim the English template body filled with French words | Templates were found by name alone, in drafts and in follow-ups. The reply's language decides | `fe3f225` |
+| The panel and the follow-up card showed a template's *name*; a template sent as drafted was recorded as edited | Send went out unread, and the acceptance metric counted untouched sends as rewrites. Both show the rendered preview, and it is what the outcome is measured against | `fe3f225` |
+| A template draft's variable count was never checked | The send route refuses a wrong count, so the salesperson's Send is what would have failed. The retry is told instead | `fe3f225` |
+| The profile agent wrote down "AED 240,000" and not the points that go with it | The score on screen did not move. A budget the customer gave is the signal, in code | `fe3f225` |
+| Arabic UI: the intent was raw English, and English callouts put their full stop at the start of the line | Translated, and `dir="auto"` | `fe3f225` |
+| The seed's Arabic draft used Arabic-Indic digits, its chips a shape the handler never writes, its blocked line words no guard uses — and the pool it opened for the embedder outlived its loop | A demo of what the product cannot do, and two unrelated suites failing on "Event loop is closed". Seeded now as the handler writes, and the pool is closed by whoever opened it | with this review |
+
+Sound as built, and left alone: the `ai_suggestions` table, its policy and the live trigger; the
+draft loop's preconditions and the budget ceiling (step 10 below); hybrid retrieval and its recall
+check; the confidence bands; follow-up eligibility, which declined correctly twice in the exit run
+("there is already a follow-up waiting", "too soon by the cadence") and let the agent say no once;
+and the profile's human-beats-AI rule, which kept a salesperson's `purchase_type` through a run that
+rewrote four AI fields.
+
+Known and deliberately not changed in S4:
+
+- **PDPL export and erasure** are still not built, and still have to land before the pilot.
+- The follow-up sweep became per-conversation scheduling (Task 11): an hourly sweep cannot see any
+  tenant's rows under RLS. Price drops and arrivals trigger immediately.
+- Three tools, not four: the customer 360 is in the prompt.
+- Follow-ups are due "now", as [04](../04-ai-copilot.md) §6 says — so every fresh one sits under
+  **Overdue**, in red, within the minute; "or at the next opening" is not implemented.
+- The inventory guard finds cars by their Latin name. Arabic names need a per-vehicle alias (S6's
+  inventory settings); until then the car the customer asked about is covered by the held check.
+- Knowledge is retrieved by intent. A service question in a thread whose older question was about
+  availability was read as availability and not retrieved for; asked on its own, it was answered
+  from the uploaded PDF word for word. Retrieving on every draft would cost ~0.4 s.
+- `needs_human` and guard reasons are English by design, also in the Arabic UI; car chips are
+  labels, because there is no car page to open.
+- From the customer's message to the panel took 31 s: the 20 s debounce plus a 7–11 s draft.
+- The customer panel at 1024 px overflows sideways and squeezes the thread (S3's layout).
+- Locally on Windows, `uvicorn --reload` hangs on a code change while a browser holds the stream
+  open; restart it by hand.
+- The accuracy floor is one stochastic judge over forty drafts. Runs 14, 18 and 19 passed every
+  gate; 15–17 each failed on one draft, and each of those was a real defect, fixed above. The
+  confidence bands are not ordered by judge score (medium 5.00 > high 4.86 > low 4.71), and "next
+  step" is the weakest axis.
+
+**The gates, final run (19), 2026-09-24:**
+
+| gate | result | bar |
+|---|---|---|
+| intent accuracy | 100% (ar, en, fr each 100%) | ≥95%, ≥90% per language |
+| wrong price or stock | 0 | 0 |
+| judge mean | 4.82 | ≥4.0 |
+| judge accuracy floor | 5 | ≥3 |
+| latency p95 | 9.0 s | ≤10 s |
+| cost p95 | $0.0054 | ≤$0.015 |
+
+Run 1 was 95% intent (Arabic 87%), one wrong fact, accuracy floor 1, p95 22.4 s and $0.0121 a
+draft. The nineteen runs cost about $4.40.
+
+**Verified end to end on 2026-09-24**, with the API, the worker and the web app against a freshly
+seeded workspace, and the simulator as the customer:
+
+1. **Omar** asked *"بكم اللاند كروزر ٢٠٢٣؟"*. The panel replaced the seeded draft without a refresh:
+   Gulf Arabic, the 2024 at AED 235,000 (there is no 2023), High, a chip per car. Sent: outcome
+   `sent`, `edit_ratio` 0, the waiting timer stopped, the panel cleared.
+2. *"can you ship it to Algeria? what papers do I need"* — after the fixes above — cited
+   **Export policy · Shipping** and **Documents the buyer must provide**; the chip opened to the
+   paragraph. Edited one clause and sent: `edited`, ratio 0.012.
+3. *"what's your best final price? give me a discount"*: Low, the amber callout, the listed price
+   and a promise to check with the manager — no discount, no percentage. Dismissed as "not needed";
+   the reason was stored.
+4. *"3andkom hilux?"* came back entirely in Latin letters.
+5. **Karim**'s closed window: the draft was an approved French template with its variables, the
+   panel showed the message it would send, free text was disabled, and Send sent the template.
+6. **Mona** gave a budget, a visit and her ID: the panel gained AI-marked budget, payment and
+   interest with evidence; her score went 20 → 70 through five reasons that add up to it, and
+   Ahmed's bell said *"Mona Fathy is now a hot lead"*.
+7. A **price drop** on the Hilux Diesel was declined twice for Karim (a follow-up already waiting,
+   then the cadence). On the Land Cruiser it raised *"Toyota Land Cruiser 4.0 2024 dropped AED
+   6,000 since they asked"* for Mona, with an Arabic draft at the new price; **Send now** delivered
+   it and completed the task in one tap. Omar's lead was declined: he was still waiting on us.
+8. A **PDF** uploaded by API went `pending` → `ready` with one chunk, and James's question was
+   answered from it word for word, citing **Service plan**. A truncated PDF's row reads *"this PDF
+   could not be read: Stream has ended unexpectedly"*.
+9. **Arabic, at 375 px**: the thread and the panel mirror, chips flow from the right, prices stay
+   Latin, and at the bottom of the thread the whole panel and the composer are on screen together.
+10. With the **budget** set below what the month had spent, a message ingested and was assigned,
+    the draft was skipped as a warning rather than a failed event, and the owners were told once
+    that the assistant had paused for the month.

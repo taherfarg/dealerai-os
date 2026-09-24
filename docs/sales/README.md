@@ -84,7 +84,7 @@ say so explicitly if you do.
 | Area | State |
 |---|---|
 | Documentation | Draft, 2026-09-16 — awaiting review |
-| Code | **S3 CRM complete** on `sales/phase-1`: customers with a profile that says who set each value, the 360 and its merged timeline, reassign and merge, configurable pipelines, leads with stage history and an explainable score, tasks, and My day. PDPL export and erasure are the one gap, and must land before the pilot. Next: S4, the AI copilot |
+| Code | **S4 AI copilot complete** on `sales/phase-1`: drafts in the composer with their sources and a confidence band, six guards on every one, knowledge documents with hybrid retrieval, the profile and score written from conversations, follow-ups that are allowed to write nothing, and the eval gates, every one passing on the final run ([review](plans/s4-copilot.md#review--2026-09-24)). PDPL export and erasure remain the one gap. Next: S5, coexistence |
 | Meta | Business verification and Tech Provider review not started (Pollux Motors). **Critical path** |
 | Supabase project | Schema live in ap-northeast-1 (Tokyo). Moving to Mumbai before real customer data is open question Q1 in [00](00-prd.md) |
 

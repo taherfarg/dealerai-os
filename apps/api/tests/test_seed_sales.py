@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from types import SimpleNamespace
 
 import pytest
@@ -12,6 +13,69 @@ from dealerai.scripts import seed_sales
 from dealerai.scripts.seed_sales import CHANNEL, CUSTOMERS, PEOPLE, TENANT, person_id, seed
 
 
+@pytest.fixture(autouse=True)
+def local_document_embeddings(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Seed shape tests exercise storage without billing the embedding service."""
+
+    async def embed_documents(
+        texts: list[str], *, tenant_id: object, kind: str
+    ) -> list[list[float]]:
+        assert tenant_id == TENANT and kind == "document"
+        assert all(text.strip() for text in texts)
+        return [[1.0] + [0.0] * 1535 for _ in texts]
+
+    monkeypatch.setattr(seed_sales, "embed", embed_documents, raising=False)
+
+
+async def test_the_seed_has_copilot_examples_and_embedded_policies(db: None) -> None:
+    assert await seed() == 0
+    async with tenant_session(TENANT) as conn:
+        policies = await conn.fetch(
+            """select d.title, d.status, d.storage_path, count(c.id) as chunks,
+                      count(c.embedding) as embedded
+                 from documents d left join doc_chunks c on c.document_id = d.id
+                group by d.id order by d.title"""
+        )
+        assert len(policies) == 3
+        assert all(row["status"] == "ready" and row["storage_path"] for row in policies)
+        assert all(row["chunks"] > 0 and row["embedded"] == row["chunks"] for row in policies)
+
+        drafts = await conn.fetch(
+            """select ct.full_name, s.status, s.sources, s.blocked_reason,
+                      s.confidence, cv.wa_window_expires_at
+                 from ai_suggestions s
+                 join conversations cv on cv.id = s.conversation_id
+                 join contacts ct on ct.id = cv.contact_id"""
+        )
+        assert any(
+            row["full_name"] == "Omar Al Mazrouei"
+            and row["status"] == "ready"
+            and {source["kind"] for source in row["sources"]} == {"vehicle", "document"}
+            for row in drafts
+        )
+        assert any(row["status"] == "blocked" and row["blocked_reason"] for row in drafts)
+        assert all(row["confidence"] in {"high", "medium", "low"} for row in drafts)
+        assert (
+            await conn.fetchval(
+                """select count(*) from conversations cv
+                 join contacts ct on ct.id = cv.contact_id
+                where ct.full_name = 'Karim Benali' and cv.wa_window_expires_at < $1""",
+                datetime.now(UTC),
+            )
+            == 1
+        )
+
+        assert (
+            await conn.fetchval(
+                """select count(*) from tasks
+                where source = 'ai' and kind = 'follow_up'
+                  and ai_draft->>'reason' ilike '%price%'
+                  and ai_draft->>'template_name' = 'price_update'"""
+            )
+            == 1
+        )
+
+
 async def test_the_seed_can_run_twice(db: None) -> None:
     assert await seed() == 0
     assert await seed() == 0, "a second run must replace the workspace, not collide with it"
@@ -20,7 +84,7 @@ async def test_the_seed_can_run_twice(db: None) -> None:
         # One more than the customers: the duplicate the merge dialog needs.
         assert await conn.fetchval("select count(*) from contacts") == len(CUSTOMERS) + 1
         assert await conn.fetchval("select count(*) from conversations") == len(CUSTOMERS)
-        assert await conn.fetchval("select count(*) from message_templates") == 3
+        assert await conn.fetchval("select count(*) from message_templates") == 6
         assert await conn.fetchval("select external_id from channels where id=$1", CHANNEL)
         empty = await conn.fetchval(
             """select count(*) from conversations cv
@@ -144,7 +208,7 @@ async def test_the_seeded_day_has_something_late_in_it(db: None) -> None:
         assert buckets is not None
         assert (buckets["overdue"], buckets["soon"], buckets["later"], buckets["done"]) == (
             1,
-            1,
+            2,
             1,
             1,
         )
