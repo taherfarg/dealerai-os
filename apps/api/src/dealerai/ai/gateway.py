@@ -126,7 +126,17 @@ def get_client() -> genai.Client:
         api_key = get_settings().google_api_key
         if not api_key:
             raise MissingAPIKey("GOOGLE_API_KEY is not set")
-        client = genai.Client(api_key=api_key)
+        client = genai.Client(
+            api_key=api_key,
+            # A 429 from a burst deserves a second try; a hard quota does not
+            # deserve a minute of them while a customer waits on the draft.
+            # Three attempts in all, never more than 4 s apart.
+            http_options=types.HttpOptions(
+                retry_options=types.HttpRetryOptions(
+                    attempts=3, max_delay=4, http_status_codes=[408, 429, 500, 502, 503, 504]
+                )
+            ),
+        )
         _loop_clients[loop_key] = client
     return client
 
@@ -360,8 +370,15 @@ async def complete(
         try:
             parsed = output_schema.model_validate_json(text)
         except ValidationError as exc:
+            # Field names and rules, never values: the values are customer text
+            # and this message reaches logs. A count on its own is not something
+            # anybody can act on — it cost an eval run to learn that.
+            where = "; ".join(
+                f"{'.'.join(str(part) for part in error['loc']) or '<root>'} {error['type']}"
+                for error in exc.errors()[:5]
+            )
             raise ModelOutputInvalid(
-                f"{output_schema.__name__} validation failed: {exc.error_count()} error(s)"
+                f"{output_schema.__name__} validation failed: {where}"
             ) from exc
 
     return Completion(

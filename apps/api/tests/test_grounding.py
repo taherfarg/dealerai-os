@@ -269,6 +269,19 @@ async def test_an_open_window_says_so(db: None, su: asyncpg.Connection, thread: 
     assert "write a normal message" in grounding.context_layer(ground, _read())
 
 
+async def test_arabic_in_latin_letters_is_answered_in_latin_letters(
+    db: None, thread: dict[str, uuid.UUID]
+) -> None:
+    """The model reads "reply in" and nothing else. Told only "ar", it wrote
+    Arabic script to "3andkom hilux?" and the script guard sent it back."""
+    read = _read(language="ar", script="latin")
+    ground = await grounding.load(TENANT_A, thread["conversation"], read, now=NOW)
+    assert ground is not None
+    assert "- reply in: ar, in Latin letters" in grounding.context_layer(ground, read)
+    arabic = _read(language="ar", script="arabic")
+    assert "Latin letters" not in grounding.context_layer(ground, arabic)
+
+
 async def test_a_customer_who_named_no_car_still_sees_the_stock(
     db: None, thread: dict[str, uuid.UUID]
 ) -> None:

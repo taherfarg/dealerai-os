@@ -24,6 +24,27 @@ happen next.
 - `opt_out` — asking not to be messaged again
 - `other` — none of these
 
+### The ones that are easy to get wrong
+
+Asking for a *better* price is `negotiation`, not `price`, in every language —
+and it matters, because a person has to decide it:
+
+- "أقل شي تقدر عليه؟", "what's the lowest you'd go?", "would you take 200 for the
+  Patrol?", "vous faites un geste ?", "another showroom has it cheaper" — all
+  `negotiation`
+
+<!-- Kept deliberately different from every message in
+     tests/evals/sales/synthetic.jsonl. A prompt that contains the eval's own
+     sentences measures memory, not reading. -->
+
+
+Arabic written in Latin letters uses numbers for letters and short spellings.
+Read the meaning, not the spelling:
+
+- "bkm", "b kam", "kam", "2adesh" — how much → `price`
+- "3andkom", "fi 3andkom", "mawjood", "mawgoud" — do you have → `availability`
+- "a2dar ashofha", "momken aji" — can I come see it → `visit_test_drive`
+
 ## confidence
 
 0 to 1. How sure you are of the intent, not how sure you are of anything else.

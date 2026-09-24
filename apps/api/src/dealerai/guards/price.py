@@ -59,9 +59,14 @@ YEAR_RANGE = range(1950, 2101)
 #: directions here: it fails inside an inflected Arabic word, and it is not
 #: needed for the ASCII units because alternation backtracks — "km" tries first
 #: inside "kilometres", the lookahead rejects it, and "kilometres" matches next.
+#: `(?!\d)` after the thousands groups: a group is exactly three digits and then
+#: *not another digit*. Without it "BYD Seal 05 2024" reads as the grouped
+#: number "05 202" with a stray "4" — a price, by this guard's rules, that no
+#: row holds — and every draft naming that car was blocked. The copilot eval
+#: found it on its first full run.
 _FIGURE = re.compile(
     rf"(?P<before>(?:{CURRENCY})\s*)?"
-    r"(?P<number>\d{1,3}(?:[,\s]\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?)"
+    r"(?P<number>\d{1,3}(?:[,\s]\d{3})+(?!\d)(?:\.\d+)?|\d+(?:\.\d+)?)"
     r"(?P<k>\s*[kK](?![a-zA-Z]))?"
     rf"\s*(?P<after>(?:{CURRENCY}|{UNITS})(?![A-Za-z]))?",
     re.IGNORECASE,

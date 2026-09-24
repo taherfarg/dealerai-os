@@ -36,13 +36,31 @@ PHRASES: dict[str, tuple[str, tuple[str, ...]]] = {
             "percent off",
             "off the price",
             "special price for you",
+            # Matching another dealer is a discount by another name, and the
+            # eval's drafts kept offering to "see if we can match your offer"
+            # after the prompt said not to.
+            "match your offer",
+            "match the offer",
+            "match that offer",
+            "match the price",
+            "match that price",
+            "match their price",
+            "matching the price",
+            "matching the offer",
+            "matching your offer",
+            "matching their price",
+            "price match",
             "خصم",
             "تخفيض",
             "سعر خاص لك",
+            "نطابق السعر",
+            "نطابق العرض",
             "remise",
             "réduction",
             "rabais",
             "prix spécial pour vous",
+            "aligner notre prix",
+            "aligner nos prix",
         ),
     ),
     "final_price": (
@@ -135,11 +153,19 @@ _FIGURE_NEAR = re.compile(r"\d[\d,. ]{2,}")
 _WINDOW = 60
 
 
-def check(text: str) -> Findings:
-    """Every promise in the text, named so the model can be told what to change."""
+def check(text: str, *, replying: bool = False) -> Findings:
+    """Every promise in the text, named so the model can be told what to change.
+
+    `replying` is an inbox draft answering what the customer just wrote, which
+    cannot be an empty follow-up — and there "je reviens vers vous" is "I will
+    come back to you", the holding line the copilot is told to write. The eval
+    watched that block a French draft twice over.
+    """
     haystack = ascii_digits(text)
     findings: Findings = []
     for code, (message, phrases) in PHRASES.items():
+        if replying and code == "empty_followup":
+            continue
         for phrase in phrases:
             if not contains_word(haystack, phrase):
                 continue

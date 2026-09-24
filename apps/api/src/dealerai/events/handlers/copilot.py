@@ -251,7 +251,7 @@ async def _draft(tenant_id: UUID, conversation_id: UUID, message_id: UUID, run: 
     # 3 DRAFT · 4 GUARDS · one regeneration
     drafted = await copilot.write(tenant_id=tenant_id, run_id=run.id, ground=ground, read=read)
     run.cost_usd += drafted.cost_usd
-    findings = _inspect(drafted.draft, ground)
+    findings = _inspect(drafted.draft, ground, read)
     regenerated = False
     if findings and drafted.draft is not None:
         regenerated = True
@@ -261,9 +261,10 @@ async def _draft(tenant_id: UUID, conversation_id: UUID, message_id: UUID, run: 
             ground=ground,
             read=read,
             retry_because=[finding.message for finding in findings],
+            rejected=drafted.draft.reply,
         )
         run.cost_usd += drafted.cost_usd
-        findings = _inspect(drafted.draft, ground)
+        findings = _inspect(drafted.draft, ground, read)
 
     if drafted.draft is None or findings:
         blocked = "; ".join(finding.message for finding in findings) or "no usable draft"
@@ -301,7 +302,9 @@ async def _draft(tenant_id: UUID, conversation_id: UUID, message_id: UUID, run: 
             q.FINISH,
             suggestion_id,
             "ready",
-            draft.reply,
+            # A template draft sends the template; free text beside it would be
+            # what the panel shows while something else goes.
+            None if draft.template_name else draft.reply,
             _template(draft, ground),
             draft.language,
             band,
@@ -314,7 +317,7 @@ async def _draft(tenant_id: UUID, conversation_id: UUID, message_id: UUID, run: 
     log.info("draft_ready", conversation_id=str(conversation_id), band=band, intent=read.intent)
 
 
-def _inspect(draft: Draft | None, ground: Ground) -> Findings:
+def _inspect(draft: Draft | None, ground: Ground, read: Read) -> Findings:
     """The six guards, on the exact text that would be sent.
 
     Against the database as `ground` found it seconds ago: the inventory guard
@@ -341,12 +344,20 @@ def _inspect(draft: Draft | None, ground: Ground) -> Findings:
     named = {
         name: status for name, status in ground.vehicle_statuses().items() if _mentioned(name, text)
     }
+    # A reserved car may be named — "it is reserved" is the right answer to a
+    # question about it — but never called available. Blocked by name, every
+    # English reply about one was blocked twice and left the customer nothing.
+    # The car they asked about is checked too: an Arabic reply does not keep
+    # the name the match looks for.
+    others = {name: status for name, status in named.items() if status != "reserved"}
+    held = next((name for name, status in named.items() if status == "reserved"), None)
     return [
         *price_guard.check(text, allowed=ground.allowed_prices()),
-        *(inventory_guard.check(named) if named else []),
+        *(inventory_guard.check(others) if others else []),
+        *inventory_guard.check_held(text, held=held or ground.reserved_asked_about(read)),
         *pii_guard.check_outbound(text, own_contacts=ground.own_contacts, notes=ground.notes),
         *brand_guard.check(text),
-        *commitments_guard.check(text),
+        *commitments_guard.check(text, replying=True),
         *script_guard.check(text, customer_wrote=ground.customer_wrote),
     ]
 

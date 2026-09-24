@@ -31,3 +31,33 @@ def check(vehicles: dict[str, str]) -> Findings:
         for ref, status in sorted(vehicles.items())
         if status not in MARKETABLE
     ]
+
+
+#: How a reply says a car can be had, as substrings: "متوفر" catches "متوفرة",
+#: and "available" catches "not available" too — a retry for an honest reply,
+#: which is cheaper than a customer driving over for somebody else's car.
+AVAILABLE = ("available", "in stock", "متوفر", "متاح", "موجود", "disponible", "en stock")
+
+
+def check_held(text: str, *, held: str | None) -> Findings:
+    """A reserved car — somebody else's — called available anyway.
+
+    `held` is a reserved car the reply names, or the one they asked about when
+    every row matching it is reserved; else None. Checked on the words rather
+    than on the name, because the name is what an Arabic reply does not keep:
+    the eval's drafts said "متوفر عندنا … لكنها محجوزة" — we have it, but it is
+    reserved — about a "باترول" the name match never saw, in four runs of ten.
+    """
+    if held is None:
+        return []
+    said = next((word for word in AVAILABLE if word in text.casefold()), None)
+    if said is None:
+        return []
+    return [
+        Finding(
+            GUARD,
+            f"the {held} is reserved for another customer, and this says {said!r}: say that "
+            "it is reserved, and offer any other car without that word",
+            detail=said,
+        )
+    ]

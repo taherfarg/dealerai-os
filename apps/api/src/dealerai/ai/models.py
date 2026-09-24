@@ -67,6 +67,15 @@ class ModelSpec:
 # the table to fix.
 PRO = ModelSpec("gemini-2.5-pro", 16_000, DYNAMIC_THINKING, 1.25, 10.00, 0.125)
 FLASH = ModelSpec("gemini-2.5-flash", 8_000, DYNAMIC_THINKING, 0.30, 2.50, 0.03)
+#: Flash with a small fixed thinking budget, for writing to a waiting customer.
+#: Dynamic thinking spent up to 2,700 thought tokens on a two-line WhatsApp
+#: reply in the copilot eval — seconds of latency against a 10 s p95 gate,
+#: for a task whose hard parts (the facts, the guards) are code, not reasoning.
+#: 512 keeps enough to follow the register and template rules. The 1,024
+#: ceiling (thinking included) is over twice the largest draft the eval saw,
+#: 212 tokens plus a full thinking budget. A reply that falls into repeating
+#: itself — twice in eight runs — is cut off after four seconds, not thirty.
+FLASH_REPLY = ModelSpec("gemini-2.5-flash", 1_024, 512, 0.30, 2.50, 0.03)
 TRANSCRIPTION = ModelSpec("gemini-2.5-flash", 2_000, 0, 0.30, 2.50, 0.03, 1.00, 0.10)
 #: Thinking off: classification does not benefit and it is pure latency and cost
 #: on the critical path of a customer reply.
@@ -92,7 +101,7 @@ ROUTING: dict[TaskKind, ModelSpec] = {
     TaskKind.ADS_DECISION: PRO,
     TaskKind.LEARNING: PRO,
     TaskKind.COPYWRITE: FLASH,
-    TaskKind.SALES_REPLY: FLASH,
+    TaskKind.SALES_REPLY: FLASH_REPLY,
     TaskKind.ANALYSIS: FLASH,
     TaskKind.CREATIVE_DIRECTION: FLASH,
     TaskKind.VISION: FLASH,

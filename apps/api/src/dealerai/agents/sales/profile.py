@@ -46,7 +46,7 @@ _YES = frozenset({"yes", "true", "y", "نعم", "oui"})
 class Update(BaseModel):
     field: FieldName
     #: Always a string; `coerce` turns it into what the field actually holds.
-    value: str = Field(max_length=300)
+    value: str
     evidence_message_id: str
 
 
@@ -56,8 +56,8 @@ class SignalSeen(BaseModel):
 
 
 class Summary(BaseModel):
-    text: str = Field(default="", max_length=600)
-    next_action: str = Field(default="", max_length=120)
+    text: str = ""
+    next_action: str = ""
 
 
 class Learned(BaseModel):

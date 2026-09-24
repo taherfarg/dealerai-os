@@ -89,6 +89,13 @@ def test_a_model_year_is_not_a_price(text: str) -> None:
     assert values(text) == []
 
 
+def test_a_two_digit_model_name_before_a_year_is_not_a_price() -> None:
+    """The grouped-number regex must not read `05 202` out of `05 2024`."""
+    text = "BYD Seal 05 2024 is AED 89,000"
+    assert values(text) == [Decimal(89000)]
+    assert check(text, allowed={Decimal(89000)}) == []
+
+
 @pytest.mark.parametrize(
     "text",
     [

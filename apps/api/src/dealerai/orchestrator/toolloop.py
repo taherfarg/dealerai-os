@@ -95,6 +95,11 @@ async def converse(
     out = Conversation()
 
     for turn in range(max_turns):
+        if not declared and output_schema is not None:
+            # With nothing to call, this phase could only write the answer as
+            # free text for the next to write again as JSON: a model turn of a
+            # waiting customer, bought for nothing.
+            break
         out.turns = turn + 1
         result = await complete(
             task,
@@ -111,6 +116,14 @@ async def converse(
         calls = _function_calls(result.response)
         if not calls:
             out.text = result.text
+            if result.text:
+                # Kept, so the answer phase formats this answer rather than
+                # writing a second one from nothing. Dropped, the model was
+                # asked for "what the tools returned" when no tool had run — and
+                # the copilot eval got seven empty drafts out of twenty-three.
+                contents.append(
+                    types.Content(role="model", parts=[types.Part.from_text(text=result.text)])
+                )
             break
 
         contents.append(
@@ -142,7 +155,8 @@ async def converse(
                     role="user",
                     parts=[
                         types.Part.from_text(
-                            text="Now give your answer, using only what the tools returned."
+                            text="Now give your final answer in the required format, using "
+                            "only the facts you were given and what any tools returned."
                         )
                     ],
                 )

@@ -316,7 +316,7 @@ async def test_nothing_new_to_say_produces_no_task(
     db: None, su: asyncpg.Connection, lead: dict[str, Any], agent: Agent
 ) -> None:
     """The whole point. The model said no and nobody is interrupted."""
-    agent.answer = Written(genuine_reason=False)
+    agent.answer = Written(genuine_reason=False, reason="", draft="")
     await copilot.on_followup_check(_check(lead))
 
     assert await _tasks(su, lead["lead"]) == []

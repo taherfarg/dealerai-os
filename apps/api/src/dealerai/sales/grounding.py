@@ -82,6 +82,19 @@ class Ground:
             if lead.get("budget_minor") is not None
         }
 
+    def reserved_asked_about(self, read: Read) -> str | None:
+        """The car they asked about, when every row matching it is reserved.
+
+        Every row, because with an available one beside it "the Patrol is
+        reserved" would be untrue. The instruction says it on the turn and the
+        inventory guard holds the draft to it.
+        """
+        asked = read.entities.model.casefold()
+        matching = [row for row in self.vehicles if asked and asked in row["model"].casefold()]
+        if matching and all(row["status"] == "reserved" for row in matching):
+            return f"{matching[0]['make']} {matching[0]['model']}"
+        return None
+
     def vehicle_statuses(self) -> dict[str, str]:
         """A name a person would recognise → status, for the inventory guard."""
         return {
@@ -236,7 +249,15 @@ def _vehicle(row: dict[str, Any], currency: str) -> str:
     name = f"{row['make']} {row['model']} {row['trim'] or ''} {row['model_year'] or ''}"
     facts = [
         f"price: {money(row['price_minor'], row['currency'] or currency)}",
-        f"status: {row['status']}",
+        # The rule on the line with the fact. In the paragraph above, the eval's
+        # Arabic drafts still wrote "متوفر عندنا … لكنها محجوزة" — in stock,
+        # but reserved — which reads as "come and see it".
+        f"status: {row['status']}"
+        + (
+            " (somebody else's: never say it is available or in stock)"
+            if row["status"] == "reserved"
+            else ""
+        ),
     ]
     facts += [
         f"{key}: {row[key]}"
@@ -271,7 +292,11 @@ def _state(ground: Ground, read: Read) -> str:
         "## Right now",
         f"- local time: {local:%A %H:%M}",
         f"- the showroom is {'open' if ground.open_now else 'closed'}",
-        f"- reply in: {read.reply_language}",
+        f"- reply in: {read.reply_language}"
+        # The script as well. "reply in: ar" alone got Arabic script back for
+        # "3andkom hilux?", and the script guard spent a regeneration — five
+        # seconds of a waiting customer — on every one of them in the eval.
+        + (", in Latin letters" if read.reply_language == "ar" and read.script == "latin" else ""),
     ]
     if ground.window_open:
         lines.append("- the 24-hour window is open: write a normal message.")

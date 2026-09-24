@@ -8,6 +8,7 @@ the composer an empty box.
 from __future__ import annotations
 
 import uuid
+from dataclasses import replace
 from datetime import UTC, datetime
 from typing import Any
 
@@ -15,6 +16,7 @@ import pytest
 
 from dealerai.agents.sales import copilot
 from dealerai.agents.sales.intent import Read
+from dealerai.ai.gateway import ModelOutputInvalid
 from dealerai.ai.models import TaskKind
 from dealerai.orchestrator.toolloop import Conversation
 from dealerai.sales.grounding import Ground
@@ -127,6 +129,7 @@ async def test_four_tool_calls_is_the_ceiling(asked: list[dict[str, Any]]) -> No
     """A model on its fifth lookup is lost rather than thorough."""
     await copilot.write(tenant_id=TENANT, run_id=RUN, ground=_ground(), read=_read())
     assert asked[0]["max_turns"] == 4
+    assert asked[0]["tools"] == copilot.TOOLS
 
 
 async def test_it_may_not_call_a_tool_that_writes() -> None:
@@ -155,7 +158,7 @@ async def test_a_closed_window_asks_for_a_template_by_name(asked: list[dict[str,
         tenant_id=TENANT, run_id=RUN, ground=_ground(window_open=False), read=_read()
     )
     assert "template_name" in asked[0]["prompt"]
-    assert "Leave `reply` null" in asked[0]["prompt"]
+    assert "Leave `reply` empty" in asked[0]["prompt"]
 
 
 async def test_an_open_window_says_nothing_about_templates(asked: list[dict[str, Any]]) -> None:
@@ -185,9 +188,85 @@ async def test_a_retry_lists_the_findings_and_forbids_anything_else(
         ground=_ground(),
         read=_read(),
         retry_because=["'final price' ends a negotiation nobody has had"],
+        rejected="Our final price is AED 235,000.",
     )
     assert "final price" in asked[0]["prompt"]
     assert "change nothing else" in asked[0]["prompt"]
+    # A rewrite, not research: one model call instead of two.
+    assert asked[0]["tools"] == []
+    # The draft it is fixing, as data: told to fix one it could not see, the
+    # retry came back empty.
+    assert "<untrusted>\nOur final price is AED 235,000.\n</untrusted>" in asked[0]["prompt"]
+
+
+async def test_a_workspace_without_opening_hours_says_so(asked: list[dict[str, Any]]) -> None:
+    """Left unsaid, the model invented them — twice, differently each time."""
+    await copilot.write(tenant_id=TENANT, run_id=RUN, ground=_ground(), read=_read())
+    assert "Opening hours are not set" in asked[0]["system"].tenant
+
+
+async def test_a_reserved_car_they_asked_about_is_named_on_the_turn(
+    asked: list[dict[str, Any]],
+) -> None:
+    """Only when every car matching what they asked for is reserved: with an
+    available one beside it, "the Patrol is reserved" would be untrue."""
+    patrol = {
+        "id": "p",
+        "make": "Nissan",
+        "model": "Patrol",
+        "trim": "LE",
+        "model_year": 2022,
+        "price_minor": 21000000,
+        "currency": "AED",
+        "status": "reserved",
+    }
+    read = _read(entities={"model": "Patrol"})
+    await copilot.write(
+        tenant_id=TENANT, run_id=RUN, ground=replace(_ground(), vehicles=[patrol]), read=read
+    )
+    assert "Nissan Patrol they asked about is reserved" in asked[0]["prompt"]
+
+    available = {**patrol, "id": "q", "status": "available"}
+    await copilot.write(
+        tenant_id=TENANT,
+        run_id=RUN,
+        ground=replace(_ground(), vehicles=[available, patrol]),
+        read=read,
+    )
+    assert "is reserved" not in asked[1]["prompt"]
+
+
+async def test_what_a_lookup_cannot_help_is_one_call(asked: list[dict[str, Any]]) -> None:
+    """A greeting or a haggle is answered from the thread and the car it is
+    about; a tool phase there only writes prose for the answer to rewrite."""
+    await copilot.write(
+        tenant_id=TENANT, run_id=RUN, ground=_ground(), read=_read(intent="negotiation")
+    )
+    assert asked[0]["tools"] == []
+
+
+async def test_passages_already_above_are_not_searched_for_again(
+    asked: list[dict[str, Any]],
+) -> None:
+    """The handler retrieves with the customer's own words before drafting. A
+    second search re-reads the prompt at the price of a model turn."""
+    passage = {"chunk_id": 1, "document_id": "d", "title": "Export", "heading": "", "content": "x"}
+    await copilot.write(
+        tenant_id=TENANT, run_id=RUN, ground=_ground(chunks=[passage]), read=_read()
+    )
+    assert "search_knowledge" not in asked[0]["tools"]
+    assert "search_inventory" in asked[0]["tools"]
+
+
+async def test_arabic_in_latin_letters_is_asked_for_in_latin_letters(
+    asked: list[dict[str, Any]],
+) -> None:
+    latin = _read(language="ar", script="latin")
+    await copilot.write(tenant_id=TENANT, run_id=RUN, ground=_ground(), read=latin)
+    assert "Latin letters" in asked[0]["prompt"]
+    arabic = _read(language="ar", script="arabic")
+    await copilot.write(tenant_id=TENANT, run_id=RUN, ground=_ground(), read=arabic)
+    assert "Latin letters" not in asked[1]["prompt"]
 
 
 async def test_the_customers_own_words_are_untrusted_in_the_context_layer(
@@ -209,7 +288,9 @@ async def test_an_empty_draft_is_no_draft(monkeypatch: pytest.MonkeyPatch) -> No
     composer would show an empty box, which reads as a broken product."""
 
     async def fake(task: Any, **kwargs: Any) -> Conversation:
-        return Conversation(text="{}", parsed=copilot.Draft(language="en"), cost_usd=0.004)
+        return Conversation(
+            text="{}", parsed=copilot.Draft(reply="", language="en"), cost_usd=0.004
+        )
 
     monkeypatch.setattr(copilot, "converse", fake)
     drafted = await copilot.write(tenant_id=TENANT, run_id=RUN, ground=_ground(), read=_read())
@@ -222,6 +303,19 @@ async def test_an_answer_that_is_not_a_draft_is_no_draft(
 ) -> None:
     async def fake(task: Any, **kwargs: Any) -> Conversation:
         return Conversation(text="", parsed=None, cost_usd=0.001)
+
+    monkeypatch.setattr(copilot, "converse", fake)
+    drafted = await copilot.write(tenant_id=TENANT, run_id=RUN, ground=_ground(), read=_read())
+    assert drafted.draft is None
+
+
+async def test_a_reply_cut_off_at_the_ceiling_is_no_draft(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The copilot eval's second run: one reply repeated itself until the
+    output ceiling, the JSON arrived cut off, and the exception failed the
+    whole event instead of blocking one draft."""
+
+    async def fake(task: Any, **kwargs: Any) -> Conversation:
+        raise ModelOutputInvalid("Draft validation failed: <root> json_invalid")
 
     monkeypatch.setattr(copilot, "converse", fake)
     drafted = await copilot.write(tenant_id=TENANT, run_id=RUN, ground=_ground(), read=_read())
@@ -278,3 +372,11 @@ def test_no_schema_we_send_asks_for_a_free_form_object() -> None:
     for model in (copilot.Draft, copilot.ProposedAction, IntentRead):
         offenders = _free_form_objects(model.model_json_schema())
         assert not offenders, f"{model.__name__} has free-form objects at {offenders}"
+
+
+def test_the_reply_is_a_field_the_model_cannot_leave_out() -> None:
+    """Schema decoding enforces `required` and nothing else. While `reply` was
+    optional, one draft in seven came back as every field but the reply."""
+    schema = copilot.Draft.model_json_schema()
+    assert "reply" in schema["required"]
+    assert schema["properties"]["reply"]["type"] == "string"

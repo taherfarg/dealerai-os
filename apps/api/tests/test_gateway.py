@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import replace
+from types import SimpleNamespace
 from typing import Any
 
 import asyncpg
@@ -15,13 +17,44 @@ from dealerai.ai.gateway import (
     SystemLayers,
     complete,
 )
-from dealerai.ai.models import FLASH, FLASH_LITE, PRO, ROUTING, TRANSCRIPTION, TaskKind, cost_usd
+from dealerai.ai.models import (
+    FLASH,
+    FLASH_LITE,
+    FLASH_REPLY,
+    PRO,
+    ROUTING,
+    TRANSCRIPTION,
+    TaskKind,
+    cost_usd,
+)
 from dealerai.core.errors import BudgetExceeded
 from dealerai.db.session import tenant_session
 
 # --------------------------------------------------------------------------
 # fake client
 # --------------------------------------------------------------------------
+
+
+def test_real_client_has_bounded_retry_for_provider_throttling(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A transient 429 must get a second chance without looping on a hard quota."""
+    options: list[Any] = []
+
+    def create_client(**kwargs: Any) -> object:
+        options.append(kwargs)
+        return object()
+
+    monkeypatch.setattr(gateway.genai, "Client", create_client)
+    monkeypatch.setattr(gateway, "get_settings", lambda: SimpleNamespace(google_api_key="test-key"))
+    monkeypatch.setattr(gateway, "_loop_clients", {})
+    monkeypatch.setattr(gateway, "_client", None)
+
+    gateway.get_client()
+    retry = options[0]["http_options"].retry_options
+    assert retry.attempts == 3
+    assert retry.http_status_codes == [408, 429, 500, 502, 503, 504]
+    assert retry.max_delay <= 4
 
 
 def make_response(
@@ -100,7 +133,7 @@ def test_every_task_kind_is_routed() -> None:
     [
         (TaskKind.ORCHESTRATE, PRO),
         (TaskKind.ADS_DECISION, PRO),
-        (TaskKind.SALES_REPLY, FLASH),
+        (TaskKind.SALES_REPLY, FLASH_REPLY),
         (TaskKind.COPYWRITE, FLASH),
         (TaskKind.CLASSIFY_INTENT, FLASH_LITE),
         (TaskKind.SPAM_FILTER, FLASH_LITE),
@@ -108,6 +141,17 @@ def test_every_task_kind_is_routed() -> None:
 )
 def test_routing_matches_the_documented_table(task: TaskKind, expected: Any) -> None:
     assert ROUTING[task] is expected
+
+
+def test_a_sales_reply_is_the_documented_flash_with_less_room_to_think() -> None:
+    """The model and the prices are the table's. Only how long it may think and
+    how much it may write differ: a customer is waiting on this one."""
+    assert (
+        replace(FLASH_REPLY, max_tokens=FLASH.max_tokens, thinking_budget=FLASH.thinking_budget)
+        == FLASH
+    )
+    assert FLASH_REPLY.thinking_budget == 512
+    assert FLASH_REPLY.max_tokens < FLASH.max_tokens
 
 
 def test_no_preview_models_are_routed() -> None:

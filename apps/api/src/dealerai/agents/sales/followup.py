@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from ...ai.gateway import SystemLayers
 from ...ai.models import TaskKind
@@ -39,8 +39,11 @@ WHY: dict[str, str] = {
 
 class Written(BaseModel):
     genuine_reason: bool
-    reason: str = Field(default="", max_length=120)
-    draft: str = Field(default="", max_length=600)
+    #: Required, and "" when there is no genuine reason. Schema decoding
+    #: guarantees required fields and nothing else: the copilot's optional
+    #: `reply` came back missing one draft in seven.
+    reason: str
+    draft: str
     language: Literal["ar", "en", "fr"] = "en"
 
 
@@ -76,5 +79,5 @@ async def consider(*, tenant_id: UUID, run_id: UUID, trigger: str, context: str)
     if written is not None and written.genuine_reason and not (written.reason and written.draft):
         # "Yes" with nothing to show for it is a no. The salesperson would get
         # a task whose title is empty and a draft that says nothing.
-        written = Written(genuine_reason=False)
+        written = Written(genuine_reason=False, reason="", draft="")
     return Considered(written=written, cost_usd=answer.cost_usd)

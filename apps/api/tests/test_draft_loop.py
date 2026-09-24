@@ -45,11 +45,13 @@ class Model:
 
     def template(self, name: str, variables: list[str]) -> None:
         self.drafts = [
-            copilot_agent.Draft(language="en", template_name=name, template_variables=variables)
+            copilot_agent.Draft(
+                reply="", language="en", template_name=name, template_variables=variables
+            )
         ]
 
     def nothing(self) -> None:
-        self.drafts = [copilot_agent.Draft(language="en")]
+        self.drafts = [copilot_agent.Draft(reply="", language="en")]
 
     def next_draft(self) -> copilot_agent.Draft:
         return self.drafts[min(self.calls - 1, len(self.drafts) - 1)]
@@ -375,6 +377,34 @@ async def test_a_rejected_draft_gets_exactly_one_more_try(
     assert row["status"] == "ready"
     assert row["confidence"] == "low", "a draft that needed a second attempt is low"
     assert model.calls == 2
+
+
+async def test_a_reserved_car_may_be_named_but_not_called_available(
+    db: None, su: asyncpg.Connection, thread: dict[str, Any], model: Model
+) -> None:
+    """Blocked by name, every English reply about a reserved car was blocked
+    twice and left the customer with nothing. It may be named; it may not be
+    called available."""
+    await su.execute("update vehicles set status = 'reserved' where id = $1", thread["vehicle"])
+    model.read = Read.model_validate(
+        {
+            "intent": "price",
+            "confidence": 0.95,
+            "language": "en",
+            "script": "latin",
+            "entities": {"model": "Land Cruiser"},
+        }
+    )
+    model.replies(
+        f"Yes, the Land Cruiser is available at AED {PRICE // 100:,}, but it is reserved.",
+        f"The Land Cruiser is AED {PRICE // 100:,} and reserved for another customer.",
+    )
+    await copilot.on_draft_requested(_event(thread))
+
+    row = await _one(su, thread["conversation"])
+    assert model.calls == 2
+    assert "reserved for another customer, and this says 'available'" in model.prompts[1]
+    assert row["status"] == "ready"
 
 
 async def test_two_rejections_block_it(

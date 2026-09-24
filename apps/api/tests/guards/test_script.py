@@ -53,6 +53,16 @@ def test_a_draft_too_short_to_judge_is_left_alone() -> None:
     assert script.check("👍", customer_wrote=ARABIC) == []
 
 
+def test_one_arabic_word_in_a_latin_reply_is_caught() -> None:
+    """The majority says Latin; the customer still cannot type "سعرها" back."""
+    findings = script.check("Aywa, el Seal 05 سعرها AED 89,000.", customer_wrote=LATIN)
+    assert [finding.detail for finding in findings] == ["سعرها"]
+
+
+def test_latin_words_in_an_arabic_reply_are_not_stray() -> None:
+    assert script.check("متوفرة لدينا سيارة Land Cruiser موديل 2023", customer_wrote=ARABIC) == []
+
+
 def test_the_presentation_forms_an_older_keyboard_emits_are_arabic() -> None:
     """A Windows keyboard can produce U+FEFF-block forms rather than U+06xx.
     Reading those as Latin would block every reply to that customer."""

@@ -13,6 +13,10 @@ from dealerai.guards import commitments
         ("I can give you a 5% discount on that one.", "discount"),
         ("سعر خاص لك اليوم", "discount"),
         ("Je peux vous faire une remise.", "discount"),
+        ("I will check with my manager if we can match your offer.", "discount"),
+        ("I'll ask my manager about matching the price you were offered.", "discount"),
+        ("راح نشوف إذا نقدر نطابق السعر", "discount"),
+        ("Nous pouvons aligner notre prix.", "discount"),
         ("AED 235,000 is the final price.", "final_price"),
         ("آخر سعر 235,000 درهم", "final_price"),
         ("Delivery by Thursday, guaranteed.", "delivery"),
@@ -28,6 +32,16 @@ from dealerai.guards import commitments
 def test_the_promises_only_a_person_may_make(text: str, code: str) -> None:
     caught = {finding.detail for finding in commitments.check(text)}
     assert caught & set(commitments.PHRASES[code][1]), f"{text!r} did not trip {code}"
+
+
+def test_a_reply_may_say_it_will_come_back_to_them() -> None:
+    """An inbox reply answers what they just wrote, so it cannot be an empty
+    follow-up — "je reviens vers vous" there is the holding line itself. The
+    other promises still count."""
+    holding = "Je vérifie l'autonomie et je reviens vers vous aujourd'hui."
+    assert commitments.check(holding)  # as a follow-up, it is the empty opener
+    assert commitments.check(holding, replying=True) == []
+    assert commitments.check("Je peux vous faire une remise.", replying=True) != []
 
 
 def test_a_reply_that_promises_nothing_passes() -> None:

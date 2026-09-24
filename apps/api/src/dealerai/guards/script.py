@@ -52,12 +52,27 @@ def check(draft: str, *, customer_wrote: str) -> Findings:
     """Block a reply in the other script from the one the customer is using."""
     theirs = script_of(customer_wrote)
     ours = script_of(draft)
-    if theirs is None or ours is None or theirs == ours:
-        return []
-    return [
-        Finding(
-            GUARD,
-            f"the customer is writing in {theirs} script and this reply is in {ours}",
-            detail=ours,
-        )
-    ]
+    if theirs is not None and ours is not None and theirs != ours:
+        return [
+            Finding(
+                GUARD,
+                f"the customer is writing in {theirs} script and this reply is in {ours}",
+                detail=ours,
+            )
+        ]
+    if theirs == "latin":
+        # One word of Arabic script in a Latin reply is still a word they
+        # cannot type back. The eval's Arabizi drafts kept writing "سعر"
+        # mid-sentence after the prompt said so three different ways. The other
+        # way round is fine: every good Arabic reply names a car in Latin.
+        stray = next((word for word in draft.split() if any(map(_is_arabic, word))), None)
+        if stray is not None:
+            return [
+                Finding(
+                    GUARD,
+                    f"the customer is writing in latin script and this reply has "
+                    f"a word in Arabic script: {stray!r}",
+                    detail=stray,
+                )
+            ]
+    return []
