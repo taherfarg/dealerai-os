@@ -62,8 +62,19 @@ class Ground:
 
     @property
     def customer_wrote(self) -> str:
-        """The customer's own words, for the script guard."""
-        return " ".join(row["text"] for row in self.tail if row["direction"] == "in")
+        """What the customer wrote since we last replied, for the script guard.
+
+        The same messages the reply answers and the classifier read the
+        language from. The whole thread held Omar's English question to the
+        Arabic he wrote the week before, and blocked the English draft twice
+        (the S4 exit run). Nothing since our reply falls back to all of it.
+        """
+        since: list[str] = []
+        for row in self.tail:
+            since = [*since, row["text"]] if row["direction"] == "in" else []
+        return " ".join(since) or " ".join(
+            row["text"] for row in self.tail if row["direction"] == "in"
+        )
 
     def allowed_prices(self) -> set[Decimal]:
         """Major units, the way the text says them. The price guard's whole input."""
@@ -192,8 +203,12 @@ def context_layer(ground: Ground, read: Read) -> str:
         parts.append(
             "## From this dealership's own documents\n"
             "Quote these as policy; they are the dealer's own words.\n"
+            # The id, as the cars have theirs: without it `used_chunk_ids` has
+            # nothing to name, and a draft built on the export policy showed no
+            # document chip in the S4 exit run.
             + "\n".join(
-                f"### {chunk['title']} — {chunk['heading'] or 'general'}\n"
+                f"### {chunk['title']} — {chunk['heading'] or 'general'} "
+                f"(chunk `{chunk['chunk_id']}`)\n"
                 f"<untrusted>\n{chunk['content']}\n</untrusted>"
                 for chunk in ground.chunks
             )

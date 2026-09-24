@@ -57,6 +57,8 @@ describe("DraftPanel", () => {
   it("shows low confidence and why a person must decide", () => {
     show();
     expect(screen.getByText("Low confidence")).toBeDefined();
+    expect(screen.getByText("Price")).toBeDefined(); // the intent, in words
+    expect(screen.getByText("Customer asked for a final price").getAttribute("dir")).toBe("auto");
     expect(screen.getByText("Customer asked for a final price")).toBeDefined();
   });
 
@@ -64,6 +66,20 @@ describe("DraftPanel", () => {
     show({ ...ready, status: "blocked", text: null, blocked_reason: "Price is not ours" });
     expect(screen.getByText(/Price is not ours/)).toBeDefined();
     expect(screen.queryByRole("button", { name: "Send draft" })).toBeNull();
+  });
+
+  it("shows a template's message, not its name", () => {
+    show({
+      ...ready,
+      text: null,
+      template: {
+        template_id: "t-1",
+        name: "vehicle_available",
+        variables: ["Hilux", "AED 128,000"],
+        preview: "Le véhicule Hilux est disponible à AED 128,000.",
+      },
+    });
+    expect(screen.getByText("Le véhicule Hilux est disponible à AED 128,000.")).toBeDefined();
   });
 
   it("shows nothing for a superseded draft", () => {

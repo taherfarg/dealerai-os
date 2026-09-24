@@ -459,6 +459,32 @@ async def test_a_closed_window_sends_a_template_instead(
     assert draft["template_name"] == "price_update"
     assert draft["text"] is None
     assert draft["variables"] == ["Karim", "Toyota Hilux", "AED 128,000"]
+    assert draft["preview"] == "Hello Karim, the Toyota Hilux is now AED 128,000."
+
+
+async def test_the_template_is_in_the_customers_language(
+    db: None, su: asyncpg.Connection, lead: dict[str, Any], agent: Agent
+) -> None:
+    """One approved template per language. By name alone a French customer got
+    the English body with French words in it."""
+    await su.execute("update contacts set locale = 'fr' where id = $1", lead["contact"])
+    french = await su.fetchval(
+        """insert into message_templates
+             (tenant_id, channel_id, external_id, name, language, category, status, body)
+           values ($1,$2,'t2','price_update','fr','utility','approved',
+                   'Bonjour {{1}}, le {{2}} est maintenant à {{3}}.') returning id""",
+        TENANT_A,
+        lead["channel"],
+    )
+    await su.execute(
+        "update conversations set wa_window_expires_at = $2 where id = $1",
+        lead["conversation"],
+        NOW - timedelta(hours=1),
+    )
+    await copilot.on_followup_check(_check(lead, "price_drop"))
+
+    draft = json.loads((await _tasks(su, lead["lead"]))[0]["ai_draft"])
+    assert draft["template_id"] == str(french)
 
 
 async def test_no_suitable_template_still_leaves_a_task_to_call_them(

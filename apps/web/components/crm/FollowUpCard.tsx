@@ -33,6 +33,7 @@ export function FollowUpCard({
   const text = value(draft, "text");
   const templateId = value(draft, "template_id");
   const templateName = value(draft, "template_name");
+  const preview = value(draft, "preview");
   const sendable = Boolean(text || templateId);
   const conversation = task.conversation_id ? `/${tenant}/inbox/${task.conversation_id}` : null;
 
@@ -72,10 +73,13 @@ export function FollowUpCard({
     <div className="mt-2 rounded-lg border border-blue-500/20 bg-blue-500/5 p-3 text-sm">
       <p className="font-semibold" dir="auto">{reason}</p>
       {text && <p className="mt-2 whitespace-pre-wrap" dir="auto">{text}</p>}
+      {templateId && preview && (
+        <p className="mt-2 whitespace-pre-wrap" dir="auto">{preview}</p>
+      )}
       {templateId && (
         <p className="mt-2 text-xs">
           {t("followup.windowClosed")} {t("followup.template")}: {templateName ?? templateId}
-          {Array.isArray(draft.variables) && draft.variables.length > 0 &&
+          {!preview && Array.isArray(draft.variables) && draft.variables.length > 0 &&
             ` · ${draft.variables.map(String).join(" · ")}`}
         </p>
       )}

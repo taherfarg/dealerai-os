@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { Suggestion } from "@/lib/api/hooks";
+import type { MessageKey } from "@/lib/i18n";
 import { useT } from "@/lib/i18n-client";
 
 export type DiscardReason = "wrong_info" | "wrong_tone" | "not_needed" | "other";
@@ -10,6 +11,11 @@ type Source = Record<string, unknown>;
 const STORAGE_KEY = "dealerai:draft-collapsed";
 const FACT_INTENTS = new Set(["price", "availability", "specs", "export_shipping", "documents_payment"]);
 const REASONS: DiscardReason[] = ["wrong_info", "wrong_tone", "not_needed", "other"];
+const INTENTS = new Set([
+  "greeting", "price", "availability", "specs", "export_shipping", "financing", "trade_in",
+  "visit_test_drive", "documents_payment", "negotiation", "complaint", "human_request",
+  "opt_out", "other",
+]);
 
 function stringAt(row: Source, key: string): string | null {
   return typeof row[key] === "string" ? (row[key] as string) : null;
@@ -74,7 +80,7 @@ export function DraftPanel({
 
   if (suggestion.status === "blocked") {
     return (
-      <div className="text-muted border-border border-t px-3 py-2 text-sm" role="status">
+      <div className="text-muted border-border border-t px-3 py-2 text-sm" role="status" dir="auto">
         {t("draft.blocked")}: {suggestion.blocked_reason ?? t("draft.unavailable")}
       </div>
     );
@@ -83,7 +89,9 @@ export function DraftPanel({
   const ready = suggestion.status === "ready";
   const template = suggestion.template;
   const templateName = template && stringAt(template, "name");
-  const body = suggestion.text || templateName || "";
+  // A template shows the message it will send, not its name: read unread,
+  // Send would put words in front of the customer nobody had seen.
+  const body = suggestion.text || (template && stringAt(template, "preview")) || templateName || "";
   const noSources = FACT_INTENTS.has(suggestion.intent ?? "") && suggestion.sources.length === 0;
   // A low-confidence draft is the one worth reading, so it cannot be folded
   // away — a remembered "collapsed" must not hide it.
@@ -113,7 +121,13 @@ export function DraftPanel({
             {t(`draft.confidence.${suggestion.confidence as "low" | "medium" | "high"}`)}
           </span>
         )}
-        {suggestion.intent && <span className="text-muted text-xs">{suggestion.intent.replaceAll("_", " ")}</span>}
+        {suggestion.intent && (
+          <span className="text-muted text-xs">
+            {INTENTS.has(suggestion.intent)
+              ? t(`draft.intent.${suggestion.intent}` as MessageKey)
+              : suggestion.intent.replaceAll("_", " ")}
+          </span>
+        )}
         {!low && (
           <button
             type="button"
@@ -166,7 +180,12 @@ export function DraftPanel({
                 {noSources && <span className="text-amber-800 dark:text-amber-200">{t("draft.noSources")}</span>}
               </div>
               {suggestion.needs_human && (
-                <p className="mt-2 rounded-md bg-amber-100 p-2 text-sm text-amber-950 dark:bg-amber-900/40 dark:text-amber-100">
+                <p
+                  className="mt-2 rounded-md bg-amber-100 p-2 text-sm text-amber-950 dark:bg-amber-900/40 dark:text-amber-100"
+                  // Written in English for the team, inside an Arabic page:
+                  // without it the full stop lands at the start of the line.
+                  dir="auto"
+                >
                   {suggestion.needs_human}
                 </p>
               )}

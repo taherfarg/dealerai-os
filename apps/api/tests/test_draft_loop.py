@@ -478,6 +478,62 @@ async def test_a_closed_window_produces_a_template_not_free_text(
     assert row["status"] == "ready"
     assert row["text"] is None
     assert json.loads(row["template"])["name"] == "price_update"
+    # The message itself, for the panel to show — not the template's name.
+    assert json.loads(row["template"])["preview"] == "Hello Omar, the Land Cruiser is AED 235,000."
+
+
+async def test_the_template_sent_is_the_one_in_the_replys_language(
+    db: None, su: asyncpg.Connection, thread: dict[str, Any], model: Model
+) -> None:
+    """By name alone the exit run was about to send a French customer the
+    English body with French variables in it."""
+    french = await su.fetchval(
+        """insert into message_templates
+             (tenant_id, channel_id, external_id, name, language, category, status, body)
+           values ($1,$2,'t2','price_update','fr','utility','approved',
+                   'Bonjour {{1}}, le {{2}} est à AED {{3}}.') returning id""",
+        TENANT_A,
+        thread["channel"],
+    )
+    await _close_the_window(su, thread)
+    model.drafts = [
+        copilot_agent.Draft(
+            reply="",
+            language="fr",
+            template_name="price_update",
+            template_variables=["Omar", "Land Cruiser", f"{PRICE // 100:,}"],
+        )
+    ]
+    await copilot.on_draft_requested(_event(thread))
+
+    row = await _one(su, thread["conversation"])
+    assert json.loads(row["template"])["template_id"] == str(french)
+
+
+async def test_a_template_short_of_variables_goes_back_for_the_rest(
+    db: None, su: asyncpg.Connection, thread: dict[str, Any], model: Model
+) -> None:
+    """Two for a three-variable body: the send route would refuse it, and the
+    salesperson's Send would be what failed."""
+    await _close_the_window(su, thread)
+    model.drafts = [
+        copilot_agent.Draft(
+            reply="",
+            language="en",
+            template_name="price_update",
+            template_variables=["Land Cruiser", f"{PRICE // 100:,}"],
+        ),
+        copilot_agent.Draft(
+            reply="",
+            language="en",
+            template_name="price_update",
+            template_variables=["Omar", "Land Cruiser", f"{PRICE // 100:,}"],
+        ),
+    ]
+    await copilot.on_draft_requested(_event(thread))
+
+    assert "takes 3 variables, in order, and this fills 2" in model.prompts[1]
+    assert (await _one(su, thread["conversation"]))["status"] == "ready"
 
 
 async def test_free_text_in_a_closed_window_is_blocked(

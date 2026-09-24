@@ -317,11 +317,14 @@ async def test_only_the_customers_own_words_go_to_the_script_guard(
     db: None, thread: dict[str, uuid.UUID]
 ) -> None:
     """Our own replies are in whatever script we chose last time. Judging the
-    customer's script by our own output is how a mistake compounds."""
+    customer's script by our own output is how a mistake compounds. And only
+    what they wrote since we replied: that is what the draft answers, and a
+    customer who switched to English is answered in English."""
     ground = await grounding.load(TENANT_A, thread["conversation"], _read(), now=NOW)
     assert ground is not None
     assert "Let me check for you" not in ground.customer_wrote
-    assert "how much for the Land Cruiser?" in ground.customer_wrote
+    assert "and shipping to Algeria?" in ground.customer_wrote
+    assert "how much for the Land Cruiser?" not in ground.customer_wrote
 
 
 async def test_a_conversation_that_is_gone_grounds_nothing(db: None, seeded: None) -> None:

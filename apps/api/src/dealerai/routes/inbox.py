@@ -558,13 +558,17 @@ async def _record_the_draft_was_used(
     reply to a bookkeeping mistake. It is worth not recording.
     """
     draft = await conn.fetchrow(
-        "select text from ai_suggestions where id = $1 and conversation_id = $2",
+        "select text, template from ai_suggestions where id = $1 and conversation_id = $2",
         suggestion_id,
         conversation_id,
     )
     if draft is None:
         return
-    ratio = edit_ratio(draft["text"], sent_text)
+    # A template draft has no text of its own; what it proposed to send is its
+    # preview. Measured against nothing, every template sent untouched was
+    # recorded as edited — the S4 exit run's was.
+    proposed = draft["text"] or (draft["template"] or {}).get("preview")
+    ratio = edit_ratio(proposed, sent_text)
     await conn.fetchval(
         copilot_queries.RECORD_OUTCOME,
         suggestion_id,

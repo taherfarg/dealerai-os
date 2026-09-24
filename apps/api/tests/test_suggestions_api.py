@@ -7,6 +7,7 @@ it being recorded exactly once, with the message, and never twice.
 from __future__ import annotations
 
 import asyncio
+import json
 import uuid
 from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
@@ -213,6 +214,59 @@ def test_the_inbox_row_stops_saying_so_once_the_draft_is_used(client: TestClient
 # ---------------------------------------------------------------------------
 # Sending it
 # ---------------------------------------------------------------------------
+
+
+async def _as_a_template(built: dict[str, Any]) -> str:
+    """The same draft, as a closed window makes it: a template and its preview."""
+    conn = await asyncpg.connect(get_settings().migration_dsn)
+    try:
+        channel_id = await conn.fetchval(
+            "select channel_id from conversations where id = $1", built["conversation"]
+        )
+        template_id = await conn.fetchval(
+            """insert into message_templates
+                 (tenant_id, channel_id, external_id, name, language, category, status, body)
+               values ($1,$2,'t1','price_update','en','utility','approved',
+                       'Hello {{1}}, the {{2}} is AED {{3}}.') returning id""",
+            TENANT_A,
+            channel_id,
+        )
+        await conn.execute(
+            "update ai_suggestions set text = null, template = $2::jsonb where id = $1",
+            built["suggestion"],
+            json.dumps(
+                {
+                    "template_id": str(template_id),
+                    "name": "price_update",
+                    "variables": ["Omar", "Land Cruiser", "235,000"],
+                    "preview": "Hello Omar, the Land Cruiser is AED 235,000.",
+                }
+            ),
+        )
+        return str(template_id)
+    finally:
+        await conn.close()
+
+
+def test_a_template_sent_as_drafted_is_sent_not_edited(client: TestClient) -> None:
+    """Measured against the text a template draft does not have, every one sent
+    untouched was recorded as edited."""
+    built = asyncio.run(_build())
+    template_id = asyncio.run(_as_a_template(built))
+    response = client.post(
+        f"/v1/conversations/{built['conversation']}/messages",
+        json={
+            "template_id": template_id,
+            "variables": ["Omar", "Land Cruiser", "235,000"],
+            "suggestion_id": str(built["suggestion"]),
+        },
+        headers={**_auth(SALES_1), **_key()},
+    )
+    assert response.status_code == 202, response.text
+
+    row = asyncio.run(_suggestion(built["suggestion"]))
+    assert row["outcome"] == "sent"
+    assert float(row["edit_ratio"]) == 0.0
 
 
 def test_sending_a_draft_unchanged_records_it_as_sent(client: TestClient) -> None:

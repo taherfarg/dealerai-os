@@ -11,6 +11,9 @@ from dealerai.guards import commitments
     "text,code",
     [
         ("I can give you a 5% discount on that one.", "discount"),
+        ("Let me check with our manager for any possible discounts.", "discount"),
+        ("في خصومات على الهايلكس هالشهر", "discount"),
+        ("Nous avons des remises ce mois-ci.", "discount"),
         ("سعر خاص لك اليوم", "discount"),
         ("Je peux vous faire une remise.", "discount"),
         ("I will check with my manager if we can match your offer.", "discount"),

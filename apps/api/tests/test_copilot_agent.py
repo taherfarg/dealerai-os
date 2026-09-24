@@ -159,6 +159,7 @@ async def test_a_closed_window_asks_for_a_template_by_name(asked: list[dict[str,
     )
     assert "template_name" in asked[0]["prompt"]
     assert "Leave `reply` empty" in asked[0]["prompt"]
+    assert "bare value" in asked[0]["prompt"]
 
 
 async def test_an_open_window_says_nothing_about_templates(asked: list[dict[str, Any]]) -> None:
@@ -243,6 +244,22 @@ async def test_what_a_lookup_cannot_help_is_one_call(asked: list[dict[str, Any]]
         tenant_id=TENANT, run_id=RUN, ground=_ground(), read=_read(intent="negotiation")
     )
     assert asked[0]["tools"] == []
+
+
+async def test_a_passage_carries_the_id_a_draft_cites_it_by(asked: list[dict[str, Any]]) -> None:
+    """Cars are shown with their ids; a passage without one cannot be cited,
+    and the draft shows no document chip however much of it the reply used."""
+    passage = {
+        "chunk_id": 330,
+        "document_id": "d",
+        "title": "Export policy",
+        "heading": "Export › Customs",
+        "content": "Customs are paid on arrival.",
+    }
+    await copilot.write(
+        tenant_id=TENANT, run_id=RUN, ground=_ground(chunks=[passage]), read=_read()
+    )
+    assert "(chunk `330`)" in asked[0]["system"].context
 
 
 async def test_passages_already_above_are_not_searched_for_again(

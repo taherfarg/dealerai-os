@@ -211,7 +211,11 @@ def _instruction(
     if not ground.window_open:
         parts.append(
             "The 24-hour window is closed: set `template_name` to one of the approved "
-            "templates above and fill `template_variables` in order. Leave `reply` empty."
+            "templates above and fill `template_variables` in order. Leave `reply` empty. "
+            # "le prix de {{2}}" filled with "le Toyota Hilux" is "de le", which
+            # is what the exit run's French preview said.
+            "Each variable is the bare value — a name, a car, a price — without an article "
+            "or any word the template already has around it."
         )
     if retry_because:
         parts.append(

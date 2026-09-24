@@ -329,10 +329,22 @@ def _inspect(draft: Draft | None, ground: Ground, read: Read) -> Findings:
 
     text = draft.reply or ""
     if draft.template_name:
-        template = _find_template(ground, draft.template_name)
+        template = _find_template(ground, draft.template_name, draft.language)
         if template is None:
             return [
                 Finding("template", f"there is no approved template called {draft.template_name!r}")
+            ]
+        wanted = len(variable_numbers(template["body"]))
+        if len(draft.template_variables) != wanted:
+            # The send route refuses a count WhatsApp would refuse. Caught here
+            # the retry fixes it; caught there, the salesperson's Send fails —
+            # which is where the exit run's two-for-three French draft was going.
+            return [
+                Finding(
+                    "template",
+                    f"{template['name']!r} takes {wanted} variables, in order, and this "
+                    f"fills {len(draft.template_variables)}",
+                )
             ]
         text = render_template(template["body"], draft.template_variables)
     elif not ground.window_open:
@@ -376,20 +388,33 @@ def _mentioned(name: str, text: str) -> bool:
     return bool(model) and model.casefold() in text.casefold()
 
 
-def _find_template(ground: Ground, name: str) -> dict[str, Any] | None:
-    return next((row for row in ground.templates if row["name"] == name), None)
+def _find_template(ground: Ground, name: str, language: str) -> dict[str, Any] | None:
+    """By name, in the reply's language when one exists.
+
+    An approved template exists once per language, and by name alone the S4
+    exit run was about to send Karim the English body filled with French
+    variables: "Hello Karim, the le Toyota Hilux … price is now …".
+    """
+    named = [row for row in ground.templates if row["name"] == name]
+    return next(
+        (row for row in named if row["language"].split("_")[0] == language),
+        named[0] if named else None,
+    )
 
 
 def _template(draft: Draft, ground: Ground) -> dict[str, Any] | None:
     if not draft.template_name:
         return None
-    template = _find_template(ground, draft.template_name)
+    template = _find_template(ground, draft.template_name, draft.language)
     if template is None:  # pragma: no cover - _inspect blocks this first
         return None
     return {
         "template_id": str(template["id"]),
         "name": template["name"],
         "variables": draft.template_variables,
+        # What will be sent, exactly as the guards read it. Without it the
+        # panel showed the template's name and Send went out unread.
+        "preview": render_template(template["body"], draft.template_variables),
     }
 
 
@@ -651,6 +676,12 @@ async def _write_down(
         for seen in learned.signals
         if seen.signal in PROPOSABLE and seen.evidence_message_id in ours
     ]
+    # A budget they stated is the signal, whatever the model listed: the S4 exit
+    # run's agent wrote down "AED 240,000" and not the ten points that go with
+    # it, and the score on screen did not move.
+    budget = next((evidence for field, _, evidence in changes if field == "budget"), None)
+    if budget and not any(s["signal"] == "gave_budget_or_timeline_30d" for s in signals):
+        signals.append({"signal": "gave_budget_or_timeline_30d", "evidence_message_id": budget})
 
     async with tenant_session(tenant_id) as conn, conn.transaction():
         for field, value, evidence in changes:
@@ -983,12 +1014,16 @@ async def _raise_the_task(
     else:
         async with tenant_session(tenant_id) as conn:
             template = await conn.fetchrow(
-                q.TEMPLATE_BY_NAME, lead["channel_id"], TEMPLATES_FOR.get(trigger, [])
+                q.TEMPLATE_BY_NAME,
+                lead["channel_id"],
+                TEMPLATES_FOR.get(trigger, []),
+                (lead["locale"] or "")[:2],
             )
         if template is not None:
             draft["template_id"] = str(template["id"])
             draft["template_name"] = template["name"]
             draft["variables"] = _variables(template, lead)
+            draft["preview"] = render_template(template["body"], draft["variables"])
         # No suitable approved template: a task with no draft. "Call the
         # customer" is worth more than a message that cannot be sent.
 

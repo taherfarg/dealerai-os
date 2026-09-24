@@ -32,6 +32,9 @@ PHRASES: dict[str, tuple[str, tuple[str, ...]]] = {
         "offers a discount, which only a person may do",
         (
             "discount",
+            # Word-bounded, so the singular never matched "any possible
+            # discounts" — which the S4 exit run's draft said, callout and all.
+            "discounts",
             "% off",
             "percent off",
             "off the price",
@@ -51,12 +54,15 @@ PHRASES: dict[str, tuple[str, tuple[str, ...]]] = {
             "matching their price",
             "price match",
             "خصم",
+            "خصومات",
             "تخفيض",
             "سعر خاص لك",
             "نطابق السعر",
             "نطابق العرض",
             "remise",
+            "remises",
             "réduction",
+            "réductions",
             "rabais",
             "prix spécial pour vous",
             "aligner notre prix",

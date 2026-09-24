@@ -331,6 +331,19 @@ async def test_a_signal_this_version_does_not_know_is_not_stored(
     assert lead["score"] == 10  # the unknown one contributed nothing
 
 
+async def test_a_budget_they_gave_is_the_budget_signal(
+    db: None, su: asyncpg.Connection, thread: dict[str, Any], model: Model
+) -> None:
+    """The exit run's agent wrote down AED 240,000 and not the ten points that
+    go with it. A budget the customer stated is the signal; code says so."""
+    model.learns(updates=[("budget", "AED 240,000", str(thread["messages"][2]))])
+    await copilot.on_conversation_idle(_event(thread))
+
+    lead = await _lead(su, thread["lead"])
+    signals = [row["signal"] for row in json.loads(lead["score_signals"])]
+    assert "gave_budget_or_timeline_30d" in signals
+
+
 async def test_a_signal_the_model_does_not_get_to_claim(
     db: None, su: asyncpg.Connection, thread: dict[str, Any], model: Model
 ) -> None:

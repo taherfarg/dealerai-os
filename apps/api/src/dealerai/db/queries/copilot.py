@@ -407,7 +407,7 @@ TEMPLATE_BY_NAME = """
 select id, name, language, category, body, variables
   from message_templates
  where channel_id = $1 and status = 'approved' and name = any($2::text[])
- order by array_position($2::text[], name)
+ order by array_position($2::text[], name), split_part(language, '_', 1) = $3 desc
  limit 1
 """
 

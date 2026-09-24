@@ -44,8 +44,19 @@ describe("FollowUpCard", () => {
   });
 
   it("shows the approved template when the window is closed", () => {
-    show({ ai_draft: { reason: "New price", text: null, template_id: "template-1", template_name: "price_update", variables: ["Omar"] } });
+    show({
+      ai_draft: {
+        reason: "New price",
+        text: null,
+        template_id: "template-1",
+        template_name: "price_update",
+        variables: ["Omar"],
+        preview: "Hello Omar, the Hilux is now AED 128,000.",
+      },
+    });
     expect(screen.getByText(/24-hour window is closed/)).toBeDefined();
+    // The message that would go, not only the template's name.
+    expect(screen.getByText("Hello Omar, the Hilux is now AED 128,000.")).toBeDefined();
     expect(screen.getByText(/price_update/)).toBeDefined();
     expect(screen.getByRole("button", { name: "Send now" })).toBeDefined();
   });
