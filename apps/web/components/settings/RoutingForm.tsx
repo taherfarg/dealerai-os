@@ -10,6 +10,7 @@ import {
   type SalesSettingsPatch,
 } from "@/lib/api/hooks";
 import { useT } from "@/lib/i18n-client";
+import { changes } from "./changes";
 import { badDays, HoursEditor } from "./HoursEditor";
 import { RuleEditor } from "./RuleEditor";
 
@@ -25,15 +26,6 @@ type Routing = Pick<SalesSettings, (typeof KEYS)[number]>;
 
 function routingOf(settings: SalesSettings): Routing {
   return Object.fromEntries(KEYS.map((key) => [key, settings[key]])) as Routing;
-}
-
-/** Only what changed, so a save is exactly what the person did. */
-export function changes(saved: Routing, draft: Routing): SalesSettingsPatch {
-  return Object.fromEntries(
-    KEYS.filter((key) => JSON.stringify(saved[key]) !== JSON.stringify(draft[key])).map(
-      (key) => [key, draft[key]],
-    ),
-  ) as SalesSettingsPatch;
 }
 
 function moved<T>(list: T[], index: number, step: -1 | 1): T[] {
@@ -58,7 +50,7 @@ export function RoutingForm() {
 
   const saved = routingOf(settings.data);
   const current = draft ?? saved;
-  const patch = changes(saved, current);
+  const patch = changes(saved, current) as SalesSettingsPatch;
   const dirty = Object.keys(patch).length > 0;
   const hours = current.business_hours ?? {};
   const rules = current.routing_rules ?? [];

@@ -918,10 +918,12 @@ export function useEditMember() {
 export type QuickReply = components["schemas"]["QuickReply"];
 export type QuickReplyIn = components["schemas"]["QuickReplyIn"];
 
-export function useQuickReplies() {
+/** `enabled` lets the composer ask only once somebody types "/". */
+export function useQuickReplies(enabled = true) {
   const { api, tenantId, header } = useTenantApi();
   return useQuery({
     queryKey: keys.quickReplies(tenantId),
+    enabled,
     queryFn: async () => unwrap(await api.GET("/v1/quick-replies", { params: { header } })),
     // Edited in settings a few times a year; read on every keystroke of "/".
     staleTime: 5 * 60_000,

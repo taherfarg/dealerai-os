@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { changes } from "./RoutingForm";
+import { changes } from "./changes";
 import { countriesFrom } from "./RuleEditor";
 
 const saved = {
   first_response_target_min: 5,
   unassigned_visible_to_sales: true,
-  default_team_id: null,
+  default_team_id: null as string | null,
   business_hours: { mon: { open: "09:00:00", close: "21:00:00" } },
   routing_rules: [],
 };

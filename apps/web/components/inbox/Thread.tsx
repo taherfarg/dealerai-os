@@ -256,6 +256,8 @@ export function Thread({ tenant, conversationId }: { tenant: string; conversatio
         disabled={row.status !== "open"}
         draftToEdit={draftToEdit}
         onSent={() => setDraftToEdit(undefined)}
+        language={row.contact.language}
+        customerName={row.contact.name}
       />
     </div>
   );

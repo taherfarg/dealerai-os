@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { ApiError } from "@/lib/api/client";
-import { useAddNote, useSendMessage } from "@/lib/api/hooks";
+import { useAddNote, useQuickReplies, useSendMessage, type QuickReply } from "@/lib/api/hooks";
 import { useT } from "@/lib/i18n-client";
+import { filled, matching, QuickReplyMenu } from "./QuickReplyMenu";
 
 /**
  * Where a reply is written.
@@ -18,12 +19,17 @@ export function Composer({
   disabled,
   draftToEdit,
   onSent,
+  language = null,
+  customerName = null,
 }: {
   conversationId: string;
   windowOpen: boolean;
   disabled?: boolean;
   draftToEdit?: { id?: string; text: string };
   onSent?: () => void;
+  /** The customer's, for a quick reply in their language with their name. */
+  language?: string | null;
+  customerName?: string | null;
 }) {
   const t = useT();
   const [text, setText] = useState(draftToEdit?.text ?? "");
@@ -32,6 +38,18 @@ export function Composer({
   const send = useSendMessage(conversationId);
   const note = useAddNote(conversationId);
   const action = isNote ? note : send;
+
+  // "/" and one word opens the quick replies; they are fetched only then.
+  const typingShortcut = text.startsWith("/") && !/\s/.test(text);
+  const replies = useQuickReplies(typingShortcut);
+  const [dismissedAt, setDismissedAt] = useState<string | null>(null);
+  const [active, setActive] = useState(0);
+  const options =
+    typingShortcut && dismissedAt !== text ? matching(replies.data ?? [], text) : [];
+  const pick = (reply: QuickReply) => {
+    setText(filled(reply, language, customerName));
+    setActive(0);
+  };
 
   // Outside the 24-hour window WhatsApp takes only templates, so free text is
   // refused here rather than failing after the customer expected an answer.
@@ -83,6 +101,8 @@ export function Composer({
         )}
       </div>
 
+      <QuickReplyMenu options={options} active={Math.min(active, options.length - 1)} onPick={pick} />
+
       <div className="flex items-end gap-2">
         <textarea
           value={text}
@@ -90,6 +110,26 @@ export function Composer({
           disabled={blocked}
           onChange={(event) => setText(event.target.value)}
           onKeyDown={(event) => {
+            // While the menu is open the keys are its: Enter picks a reply
+            // into the box — it never sends one unread.
+            if (options.length > 0) {
+              if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+                event.preventDefault();
+                const step = event.key === "ArrowDown" ? 1 : -1;
+                setActive((index) => (index + step + options.length) % options.length);
+                return;
+              }
+              if (event.key === "Enter" && !event.shiftKey && !event.altKey) {
+                event.preventDefault();
+                pick(options[Math.min(active, options.length - 1)]);
+                return;
+              }
+              if (event.key === "Escape") {
+                event.preventDefault();
+                setDismissedAt(text);
+                return;
+              }
+            }
             // Alt+Enter is the draft panel's: sending what is typed here as
             // well would put two messages in front of the customer.
             if (event.key === "Enter" && !event.shiftKey && !event.altKey) {
