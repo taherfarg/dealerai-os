@@ -54,6 +54,17 @@ describe("the live stream", () => {
       queryKey: ["suggestion", "tenant-1", "conversation-1"],
     });
   });
+  it("refreshes the dashboard on a conversation event", () => {
+    // A new draft does not: the test above holds it to exactly one invalidation.
+    const client = new QueryClient();
+    const invalidate = vi.spyOn(client, "invalidateQueries");
+    invalidateLiveEvent(client, "tenant-1", {
+      type: "message.created",
+      conversation_id: "conversation-1",
+    });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["dashboard", "tenant-1"] });
+  });
+
   it("reads an event out of a frame", () => {
     const frame = 'event: message.created\ndata: {"type":"message.created","conversation_id":"c1"}';
     expect(parseFrame(frame)).toEqual({ type: "message.created", conversation_id: "c1" });

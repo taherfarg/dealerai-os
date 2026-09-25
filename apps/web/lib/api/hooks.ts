@@ -787,3 +787,343 @@ export function useMyDay() {
     queryFn: async () => unwrap(await api.GET("/v1/dashboard/me", { params: { header } })),
   });
 }
+
+// --------------------------------------------------------------------------
+// the manager's morning
+// --------------------------------------------------------------------------
+
+export type ManagerDashboard = components["schemas"]["ManagerDashboard"];
+export type AttentionItem = components["schemas"]["AttentionItem"];
+export type RepRow = components["schemas"]["RepRow"];
+
+/** Not fetched at all for somebody who may not read it: a 403 in the console
+ *  on every visit is noise, and the page says why instead. */
+export function useManagerDashboard(date: string | null, enabled: boolean) {
+  const { api, tenantId, header } = useTenantApi();
+  return useQuery({
+    queryKey: keys.dashboard(tenantId, date ?? "today"),
+    enabled,
+    queryFn: async () =>
+      unwrap(
+        await api.GET("/v1/dashboard/manager", {
+          params: { header, query: date ? { date } : {} },
+        }),
+      ),
+  });
+}
+
+// --------------------------------------------------------------------------
+// settings
+// --------------------------------------------------------------------------
+
+export type SalesSettings = components["schemas"]["SalesSettings"];
+export type SalesSettingsPatch = components["schemas"]["SalesSettingsPatch"];
+export type RoutingRule = components["schemas"]["RoutingRule"];
+export type Team = components["schemas"]["TeamOut"];
+export type Acceptance = components["schemas"]["Acceptance"];
+
+export function useSalesSettings() {
+  const { api, tenantId, header } = useTenantApi();
+  return useQuery({
+    queryKey: keys.salesSettings(tenantId),
+    queryFn: async () => unwrap(await api.GET("/v1/settings/sales", { params: { header } })),
+  });
+}
+
+export function useSaveSalesSettings() {
+  const { api, tenantId, header } = useTenantApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    // Only what the screen changed: a manager's routing save must not carry
+    // the AI keys she may not write, or the whole save is refused.
+    mutationFn: async (patch: SalesSettingsPatch) =>
+      unwrap(await api.PATCH("/v1/settings/sales", { params: { header }, body: patch })),
+    onSuccess: (saved) => queryClient.setQueryData(keys.salesSettings(tenantId), saved),
+  });
+}
+
+export function useAcceptance(days: number) {
+  const { api, tenantId, header } = useTenantApi();
+  return useQuery({
+    queryKey: keys.acceptance(tenantId, days),
+    queryFn: async () =>
+      unwrap(
+        await api.GET("/v1/settings/ai/acceptance", { params: { header, query: { days } } }),
+      ),
+  });
+}
+
+export function useTeams() {
+  const { api, tenantId, header } = useTenantApi();
+  return useQuery({
+    queryKey: keys.teams(tenantId),
+    queryFn: async () => unwrap(await api.GET("/v1/teams", { params: { header } })),
+  });
+}
+
+/** A new team without an id, a new name with one. */
+export function useSaveTeam() {
+  const { api, tenantId, header } = useTenantApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, name }: { id?: string; name: string }) =>
+      id
+        ? unwrap(
+            await api.PATCH("/v1/teams/{team_id}", {
+              params: { header, path: { team_id: id } },
+              body: { name, member_ids: [] },
+            }),
+          )
+        : unwrap(await api.POST("/v1/teams", { params: { header }, body: { name, member_ids: [] } })),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: keys.teams(tenantId) }),
+  });
+}
+
+export function useDeleteTeam() {
+  const { api, tenantId, header } = useTenantApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (teamId: string) =>
+      unwrap(
+        await api.DELETE("/v1/teams/{team_id}", { params: { header, path: { team_id: teamId } } }),
+      ),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: keys.teams(tenantId) });
+      queryClient.invalidateQueries({ queryKey: keys.members(tenantId) });
+    },
+  });
+}
+
+export type MemberPatch = components["schemas"]["MemberPatch"];
+
+export function useEditMember() {
+  const { api, tenantId, header } = useTenantApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ userId, patch }: { userId: string; patch: MemberPatch }) =>
+      unwrap(
+        await api.PATCH("/v1/members/{user_id}", {
+          params: { header, path: { user_id: userId } },
+          body: patch,
+        }),
+      ),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: keys.members(tenantId) });
+      queryClient.invalidateQueries({ queryKey: keys.teams(tenantId) });
+      queryClient.invalidateQueries({ queryKey: keys.me(tenantId) });
+    },
+  });
+}
+
+export type QuickReply = components["schemas"]["QuickReply"];
+export type QuickReplyIn = components["schemas"]["QuickReplyIn"];
+
+export function useQuickReplies() {
+  const { api, tenantId, header } = useTenantApi();
+  return useQuery({
+    queryKey: keys.quickReplies(tenantId),
+    queryFn: async () => unwrap(await api.GET("/v1/quick-replies", { params: { header } })),
+    // Edited in settings a few times a year; read on every keystroke of "/".
+    staleTime: 5 * 60_000,
+  });
+}
+
+/** A new reply without an id; a whole replacement with one. */
+export function useSaveQuickReply() {
+  const { api, tenantId, header } = useTenantApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, reply }: { id?: string; reply: QuickReplyIn }) =>
+      id
+        ? unwrap(
+            await api.PATCH("/v1/quick-replies/{reply_id}", {
+              params: { header, path: { reply_id: id } },
+              body: reply,
+            }),
+          )
+        : unwrap(await api.POST("/v1/quick-replies", { params: { header }, body: reply })),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: keys.quickReplies(tenantId) }),
+  });
+}
+
+export function useDeleteQuickReply() {
+  const { api, tenantId, header } = useTenantApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (replyId: string) =>
+      unwrap(
+        await api.DELETE("/v1/quick-replies/{reply_id}", {
+          params: { header, path: { reply_id: replyId } },
+        }),
+      ),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: keys.quickReplies(tenantId) }),
+  });
+}
+
+export type KnowledgeDocument = components["schemas"]["Document"];
+
+const STILL_READING = new Set(["pending", "processing"]);
+
+export function useDocuments() {
+  const { api, tenantId, header } = useTenantApi();
+  return useQuery({
+    queryKey: keys.documents(tenantId),
+    queryFn: async () => unwrap(await api.GET("/v1/documents", { params: { header } })),
+    // Reading a PDF takes seconds, and the row says when it is done.
+    refetchInterval: (query) =>
+      (query.state.data ?? []).some((document) => STILL_READING.has(document.status))
+        ? 3000
+        : false,
+  });
+}
+
+export function useUploadDocument() {
+  const { api, tenantId, header } = useTenantApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ file, kind, title }: { file: File; kind: string; title: string }) => {
+      const form = new FormData();
+      form.append("file", file);
+      form.append("kind", kind);
+      if (title) form.append("title", title);
+      return unwrap(
+        await api.POST("/v1/documents", {
+          params: { header },
+          // The typed body describes the fields; the serializer sends the form.
+          body: { file: "", kind, title },
+          bodySerializer: () => form,
+        }),
+      );
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: keys.documents(tenantId) }),
+  });
+}
+
+export function useDeleteDocument() {
+  const { api, tenantId, header } = useTenantApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (documentId: string) =>
+      unwrap(
+        await api.DELETE("/v1/documents/{document_id}", {
+          params: { header, path: { document_id: documentId } },
+        }),
+      ),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: keys.documents(tenantId) }),
+  });
+}
+
+export type Channel = components["schemas"]["ChannelOut"];
+export type Template = components["schemas"]["TemplateOut"];
+
+export function useChannels() {
+  const { api, tenantId, header } = useTenantApi();
+  return useQuery({
+    queryKey: keys.channels(tenantId),
+    queryFn: async () => unwrap(await api.GET("/v1/channels", { params: { header } })),
+  });
+}
+
+export function useTemplates(channelId: string) {
+  const { api, tenantId, header } = useTenantApi();
+  return useQuery({
+    queryKey: keys.templates(tenantId, channelId),
+    queryFn: async () =>
+      unwrap(
+        await api.GET("/v1/channels/{channel_id}/templates", {
+          params: { header, path: { channel_id: channelId } },
+        }),
+      ),
+  });
+}
+
+export function useSyncTemplates(channelId: string) {
+  const { api, tenantId, header } = useTenantApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () =>
+      unwrap(
+        await api.POST("/v1/channels/{channel_id}/templates/sync", {
+          params: { header, path: { channel_id: channelId } },
+        }),
+      ),
+    // The sync is queued (202); the list catches up on the next look.
+    onSettled: () =>
+      queryClient.invalidateQueries({ queryKey: keys.templates(tenantId, channelId) }),
+  });
+}
+
+// --------------------------------------------------------------------------
+// a customer's data, and many customers at once
+// --------------------------------------------------------------------------
+
+/** The customer's file, saved by the browser. A fetch rather than a link:
+ *  the request needs an Authorization header an <a href> cannot send. */
+export function useExportCustomer(customerId: string) {
+  const { api, header } = useTenantApi();
+  return useMutation({
+    mutationFn: async () => {
+      const blob = unwrap(
+        await api.GET("/v1/customers/{customer_id}/export", {
+          params: { header, path: { customer_id: customerId } },
+          parseAs: "blob",
+        }),
+      ) as Blob;
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `customer-${customerId}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+    },
+  });
+}
+
+export function useEraseCustomer(customerId: string) {
+  const { api, tenantId, header } = useTenantApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () =>
+      unwrap(
+        await api.DELETE("/v1/customers/{customer_id}", {
+          params: { header, path: { customer_id: customerId } },
+        }),
+      ),
+    onSuccess: () => {
+      // Their conversations, leads and tasks went with them: nothing held
+      // locally about the workspace is still true (as after a reassign).
+      queryClient.removeQueries({ queryKey: keys.customer(tenantId, customerId) });
+      queryClient.invalidateQueries();
+    },
+  });
+}
+
+/** S3 left bulk reassign as "the single-customer call in a loop behind a
+ *  confirm" — that, returning whoever could not be moved. */
+export function useBulkReassign() {
+  const { api, header } = useTenantApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      ids,
+      ownerId,
+      onProgress,
+    }: {
+      ids: string[];
+      ownerId: string;
+      onProgress?: (done: number) => void;
+    }) => {
+      const failed: string[] = [];
+      for (const [index, id] of ids.entries()) {
+        const { response } = await api.POST("/v1/customers/{customer_id}/reassign", {
+          params: { header, path: { customer_id: id } },
+          body: { owner_id: ownerId },
+        });
+        if (!response.ok) failed.push(id);
+        onProgress?.(index + 1);
+      }
+      return failed;
+    },
+    onSettled: () => queryClient.invalidateQueries(),
+  });
+}

@@ -28,4 +28,14 @@ export const keys = {
   tasks: (tenantId: string, filters: string) => ["tasks", tenantId, filters] as const,
   taskList: (tenantId: string) => ["tasks", tenantId] as const,
   myDay: (tenantId: string) => ["my-day", tenantId] as const,
+  /** One day's dashboard; `dashboardAll` is its prefix, so a live event
+   *  refreshes whichever day is open. */
+  dashboard: (tenantId: string, date: string) => ["dashboard", tenantId, date] as const,
+  dashboardAll: (tenantId: string) => ["dashboard", tenantId] as const,
+  salesSettings: (tenantId: string) => ["sales-settings", tenantId] as const,
+  acceptance: (tenantId: string, days: number) => ["acceptance", tenantId, days] as const,
+  quickReplies: (tenantId: string) => ["quick-replies", tenantId] as const,
+  channels: (tenantId: string) => ["channels", tenantId] as const,
+  templates: (tenantId: string, channelId: string) =>
+    ["templates", tenantId, channelId] as const,
 };

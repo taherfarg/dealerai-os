@@ -456,7 +456,16 @@ export interface paths {
         get: operations["get_customer_v1_customers__customer_id__get"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Erase Customer
+         * @description Gone from every table that held them — the PDPL right to erasure.
+         *
+         *     Looked up in the caller's session first, so a customer they cannot see is a
+         *     404 like any other; erased in a session without a user, the only one that
+         *     reaches every colleague's notifications about them. What remains is one
+         *     audit row: who, when, and why — never what (docs/sales/05-workflows.md § 14).
+         */
+        delete: operations["erase_customer_v1_customers__customer_id__delete"];
         options?: never;
         head?: never;
         /**
@@ -465,6 +474,28 @@ export interface paths {
          *     stops the next AI run overwriting it.
          */
         patch: operations["edit_customer_v1_customers__customer_id__patch"];
+        trace?: never;
+    };
+    "/v1/customers/{customer_id}/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export Customer
+         * @description Everything held about one customer, as one file — the PDPL right of
+         *     access. Owners and admins (docs/sales/06-api-contract.md § 4), and audited:
+         *     who took a copy, and when.
+         */
+        get: operations["export_customer_v1_customers__customer_id__export_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/v1/customers/{customer_id}/reassign": {
@@ -500,6 +531,31 @@ export interface paths {
          * @description Every channel and every lead move, merged, newest first.
          */
         get: operations["customer_timeline_v1_customers__customer_id__timeline_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/dashboard/manager": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Manager Dashboard
+         * @description A manager's morning in one request, because it is one screen refreshed
+         *     together (docs/sales/06-api-contract.md § 7).
+         *
+         *     Every number reads through the caller's own visibility — her teams'
+         *     numbers because Postgres shows her nothing else. `date` moves the counted
+         *     day; waiting, hot and overdue are always now; the brief is always today's.
+         */
+        get: operations["manager_dashboard_v1_dashboard_manager_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -809,6 +865,42 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/quick-replies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Quick Replies */
+        get: operations["list_quick_replies_v1_quick_replies_get"];
+        put?: never;
+        /** Add Quick Reply */
+        post: operations["add_quick_reply_v1_quick_replies_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/quick-replies/{reply_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Quick Reply */
+        delete: operations["delete_quick_reply_v1_quick_replies__reply_id__delete"];
+        options?: never;
+        head?: never;
+        /** Save Quick Reply */
+        patch: operations["save_quick_reply_v1_quick_replies__reply_id__patch"];
+        trace?: never;
+    };
     "/v1/runs": {
         parameters: {
             query?: never;
@@ -845,6 +937,45 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/v1/settings/ai/acceptance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Acceptance
+         * @description How the drafts fared, by intent — the number the pilot's S5 criterion
+         *     and the autopilot trigger are both read from.
+         */
+        get: operations["acceptance_v1_settings_ai_acceptance_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/settings/sales": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Sales Settings */
+        get: operations["read_sales_settings_v1_settings_sales_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Change Sales Settings */
+        patch: operations["change_sales_settings_v1_settings_sales_patch"];
         trace?: never;
     };
     "/v1/stream": {
@@ -989,6 +1120,33 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/v1/teams/{team_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Team
+         * @description Refused while routing sends customers to it: a rule pointing at a team
+         *     that is gone routes a customer to nobody. Its people stay; its customers
+         *     keep their owners and lose only the team.
+         */
+        delete: operations["delete_team_v1_teams__team_id__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Rename Team
+         * @description A new name, and nothing else: membership is changed on the member
+         *     (PATCH /v1/members/{id}), the one place it is written.
+         */
+        patch: operations["rename_team_v1_teams__team_id__patch"];
         trace?: never;
     };
     "/v1/tenants": {
@@ -1278,6 +1436,14 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** Acceptance */
+        Acceptance: {
+            /** By Intent */
+            by_intent: components["schemas"]["IntentAcceptance"][];
+            /** Days */
+            days: number;
+            overall: components["schemas"]["IntentAcceptance"];
+        };
         /** ApprovalOut */
         ApprovalOut: {
             /**
@@ -1340,6 +1506,35 @@ export interface components {
             /** Width */
             width?: number | null;
         };
+        /** AttentionItem */
+        AttentionItem: {
+            /** Count */
+            count: number | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "waiting" | "hot_lead" | "overdue_tasks";
+            /** Name */
+            name: string | null;
+            owner: components["schemas"]["UserRef"] | null;
+            /** Since */
+            since: string | null;
+        };
+        /** Bodies */
+        Bodies: {
+            /** Ar */
+            ar?: string | null;
+            /** En */
+            en?: string | null;
+            /** Fr */
+            fr?: string | null;
+        };
         /** Body_preview_v1_vehicles_import_preview_post */
         Body_preview_v1_vehicles_import_preview_post: {
             /** File */
@@ -1366,6 +1561,17 @@ export interface components {
             kind: string;
             /** Title */
             title?: string | null;
+        };
+        /** Brief */
+        Brief: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            headline: components["schemas"]["Headline"] | null;
+            /** Items */
+            items: components["schemas"]["AttentionItem"][];
         };
         /** BulkDecision */
         BulkDecision: {
@@ -1662,6 +1868,17 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /**
+         * Headline
+         * @description The brief's one line, in both UI languages. Both required: schema
+         *     decoding guarantees required fields and nothing else.
+         */
+        Headline: {
+            /** Ar */
+            ar: string;
+            /** En */
+            en: string;
+        };
         /** Identity */
         Identity: {
             /**
@@ -1682,6 +1899,23 @@ export interface components {
             created: number;
             /** Errors */
             errors: components["schemas"]["RowError"][];
+        };
+        /** IntentAcceptance */
+        IntentAcceptance: {
+            /** Decided */
+            decided: number;
+            /** Discarded */
+            discarded: number;
+            /** Intent */
+            intent: string | null;
+            /** Lightly Edited */
+            lightly_edited: number;
+            /** Rate */
+            rate: number | null;
+            /** Rewritten */
+            rewritten: number;
+            /** Sent */
+            sent: number;
         };
         /** InviteAccept */
         InviteAccept: {
@@ -1867,6 +2101,25 @@ export interface components {
             status: string;
             /** Title */
             title: string;
+        };
+        /** ManagerDashboard */
+        ManagerDashboard: {
+            brief: components["schemas"]["Brief"];
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            phone_share: components["schemas"]["PhoneShare"];
+            /** Pipeline */
+            pipeline: components["schemas"]["StageTotal"][];
+            /** Sources */
+            sources: components["schemas"]["SourceCount"][];
+            /** Team */
+            team: components["schemas"]["RepRow"][];
+            tiles: components["schemas"]["Tiles"];
+            /** Waiting */
+            waiting: components["schemas"]["ConversationSummary"][];
         };
         /** MeOut */
         MeOut: {
@@ -2084,6 +2337,19 @@ export interface components {
             /** Unread */
             unread: number;
         };
+        /** OpenHours */
+        OpenHours: {
+            /**
+             * Close
+             * Format: time
+             */
+            close: string;
+            /**
+             * Open
+             * Format: time
+             */
+            open: string;
+        };
         /** OutcomeIn */
         OutcomeIn: {
             /** Final Text */
@@ -2095,6 +2361,11 @@ export interface components {
             outcome: "sent" | "edited" | "discarded";
             /** Reason */
             reason?: string | null;
+        };
+        /** PhoneShare */
+        PhoneShare: {
+            last_week: components["schemas"]["Share"];
+            this_week: components["schemas"]["Share"];
         };
         /** Pipeline */
         Pipeline: {
@@ -2145,6 +2416,32 @@ export interface components {
             /** Type */
             type: string;
         };
+        /** QuickReply */
+        QuickReply: {
+            body: components["schemas"]["Bodies"];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Shortcut */
+            shortcut: string;
+            /** Title */
+            title: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** QuickReplyIn */
+        QuickReplyIn: {
+            body: components["schemas"]["Bodies"];
+            /** Shortcut */
+            shortcut: string;
+            /** Title */
+            title: string;
+        };
         /** ReadIn */
         ReadIn: {
             /**
@@ -2162,6 +2459,45 @@ export interface components {
              * Format: uuid
              */
             owner_id: string;
+        };
+        /** RepRow */
+        RepRow: {
+            /** Cold */
+            cold: number;
+            /** Hot */
+            hot: number;
+            /** Median First Response Seconds */
+            median_first_response_seconds: number | null;
+            /** Missed Targets */
+            missed_targets: number;
+            /** Open */
+            open: number;
+            /** Overdue Tasks */
+            overdue_tasks: number;
+            user: components["schemas"]["UserRef"];
+            /** Waiting */
+            waiting: number;
+            /** Warm */
+            warm: number;
+            /** Won This Month */
+            won_this_month: number;
+        };
+        /**
+         * RoutingRule
+         * @description First match wins (docs/sales/05-workflows.md § 5).
+         */
+        RoutingRule: {
+            /** Countries */
+            countries?: string[];
+            /** From Ad */
+            from_ad?: boolean | null;
+            /** Languages */
+            languages?: string[];
+            /**
+             * Team Id
+             * Format: uuid
+             */
+            team_id: string;
         };
         /** RowError */
         RowError: {
@@ -2252,6 +2588,75 @@ export interface components {
             /** Trigger Type */
             trigger_type: string;
         };
+        /** SalesSettings */
+        SalesSettings: {
+            /**
+             * Arabic Register
+             * @default mirror
+             * @enum {string}
+             */
+            arabic_register: "mirror" | "gulf";
+            /** Business Hours */
+            business_hours?: {
+                [key: string]: components["schemas"]["OpenHours"];
+            };
+            /** Default Team Id */
+            default_team_id?: string | null;
+            /**
+             * Drafts Enabled
+             * @default true
+             */
+            drafts_enabled: boolean;
+            /**
+             * First Response Target Min
+             * @default 5
+             */
+            first_response_target_min: number;
+            /** Follow Up Cadence Days */
+            follow_up_cadence_days?: number[];
+            /**
+             * Retention Months
+             * @default 24
+             */
+            retention_months: number;
+            /** Routing Rules */
+            routing_rules?: components["schemas"]["RoutingRule"][];
+            /** Scoring Weights */
+            scoring_weights?: {
+                [key: string]: number;
+            };
+            /**
+             * Unassigned Visible To Sales
+             * @default true
+             */
+            unassigned_visible_to_sales: boolean;
+        };
+        /**
+         * SalesSettingsPatch
+         * @description Absent means unchanged; null clears the default team.
+         */
+        SalesSettingsPatch: {
+            /** Arabic Register */
+            arabic_register?: ("mirror" | "gulf") | null;
+            /** Business Hours */
+            business_hours?: {
+                [key: string]: components["schemas"]["OpenHours"];
+            } | null;
+            /** Default Team Id */
+            default_team_id?: string | null;
+            /** Drafts Enabled */
+            drafts_enabled?: boolean | null;
+            /** First Response Target Min */
+            first_response_target_min?: number | null;
+            /** Follow Up Cadence Days */
+            follow_up_cadence_days?: number[] | null;
+            /** Retention Months */
+            retention_months?: number | null;
+            /** Routing Rules */
+            routing_rules?: components["schemas"]["RoutingRule"][] | null;
+            /** Unassigned Visible To Sales */
+            unassigned_visible_to_sales?: boolean | null;
+        };
         /** SalesTask */
         SalesTask: {
             /** Ai Draft */
@@ -2318,6 +2723,20 @@ export interface components {
             /** Variables */
             variables?: string[];
         };
+        /** Share */
+        Share: {
+            /** Inbox */
+            inbox: number;
+            /** Phone */
+            phone: number;
+        };
+        /** SourceCount */
+        SourceCount: {
+            /** Leads */
+            leads: number;
+            /** Source */
+            source: string;
+        };
         /** Stage */
         Stage: {
             /**
@@ -2373,6 +2792,25 @@ export interface components {
             id: string;
             /** Name */
             name: string;
+        };
+        /** StageTotal */
+        StageTotal: {
+            /** Leads */
+            leads: number;
+            /**
+             * Pipeline Id
+             * Format: uuid
+             */
+            pipeline_id: string;
+            /** Pipeline Name */
+            pipeline_name: string;
+            /**
+             * Stage Id
+             * Format: uuid
+             */
+            stage_id: string;
+            /** Stage Name */
+            stage_name: string;
         };
         /** StagesIn */
         StagesIn: {
@@ -2681,6 +3119,27 @@ export interface components {
             name?: string | null;
             /** Timezone */
             timezone?: string | null;
+        };
+        /** Tiles */
+        Tiles: {
+            /** First Response Target Seconds */
+            first_response_target_seconds: number;
+            /** Hot Leads */
+            hot_leads: number;
+            /** Lost */
+            lost: number;
+            /** Median First Response Seconds */
+            median_first_response_seconds: number | null;
+            /** Missed Targets */
+            missed_targets: number;
+            /** New Conversations */
+            new_conversations: number;
+            /** New Leads */
+            new_leads: number;
+            /** Waiting Now */
+            waiting_now: number;
+            /** Won */
+            won: number;
         };
         /** TimelineEntry */
         TimelineEntry: {
@@ -3867,6 +4326,37 @@ export interface operations {
             };
         };
     };
+    erase_customer_v1_customers__customer_id__delete: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                customer_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     edit_customer_v1_customers__customer_id__patch: {
         parameters: {
             query?: never;
@@ -3891,6 +4381,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CustomerDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_customer_v1_customers__customer_id__export_get: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                customer_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */
@@ -3964,6 +4487,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TimelinePage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    manager_dashboard_v1_dashboard_manager_get: {
+        parameters: {
+            query?: {
+                date?: string | null;
+            };
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManagerDashboard"];
                 };
             };
             /** @description Validation Error */
@@ -4613,6 +5169,140 @@ export interface operations {
             };
         };
     };
+    list_quick_replies_v1_quick_replies_get: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuickReply"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_quick_reply_v1_quick_replies_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QuickReplyIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuickReply"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_quick_reply_v1_quick_replies__reply_id__delete: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                reply_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_quick_reply_v1_quick_replies__reply_id__patch: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                reply_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QuickReplyIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuickReply"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_runs_v1_runs_get: {
         parameters: {
             query?: {
@@ -4702,6 +5392,105 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RunDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    acceptance_v1_settings_ai_acceptance_get: {
+        parameters: {
+            query?: {
+                days?: number;
+            };
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Acceptance"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_sales_settings_v1_settings_sales_get: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SalesSettings"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    change_sales_settings_v1_settings_sales_patch: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SalesSettingsPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SalesSettings"];
                 };
             };
             /** @description Validation Error */
@@ -4970,6 +5759,74 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_team_v1_teams__team_id__delete: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                team_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rename_team_v1_teams__team_id__patch: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                team_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TeamIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };

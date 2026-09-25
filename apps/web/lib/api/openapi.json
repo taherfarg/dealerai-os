@@ -1,6 +1,31 @@
 {
   "components": {
     "schemas": {
+      "Acceptance": {
+        "properties": {
+          "by_intent": {
+            "items": {
+              "$ref": "#/components/schemas/IntentAcceptance"
+            },
+            "title": "By Intent",
+            "type": "array"
+          },
+          "days": {
+            "title": "Days",
+            "type": "integer"
+          },
+          "overall": {
+            "$ref": "#/components/schemas/IntentAcceptance"
+          }
+        },
+        "required": [
+          "days",
+          "overall",
+          "by_intent"
+        ],
+        "title": "Acceptance",
+        "type": "object"
+      },
       "ApprovalOut": {
         "properties": {
           "created_at": {
@@ -217,6 +242,121 @@
         "title": "Attachment",
         "type": "object"
       },
+      "AttentionItem": {
+        "properties": {
+          "count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Count"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "waiting",
+              "hot_lead",
+              "overdue_tasks"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "owner": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UserRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "since": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Since"
+          }
+        },
+        "required": [
+          "kind",
+          "id",
+          "name",
+          "owner",
+          "since",
+          "count"
+        ],
+        "title": "AttentionItem",
+        "type": "object"
+      },
+      "Bodies": {
+        "additionalProperties": false,
+        "properties": {
+          "ar": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ar"
+          },
+          "en": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "En"
+          },
+          "fr": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fr"
+          }
+        },
+        "title": "Bodies",
+        "type": "object"
+      },
       "Body_preview_v1_vehicles_import_preview_post": {
         "properties": {
           "file": {
@@ -279,6 +419,39 @@
           "file"
         ],
         "title": "Body_upload_document_v1_documents_post",
+        "type": "object"
+      },
+      "Brief": {
+        "properties": {
+          "date": {
+            "format": "date",
+            "title": "Date",
+            "type": "string"
+          },
+          "headline": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Headline"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AttentionItem"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "date",
+          "headline",
+          "items"
+        ],
+        "title": "Brief",
         "type": "object"
       },
       "BulkDecision": {
@@ -1288,6 +1461,25 @@
         "title": "HTTPValidationError",
         "type": "object"
       },
+      "Headline": {
+        "description": "The brief's one line, in both UI languages. Both required: schema\ndecoding guarantees required fields and nothing else.",
+        "properties": {
+          "ar": {
+            "title": "Ar",
+            "type": "string"
+          },
+          "en": {
+            "title": "En",
+            "type": "string"
+          }
+        },
+        "required": [
+          "en",
+          "ar"
+        ],
+        "title": "Headline",
+        "type": "object"
+      },
       "Identity": {
         "properties": {
           "id": {
@@ -1336,6 +1528,63 @@
           "errors"
         ],
         "title": "ImportResult",
+        "type": "object"
+      },
+      "IntentAcceptance": {
+        "properties": {
+          "decided": {
+            "title": "Decided",
+            "type": "integer"
+          },
+          "discarded": {
+            "title": "Discarded",
+            "type": "integer"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Intent"
+          },
+          "lightly_edited": {
+            "title": "Lightly Edited",
+            "type": "integer"
+          },
+          "rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rate"
+          },
+          "rewritten": {
+            "title": "Rewritten",
+            "type": "integer"
+          },
+          "sent": {
+            "title": "Sent",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "intent",
+          "decided",
+          "sent",
+          "lightly_edited",
+          "rewritten",
+          "discarded",
+          "rate"
+        ],
+        "title": "IntentAcceptance",
         "type": "object"
       },
       "InviteAccept": {
@@ -1940,6 +2189,64 @@
           "assignee"
         ],
         "title": "LeadTask",
+        "type": "object"
+      },
+      "ManagerDashboard": {
+        "properties": {
+          "brief": {
+            "$ref": "#/components/schemas/Brief"
+          },
+          "date": {
+            "format": "date",
+            "title": "Date",
+            "type": "string"
+          },
+          "phone_share": {
+            "$ref": "#/components/schemas/PhoneShare"
+          },
+          "pipeline": {
+            "items": {
+              "$ref": "#/components/schemas/StageTotal"
+            },
+            "title": "Pipeline",
+            "type": "array"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/SourceCount"
+            },
+            "title": "Sources",
+            "type": "array"
+          },
+          "team": {
+            "items": {
+              "$ref": "#/components/schemas/RepRow"
+            },
+            "title": "Team",
+            "type": "array"
+          },
+          "tiles": {
+            "$ref": "#/components/schemas/Tiles"
+          },
+          "waiting": {
+            "items": {
+              "$ref": "#/components/schemas/ConversationSummary"
+            },
+            "title": "Waiting",
+            "type": "array"
+          }
+        },
+        "required": [
+          "date",
+          "tiles",
+          "waiting",
+          "team",
+          "pipeline",
+          "sources",
+          "phone_share",
+          "brief"
+        ],
+        "title": "ManagerDashboard",
         "type": "object"
       },
       "MeOut": {
@@ -2608,6 +2915,26 @@
         "title": "NotificationPage",
         "type": "object"
       },
+      "OpenHours": {
+        "properties": {
+          "close": {
+            "format": "time",
+            "title": "Close",
+            "type": "string"
+          },
+          "open": {
+            "format": "time",
+            "title": "Open",
+            "type": "string"
+          }
+        },
+        "required": [
+          "open",
+          "close"
+        ],
+        "title": "OpenHours",
+        "type": "object"
+      },
       "OutcomeIn": {
         "properties": {
           "final_text": {
@@ -2646,6 +2973,22 @@
           "outcome"
         ],
         "title": "OutcomeIn",
+        "type": "object"
+      },
+      "PhoneShare": {
+        "properties": {
+          "last_week": {
+            "$ref": "#/components/schemas/Share"
+          },
+          "this_week": {
+            "$ref": "#/components/schemas/Share"
+          }
+        },
+        "required": [
+          "this_week",
+          "last_week"
+        ],
+        "title": "PhoneShare",
         "type": "object"
       },
       "Pipeline": {
@@ -2759,6 +3102,68 @@
         "title": "QueuedMessage",
         "type": "object"
       },
+      "QuickReply": {
+        "properties": {
+          "body": {
+            "$ref": "#/components/schemas/Bodies"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "shortcut": {
+            "pattern": "^/[a-z0-9-]{1,30}$",
+            "title": "Shortcut",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "shortcut",
+          "title",
+          "body",
+          "id",
+          "updated_at"
+        ],
+        "title": "QuickReply",
+        "type": "object"
+      },
+      "QuickReplyIn": {
+        "properties": {
+          "body": {
+            "$ref": "#/components/schemas/Bodies"
+          },
+          "shortcut": {
+            "pattern": "^/[a-z0-9-]{1,30}$",
+            "title": "Shortcut",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "shortcut",
+          "title",
+          "body"
+        ],
+        "title": "QuickReplyIn",
+        "type": "object"
+      },
       "ReadIn": {
         "properties": {
           "all": {
@@ -2790,6 +3195,110 @@
           "owner_id"
         ],
         "title": "ReassignIn",
+        "type": "object"
+      },
+      "RepRow": {
+        "properties": {
+          "cold": {
+            "title": "Cold",
+            "type": "integer"
+          },
+          "hot": {
+            "title": "Hot",
+            "type": "integer"
+          },
+          "median_first_response_seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Median First Response Seconds"
+          },
+          "missed_targets": {
+            "title": "Missed Targets",
+            "type": "integer"
+          },
+          "open": {
+            "title": "Open",
+            "type": "integer"
+          },
+          "overdue_tasks": {
+            "title": "Overdue Tasks",
+            "type": "integer"
+          },
+          "user": {
+            "$ref": "#/components/schemas/UserRef"
+          },
+          "waiting": {
+            "title": "Waiting",
+            "type": "integer"
+          },
+          "warm": {
+            "title": "Warm",
+            "type": "integer"
+          },
+          "won_this_month": {
+            "title": "Won This Month",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "user",
+          "open",
+          "waiting",
+          "median_first_response_seconds",
+          "missed_targets",
+          "overdue_tasks",
+          "hot",
+          "warm",
+          "cold",
+          "won_this_month"
+        ],
+        "title": "RepRow",
+        "type": "object"
+      },
+      "RoutingRule": {
+        "description": "First match wins (docs/sales/05-workflows.md § 5).",
+        "properties": {
+          "countries": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Countries",
+            "type": "array"
+          },
+          "from_ad": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Ad"
+          },
+          "languages": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Languages",
+            "type": "array"
+          },
+          "team_id": {
+            "format": "uuid",
+            "title": "Team Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "team_id"
+        ],
+        "title": "RoutingRule",
         "type": "object"
       },
       "RowError": {
@@ -3059,6 +3568,236 @@
         "title": "RunOut",
         "type": "object"
       },
+      "SalesSettings": {
+        "properties": {
+          "arabic_register": {
+            "default": "mirror",
+            "enum": [
+              "mirror",
+              "gulf"
+            ],
+            "title": "Arabic Register",
+            "type": "string"
+          },
+          "business_hours": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/OpenHours"
+            },
+            "propertyNames": {
+              "enum": [
+                "mon",
+                "tue",
+                "wed",
+                "thu",
+                "fri",
+                "sat",
+                "sun"
+              ]
+            },
+            "title": "Business Hours",
+            "type": "object"
+          },
+          "default_team_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default Team Id"
+          },
+          "drafts_enabled": {
+            "default": true,
+            "title": "Drafts Enabled",
+            "type": "boolean"
+          },
+          "first_response_target_min": {
+            "default": 5,
+            "maximum": 1440.0,
+            "minimum": 1.0,
+            "title": "First Response Target Min",
+            "type": "integer"
+          },
+          "follow_up_cadence_days": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Follow Up Cadence Days",
+            "type": "array"
+          },
+          "retention_months": {
+            "default": 24,
+            "maximum": 120.0,
+            "minimum": 1.0,
+            "title": "Retention Months",
+            "type": "integer"
+          },
+          "routing_rules": {
+            "items": {
+              "$ref": "#/components/schemas/RoutingRule"
+            },
+            "title": "Routing Rules",
+            "type": "array"
+          },
+          "scoring_weights": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Scoring Weights",
+            "type": "object"
+          },
+          "unassigned_visible_to_sales": {
+            "default": true,
+            "title": "Unassigned Visible To Sales",
+            "type": "boolean"
+          }
+        },
+        "title": "SalesSettings",
+        "type": "object"
+      },
+      "SalesSettingsPatch": {
+        "additionalProperties": false,
+        "description": "Absent means unchanged; null clears the default team.",
+        "properties": {
+          "arabic_register": {
+            "anyOf": [
+              {
+                "enum": [
+                  "mirror",
+                  "gulf"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Arabic Register"
+          },
+          "business_hours": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/OpenHours"
+                },
+                "propertyNames": {
+                  "enum": [
+                    "mon",
+                    "tue",
+                    "wed",
+                    "thu",
+                    "fri",
+                    "sat",
+                    "sun"
+                  ]
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Business Hours"
+          },
+          "default_team_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default Team Id"
+          },
+          "drafts_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Drafts Enabled"
+          },
+          "first_response_target_min": {
+            "anyOf": [
+              {
+                "maximum": 1440.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Response Target Min"
+          },
+          "follow_up_cadence_days": {
+            "anyOf": [
+              {
+                "items": {
+                  "maximum": 90.0,
+                  "minimum": 1.0,
+                  "type": "integer"
+                },
+                "maxItems": 5,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Follow Up Cadence Days"
+          },
+          "retention_months": {
+            "anyOf": [
+              {
+                "maximum": 120.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retention Months"
+          },
+          "routing_rules": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/RoutingRule"
+                },
+                "maxItems": 50,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Routing Rules"
+          },
+          "unassigned_visible_to_sales": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unassigned Visible To Sales"
+          }
+        },
+        "title": "SalesSettingsPatch",
+        "type": "object"
+      },
       "SalesTask": {
         "properties": {
           "ai_draft": {
@@ -3286,6 +4025,42 @@
         "title": "SendMessageIn",
         "type": "object"
       },
+      "Share": {
+        "properties": {
+          "inbox": {
+            "title": "Inbox",
+            "type": "integer"
+          },
+          "phone": {
+            "title": "Phone",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "inbox",
+          "phone"
+        ],
+        "title": "Share",
+        "type": "object"
+      },
+      "SourceCount": {
+        "properties": {
+          "leads": {
+            "title": "Leads",
+            "type": "integer"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "leads"
+        ],
+        "title": "SourceCount",
+        "type": "object"
+      },
       "Stage": {
         "properties": {
           "category": {
@@ -3422,6 +4197,41 @@
           "category"
         ],
         "title": "StageRef",
+        "type": "object"
+      },
+      "StageTotal": {
+        "properties": {
+          "leads": {
+            "title": "Leads",
+            "type": "integer"
+          },
+          "pipeline_id": {
+            "format": "uuid",
+            "title": "Pipeline Id",
+            "type": "string"
+          },
+          "pipeline_name": {
+            "title": "Pipeline Name",
+            "type": "string"
+          },
+          "stage_id": {
+            "format": "uuid",
+            "title": "Stage Id",
+            "type": "string"
+          },
+          "stage_name": {
+            "title": "Stage Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "pipeline_id",
+          "pipeline_name",
+          "stage_id",
+          "stage_name",
+          "leads"
+        ],
+        "title": "StageTotal",
         "type": "object"
       },
       "StagesIn": {
@@ -4307,6 +5117,66 @@
           }
         },
         "title": "TenantUpdate",
+        "type": "object"
+      },
+      "Tiles": {
+        "properties": {
+          "first_response_target_seconds": {
+            "title": "First Response Target Seconds",
+            "type": "integer"
+          },
+          "hot_leads": {
+            "title": "Hot Leads",
+            "type": "integer"
+          },
+          "lost": {
+            "title": "Lost",
+            "type": "integer"
+          },
+          "median_first_response_seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Median First Response Seconds"
+          },
+          "missed_targets": {
+            "title": "Missed Targets",
+            "type": "integer"
+          },
+          "new_conversations": {
+            "title": "New Conversations",
+            "type": "integer"
+          },
+          "new_leads": {
+            "title": "New Leads",
+            "type": "integer"
+          },
+          "waiting_now": {
+            "title": "Waiting Now",
+            "type": "integer"
+          },
+          "won": {
+            "title": "Won",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "new_conversations",
+          "waiting_now",
+          "median_first_response_seconds",
+          "first_response_target_seconds",
+          "missed_targets",
+          "new_leads",
+          "hot_leads",
+          "won",
+          "lost"
+        ],
+        "title": "Tiles",
         "type": "object"
       },
       "TimelineEntry": {
@@ -6909,6 +7779,51 @@
       }
     },
     "/v1/customers/{customer_id}": {
+      "delete": {
+        "description": "Gone from every table that held them — the PDPL right to erasure.\n\nLooked up in the caller's session first, so a customer they cannot see is a\n404 like any other; erased in a session without a user, the only one that\nreaches every colleague's notifications about them. What remains is one\naudit row: who, when, and why — never what (docs/sales/05-workflows.md § 14).",
+        "operationId": "erase_customer_v1_customers__customer_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "customer_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Customer Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Erase Customer",
+        "tags": [
+          "customers"
+        ]
+      },
       "get": {
         "operationId": "get_customer_v1_customers__customer_id__get",
         "parameters": [
@@ -7018,6 +7933,58 @@
           }
         },
         "summary": "Edit Customer",
+        "tags": [
+          "customers"
+        ]
+      }
+    },
+    "/v1/customers/{customer_id}/export": {
+      "get": {
+        "description": "Everything held about one customer, as one file — the PDPL right of\naccess. Owners and admins (docs/sales/06-api-contract.md § 4), and audited:\nwho took a copy, and when.",
+        "operationId": "export_customer_v1_customers__customer_id__export_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "customer_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Customer Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Export Customer",
         "tags": [
           "customers"
         ]
@@ -7158,6 +8125,67 @@
         "summary": "Customer Timeline",
         "tags": [
           "customers"
+        ]
+      }
+    },
+    "/v1/dashboard/manager": {
+      "get": {
+        "description": "A manager's morning in one request, because it is one screen refreshed\ntogether (docs/sales/06-api-contract.md § 7).\n\nEvery number reads through the caller's own visibility — her teams'\nnumbers because Postgres shows her nothing else. `date` moves the counted\nday; waiting, hot and overdue are always now; the brief is always today's.",
+        "operationId": "manager_dashboard_v1_dashboard_manager_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "date",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagerDashboard"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Manager Dashboard",
+        "tags": [
+          "dashboard"
         ]
       }
     },
@@ -8201,6 +9229,211 @@
         ]
       }
     },
+    "/v1/quick-replies": {
+      "get": {
+        "operationId": "list_quick_replies_v1_quick_replies_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/QuickReply"
+                  },
+                  "title": "Response List Quick Replies V1 Quick Replies Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Quick Replies",
+        "tags": [
+          "quick-replies"
+        ]
+      },
+      "post": {
+        "operationId": "add_quick_reply_v1_quick_replies_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuickReplyIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuickReply"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Add Quick Reply",
+        "tags": [
+          "quick-replies"
+        ]
+      }
+    },
+    "/v1/quick-replies/{reply_id}": {
+      "delete": {
+        "operationId": "delete_quick_reply_v1_quick_replies__reply_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "reply_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Reply Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Quick Reply",
+        "tags": [
+          "quick-replies"
+        ]
+      },
+      "patch": {
+        "operationId": "save_quick_reply_v1_quick_replies__reply_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "reply_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Reply Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuickReplyIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuickReply"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Save Quick Reply",
+        "tags": [
+          "quick-replies"
+        ]
+      }
+    },
     "/v1/runs": {
       "get": {
         "operationId": "list_runs_v1_runs_get",
@@ -8386,6 +9619,156 @@
         "summary": "Get Run",
         "tags": [
           "runs"
+        ]
+      }
+    },
+    "/v1/settings/ai/acceptance": {
+      "get": {
+        "description": "How the drafts fared, by intent — the number the pilot's S5 criterion\nand the autopilot trigger are both read from.",
+        "operationId": "acceptance_v1_settings_ai_acceptance_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "days",
+            "required": false,
+            "schema": {
+              "default": 30,
+              "maximum": 365,
+              "minimum": 1,
+              "title": "Days",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Acceptance"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Acceptance",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/v1/settings/sales": {
+      "get": {
+        "operationId": "read_sales_settings_v1_settings_sales_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SalesSettings"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Sales Settings",
+        "tags": [
+          "settings"
+        ]
+      },
+      "patch": {
+        "operationId": "change_sales_settings_v1_settings_sales_patch",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SalesSettingsPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SalesSettings"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Change Sales Settings",
+        "tags": [
+          "settings"
         ]
       }
     },
@@ -8846,6 +10229,115 @@
           }
         },
         "summary": "Create Team",
+        "tags": [
+          "team"
+        ]
+      }
+    },
+    "/v1/teams/{team_id}": {
+      "delete": {
+        "description": "Refused while routing sends customers to it: a rule pointing at a team\nthat is gone routes a customer to nobody. Its people stay; its customers\nkeep their owners and lose only the team.",
+        "operationId": "delete_team_v1_teams__team_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Team Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Team",
+        "tags": [
+          "team"
+        ]
+      },
+      "patch": {
+        "description": "A new name, and nothing else: membership is changed on the member\n(PATCH /v1/members/{id}), the one place it is written.",
+        "operationId": "rename_team_v1_teams__team_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Team Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TeamIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeamOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Rename Team",
         "tags": [
           "team"
         ]

@@ -3,7 +3,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { TenantApiProvider } from "./context";
-import { useSendMessage, useSuggestion } from "./hooks";
+import { useBulkReassign, useSaveSalesSettings, useSendMessage, useSuggestion } from "./hooks";
 
 vi.mock("@/lib/auth/token", () => ({ getBrowserAccessToken: async () => null }));
 
@@ -81,5 +81,50 @@ describe("copilot API hooks", () => {
       variables: ["Omar"],
       suggestion_id: "draft-2",
     });
+  });
+});
+
+const JSON_HEADERS = { "Content-Type": "application/json" };
+
+describe("settings and handing customers over", () => {
+  it("saves only the settings the screen changed", async () => {
+    const fetch = vi.fn<(request: Request) => Promise<Response>>(async () =>
+      new Response(JSON.stringify({ first_response_target_min: 7 }), {
+        status: 200,
+        headers: JSON_HEADERS,
+      }),
+    );
+    vi.stubGlobal("fetch", fetch);
+    const { wrapper } = setup();
+    const { result } = renderHook(() => useSaveSalesSettings(), { wrapper });
+    await act(async () => {
+      await result.current.mutateAsync({ first_response_target_min: 7 });
+    });
+    const request = fetch.mock.calls[0][0];
+    expect(request.method).toBe("PATCH");
+    // A manager's save must not carry keys she may not write.
+    expect(JSON.parse(await request.text())).toEqual({ first_response_target_min: 7 });
+  });
+
+  it("reports who could not be handed over", async () => {
+    const fetch = vi.fn<(request: Request) => Promise<Response>>(async (request) => {
+      const refused = request.url.includes("customer-2");
+      return new Response(
+        JSON.stringify(refused ? { title: "Forbidden", status: 403 } : { id: "moved" }),
+        { status: refused ? 403 : 200, headers: JSON_HEADERS },
+      );
+    });
+    vi.stubGlobal("fetch", fetch);
+    const { wrapper } = setup();
+    const { result } = renderHook(() => useBulkReassign(), { wrapper });
+    let failed: string[] = [];
+    await act(async () => {
+      failed = await result.current.mutateAsync({
+        ids: ["customer-1", "customer-2", "customer-3"],
+        ownerId: "sara",
+      });
+    });
+    expect(failed).toEqual(["customer-2"]);
+    expect(fetch).toHaveBeenCalledTimes(3);
   });
 });

@@ -38,6 +38,9 @@ export function invalidateLiveEvent(
     }
     return;
   }
+  // The dashboard counts all of what follows. Only the open day refetches —
+  // TanStack marks the rest stale — so one line covers every event below.
+  queryClient.invalidateQueries({ queryKey: keys.dashboardAll(tenantId) });
   if (conversationId) {
     if (event.type.startsWith("message.")) {
       queryClient.invalidateQueries({ queryKey: keys.messages(tenantId, conversationId) });
