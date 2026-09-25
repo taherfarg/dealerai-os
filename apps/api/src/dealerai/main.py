@@ -33,6 +33,7 @@ from .routes import (
     media,
     notifications,
     pipelines,
+    quick_replies,
     runs,
     stream,
     suggestions,
@@ -96,6 +97,7 @@ def create_app() -> FastAPI:
     app.include_router(me.router)
     app.include_router(team.router)
     app.include_router(settings_router)
+    app.include_router(quick_replies.router)
     app.include_router(webhooks.router)
     app.include_router(inbox.router)
     app.include_router(inbox.messages_router)
