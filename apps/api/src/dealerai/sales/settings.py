@@ -74,3 +74,7 @@ class SalesSettings(BaseModel):
     #: (docs/sales/04-ai-copilot.md § 5); a dealership that wants different
     #: arithmetic gets it by hand, and the reasons on screen stay honest either way.
     scoring_weights: dict[str, int] = Field(default_factory=dict)
+    #: Months a customer is kept after their last activity, then erased whole
+    #: by the nightly pass (docs/sales/02-data-model.md § 7). Owners and admins
+    #: change it (routes/settings.WRITERS); there is no screen for it yet.
+    retention_months: int = Field(default=24, ge=1, le=120)
