@@ -183,6 +183,21 @@ async def on_sla_check(event: Event) -> None:
             return
 
         started = row["waiting_since"].isoformat()
+        if level == "missed":
+            # A fact of its own, not only somebody's notification: the
+            # dashboard counts misses per day and per person, and a
+            # notification is deleted after 90 days or with its reader.
+            await conn.execute(
+                """insert into sla_misses
+                     (tenant_id, conversation_id, assigned_to, waiting_since, due_at)
+                   values ($1, $2, $3, $4, coalesce($5, now()))
+                   on conflict do nothing""",
+                tenant_id,
+                conversation_id,
+                row["assigned_to"],
+                row["waiting_since"],
+                row["sla_due_at"],
+            )
         managers = [
             r["user_id"] for r in await conn.fetch(_TEAM_MANAGERS, tenant_id, row["team_id"])
         ]

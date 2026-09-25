@@ -159,3 +159,43 @@ async def test_the_due_soon_check_schedules_the_missed_one(
            where event_type = 'conversation.sla_check' and status = 'pending'"""
     )
     assert "missed" in scheduled["payload"]
+
+
+async def test_a_missed_target_leaves_one_row_that_outlives_its_notifications(
+    db: None, workspace: asyncpg.Connection
+) -> None:
+    """The dashboard counts misses per day and per person. A notification is
+    somebody's, and is deleted after 90 days or with its reader."""
+    su = workspace
+    conversation_id, waiting_since = await _waiting_conversation(su, assigned_to=SALES_1)
+
+    await inbox.on_sla_check(_check(conversation_id, level="missed", waiting_since=waiting_since))
+    await inbox.on_sla_check(_check(conversation_id, level="missed", waiting_since=waiting_since))
+    await su.execute("delete from notifications")
+
+    misses = await su.fetch(
+        "select assigned_to, waiting_since, due_at from sla_misses where conversation_id = $1",
+        conversation_id,
+    )
+    assert [(m["assigned_to"], m["due_at"] - m["waiting_since"]) for m in misses] == [
+        (SALES_1, timedelta(minutes=5))
+    ]
+
+
+async def test_a_warning_is_not_a_miss(db: None, workspace: asyncpg.Connection) -> None:
+    su = workspace
+    conversation_id, waiting_since = await _waiting_conversation(su, assigned_to=SALES_1)
+    await inbox.on_sla_check(_check(conversation_id, level="due_soon", waiting_since=waiting_since))
+    assert await su.fetchval("select count(*) from sla_misses") == 0
+
+
+async def test_an_answered_customer_leaves_no_miss(db: None, workspace: asyncpg.Connection) -> None:
+    su = workspace
+    conversation_id, waiting_since = await _waiting_conversation(su, assigned_to=SALES_1)
+    await su.execute(
+        """update conversations set waiting_since = null, sla_due_at = null,
+                                    first_response_at = now() where id = $1""",
+        conversation_id,
+    )
+    await inbox.on_sla_check(_check(conversation_id, level="missed", waiting_since=waiting_since))
+    assert await su.fetchval("select count(*) from sla_misses") == 0

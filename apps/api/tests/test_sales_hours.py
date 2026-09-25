@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import pytest
 
-from dealerai.sales.hours import due_at, is_open
+from dealerai.sales.hours import due_at, is_open, open_seconds
 from dealerai.sales.settings import SalesSettings
 
 DUBAI = ZoneInfo("Asia/Dubai")
@@ -105,3 +105,35 @@ def test_a_day_that_closes_before_it_opens_is_rejected() -> None:
         SalesSettings.model_validate(
             {"business_hours": {"mon": {"open": "19:00", "close": "09:00"}}}
         )
+
+
+# ---------------------------------------------------------------------------
+# how long a customer waited, in the team's hours
+# ---------------------------------------------------------------------------
+
+
+def test_a_wait_inside_one_open_stretch_is_just_the_minutes() -> None:
+    asked, answered = dubai("2026-09-16T10:00"), dubai("2026-09-16T10:04")
+    assert open_seconds(asked, answered, settings=SETTINGS, tz=DUBAI) == 240
+
+
+def test_a_wait_counts_only_the_minutes_the_team_is_open() -> None:
+    """Written at 23:30, answered at 09:02: two minutes of the team's time."""
+    asked, answered = dubai("2026-09-16T23:30"), dubai("2026-09-17T09:02")
+    assert open_seconds(asked, answered, settings=SETTINGS, tz=DUBAI) == 120
+
+
+def test_a_closed_day_counts_nothing() -> None:
+    """An hour of Saturday afternoon, no Sunday, half an hour of Monday."""
+    asked, answered = dubai("2026-09-19T13:00"), dubai("2026-09-21T09:30")
+    assert open_seconds(asked, answered, settings=SETTINGS, tz=DUBAI) == 90 * 60
+
+
+def test_a_team_without_hours_waited_the_whole_time() -> None:
+    asked, answered = dubai("2026-09-16T23:30"), dubai("2026-09-17T09:02")
+    assert open_seconds(asked, answered, settings=SalesSettings(), tz=DUBAI) == 34_320
+
+
+def test_an_answer_before_the_question_is_no_wait() -> None:
+    moment = dubai("2026-09-16T10:00")
+    assert open_seconds(moment, moment - timedelta(minutes=1), settings=SETTINGS, tz=DUBAI) == 0

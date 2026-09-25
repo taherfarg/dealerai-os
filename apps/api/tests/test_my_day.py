@@ -5,8 +5,9 @@ from __future__ import annotations
 import asyncio
 import uuid
 from collections.abc import Iterator
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import asyncpg
 import pytest
@@ -15,8 +16,11 @@ from fastapi.testclient import TestClient
 from conftest import MANAGER, SALES_1, SALES_2, TEAM_LOCAL, TENANT_A, reseed_with_people
 from dealerai.config import get_settings
 from dealerai.core.security import mint_test_token
+from dealerai.db.session import tenant_session
 from dealerai.main import app
 from dealerai.routes.tasks import window
+from dealerai.sales import dashboard as numbers
+from dealerai.sales.settings import WEEKDAYS, SalesSettings
 
 SECRET = "super-secret-jwt-token-with-at-least-32-characters-long"
 NOW = datetime.now(UTC)
@@ -242,3 +246,65 @@ def test_the_taking_chats_switch_reads_the_membership(client: TestClient) -> Non
 def test_a_manager_s_own_day_is_their_own(client: TestClient) -> None:
     """Their team's queue is the inbox; this screen is what they personally owe."""
     assert _my_day(client, MANAGER)["waiting_on_you"] == []
+
+
+async def _wrote_twice() -> None:
+    """Karim wrote half an hour before SALES_2 answered, and again a minute before."""
+    conn = await asyncpg.connect(get_settings().migration_dsn)
+    try:
+        conversation = await _conversation(
+            conn, "Karim Benali", owner=SALES_2, waiting_minutes=None
+        )
+        answered_at = NOW - timedelta(minutes=1)
+        for minutes_before in (30, 1):
+            await conn.execute(
+                """insert into messages (tenant_id, conversation_id, direction, sender, origin,
+                                         body, created_at)
+                   values ($1, $2, 'in', 'customer', 'customer', 'Hello?', $3)""",
+                TENANT_A,
+                conversation,
+                answered_at - timedelta(minutes=minutes_before),
+            )
+        await conn.execute(
+            "update conversations set first_response_at = $2 where id = $1",
+            conversation,
+            answered_at,
+        )
+    finally:
+        await conn.close()
+
+
+def test_the_median_starts_at_the_customers_first_message(client: TestClient) -> None:
+    """Somebody who wrote at 10:00 and again at 10:30 had waited half an hour
+    when the 10:31 reply went out, not a minute."""
+    asyncio.run(_wrote_twice())
+    assert _my_day(client, SALES_2)["median_first_response_seconds"] == 30 * 60
+
+
+async def test_a_wait_is_counted_in_the_hours_we_are_open(
+    db: None, su: asyncpg.Connection, seeded: None
+) -> None:
+    """Fixed instants, so the test does not depend on the hour it runs at."""
+    dubai = ZoneInfo("Asia/Dubai")
+    hours = SalesSettings.model_validate(
+        {"business_hours": {day: {"open": "09:00", "close": "21:00"} for day in WEEKDAYS}}
+    )
+    conversation = await su.fetchval("select id from conversations where tenant_id = $1", TENANT_A)
+    await su.execute("delete from messages where conversation_id = $1", conversation)
+    await su.execute(
+        """insert into messages (tenant_id, conversation_id, direction, sender, origin, body,
+                                 created_at)
+           values ($1, $2, 'in', 'customer', 'customer', 'Still there?', $3)""",
+        TENANT_A,
+        conversation,
+        datetime(2026, 9, 21, 20, 59, tzinfo=dubai),
+    )
+    await su.execute(
+        "update conversations set first_response_at = $2 where id = $1",
+        conversation,
+        datetime(2026, 9, 22, 9, 1, tzinfo=dubai),
+    )
+    since, until = numbers.day_window(date(2026, 9, 22), dubai)
+    async with tenant_session(TENANT_A) as conn:
+        waits = await numbers.answered(conn, since, until, tz=dubai, settings=hours)
+    assert [wait.seconds for wait in waits] == [120]

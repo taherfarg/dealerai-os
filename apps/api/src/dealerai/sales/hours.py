@@ -103,3 +103,30 @@ def due_at(
 
     # Hours that never open: fall back to the clock rather than returning nothing.
     return waiting_since + remaining
+
+
+def open_seconds(start: datetime, end: datetime, *, settings: SalesSettings, tz: ZoneInfo) -> int:
+    """How much of [start, end) the team was open: the wait a response target
+    counts. A customer who wrote at 23:30 and was answered at 09:02 waited two
+    minutes of the team's time, not nine and a half hours."""
+    if end <= start:
+        return 0
+    if not settings.business_hours:
+        return int((end - start).total_seconds())
+    total = timedelta()
+    cursor = start.astimezone(tz)
+    stop = end.astimezone(tz)
+    while cursor < stop:
+        hours = _hours_for(cursor, settings)
+        if hours is not None:
+            opens = cursor.replace(
+                hour=hours.open.hour, minute=hours.open.minute, second=0, microsecond=0
+            )
+            closes = cursor.replace(
+                hour=hours.close.hour, minute=hours.close.minute, second=0, microsecond=0
+            )
+            counted_from, counted_to = max(cursor, opens), min(stop, closes)
+            if counted_to > counted_from:
+                total += counted_to - counted_from
+        cursor = _next_midnight(cursor)
+    return int(total.total_seconds())

@@ -16,6 +16,9 @@ from ..db.queries.crm import HOT_LEADS, TASKS_LIST
 from ..db.queries.inbox import list_sql
 from ..db.session import tenant_session
 from ..deps import Ctx
+from ..sales import dashboard as numbers
+from ..sales.clock import zone
+from ..sales.settings import SalesSettings
 from .inbox import ConversationSummary, summary
 from .leads import LeadOut, lead_out
 from .tasks import SalesTask, day_start, task_out, window
@@ -28,22 +31,6 @@ SHOWN = 5
 REPLIED_TODAY = """
 select count(*) from messages
  where author_user_id = $1 and direction = 'out' and kind = 'message' and created_at >= $2
-"""
-
-#: Waiting_since is cleared the moment a reply is accepted, so how long the
-#: customer actually waited is reconstructed from the messages: the last thing
-#: they said before the answer went out.
-MEDIAN_FIRST_RESPONSE = """
-select percentile_cont(0.5) within group (order by seconds)::int
-  from (
-    select extract(epoch from (c.first_response_at - (
-             select max(m.created_at) from messages m
-              where m.conversation_id = c.id and m.direction = 'in' and m.kind = 'message'
-                and m.created_at <= c.first_response_at))) as seconds
-      from conversations c
-     where c.first_response_at >= $2 and c.assigned_to = $1
-  ) answered
- where seconds is not null
 """
 
 
@@ -61,9 +48,12 @@ class MyDay(BaseModel):
 async def my_day(ctx: Ctx) -> dict[str, Any]:
     now = datetime.now(UTC)
     async with tenant_session(ctx.tenant_id, user_id=ctx.user.id, scope=ctx.scope) as conn:
-        timezone = await conn.fetchval("select timezone from tenants where id = $1", ctx.tenant_id)
-        midnight = day_start(timezone or "UTC", now)
-        today_from, today_until = window("today", timezone or "UTC", now)
+        tenant = await conn.fetchrow(
+            "select timezone, sales_settings from tenants where id = $1", ctx.tenant_id
+        )
+        timezone = tenant["timezone"] or "UTC"
+        midnight = day_start(timezone, now)
+        today_from, today_until = window("today", timezone, now)
 
         # The queue, through the inbox's own query: two definitions of "mine,
         # waiting" would drift, and this screen is the one that says the queue
@@ -77,11 +67,20 @@ async def my_day(ctx: Ctx) -> dict[str, Any]:
 
         tasks = await conn.fetch(TASKS_LIST, ctx.user.id, False, today_from, today_until, SHOWN)
         leads = await conn.fetch(HOT_LEADS, ctx.user.id, SHOWN)
+        # The dashboard's definition, filtered to me: two medians that could
+        # disagree would be one too many (sales/dashboard.py).
+        waits = await numbers.answered(
+            conn,
+            midnight,
+            now,
+            tz=zone(timezone),
+            settings=SalesSettings.model_validate(tenant["sales_settings"] or {}),
+        )
 
         return {
             "replied_today": await conn.fetchval(REPLIED_TODAY, ctx.user.id, midnight) or 0,
-            "median_first_response_seconds": await conn.fetchval(
-                MEDIAN_FIRST_RESPONSE, ctx.user.id, midnight
+            "median_first_response_seconds": numbers.median_of(
+                [wait for wait in waits if wait.assigned_to == ctx.user.id]
             ),
             "accepting_chats": bool(
                 await conn.fetchval(
