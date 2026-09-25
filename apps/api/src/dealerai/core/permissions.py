@@ -45,7 +45,10 @@ PERMISSIONS: dict[str, frozenset[str]] = {
     ),
     "sales": frozenset({"inbox.send", "leads.mark_won_lost"}),
     "marketer": frozenset(),
-    "viewer": frozenset(),
+    #: Read-only everything, and the numbers are part of everything
+    #: (docs/sales/06-api-contract.md § 12). Every write on the dashboard needs
+    #: a permission of its own, so this lets a viewer look and nothing more.
+    "viewer": frozenset({"dashboard.manager"}),
 }
 
 #: What a role may see. 'all' means no owner filter at all.

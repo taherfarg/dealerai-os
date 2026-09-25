@@ -42,8 +42,9 @@ def test_a_manager_may_assign_and_route_but_not_change_channels() -> None:
     assert "settings.channels" not in manager
 
 
-def test_a_viewer_may_do_nothing() -> None:
-    assert permissions_for("viewer") == frozenset()
+def test_a_viewer_reads_the_dashboard_and_changes_nothing() -> None:
+    """06 § 12: read-only everything, and the numbers are part of everything."""
+    assert permissions_for("viewer") == frozenset({"dashboard.manager"})
 
 
 def test_an_unknown_role_gets_nothing_rather_than_everything() -> None:
