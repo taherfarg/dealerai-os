@@ -182,3 +182,26 @@ TASKS_LIST = f"""
 """
 
 ONE_TASK = f"{TASK_SELECT} where t.id = $1"
+
+#: A customer's file (routes/customers.export_customer). Notes are included:
+#: what we wrote about somebody is data about them.
+EXPORT_CONVERSATIONS = """
+select id, surface, status, created_at, last_message_at
+  from conversations where contact_id = $1 order by created_at
+"""
+
+EXPORT_MESSAGES = """
+select m.conversation_id, m.created_at, m.direction, m.kind, m.type, m.origin, m.body,
+       m.transcript->>'text' as transcript, m.location, m.media
+  from messages m
+  join conversations cv on cv.id = m.conversation_id
+ where cv.contact_id = $1
+ order by m.created_at, m.id
+"""
+
+EXPORT_TASKS = """
+select title, kind, status, due_at, completed_at, created_at
+  from tasks
+ where contact_id = $1 or lead_id in (select id from leads where contact_id = $1)
+ order by created_at
+"""

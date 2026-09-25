@@ -5,15 +5,20 @@ from __future__ import annotations
 import base64
 import binascii
 from collections.abc import Mapping
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any, Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request, status
+from fastapi.encoders import jsonable_encoder
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from ..core.errors import AlreadyMerged, NotFound, Unusable
 from ..db.queries.crm import (
+    EXPORT_CONVERSATIONS,
+    EXPORT_MESSAGES,
+    EXPORT_TASKS,
     IDENTITIES,
     MERGED_INTO,
     ONE_CUSTOMER,
@@ -23,8 +28,9 @@ from ..db.queries.crm import (
     list_sql,
 )
 from ..db.session import tenant_session
-from ..deps import Ctx, TenantContext, require_permission
+from ..deps import Ctx, TenantContext, require_permission, require_role
 from ..events.bus import emit
+from ..media import links
 from ..sales import profile as profile_fields
 from .inbox import UserRef
 from .leads import LeadOut, lead_out
@@ -318,3 +324,100 @@ async def reassign_customer(
             priority=8,
         )
         return await _detail(conn, ctx.tenant_id, customer_id)
+
+
+#: Long enough to hand the file over and for the customer to open it. A link
+#: that expires overnight is an export of nothing.
+EXPORT_LINKS_LAST = timedelta(days=7)
+
+
+def _exported(request: Request, media: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Absolute links: the file is read outside the app, by the customer."""
+    base = str(request.base_url).rstrip("/")
+    return [
+        {
+            "mime": asset.get("mime"),
+            "filename": asset.get("filename"),
+            "url": base
+            + "/v1/media/"
+            + links.sign(str(asset["storage_path"]), expires_in=EXPORT_LINKS_LAST),
+        }
+        for asset in media
+        if asset.get("status") == "ready" and asset.get("storage_path")
+    ]
+
+
+@router.get("/{customer_id}/export")
+async def export_customer(
+    customer_id: UUID,
+    request: Request,
+    ctx: Annotated[TenantContext, Depends(require_permission("settings.team"))],
+) -> JSONResponse:
+    """Everything held about one customer, as one file — the PDPL right of
+    access. Owners and admins (docs/sales/06-api-contract.md § 4), and audited:
+    who took a copy, and when."""
+    async with tenant_session(ctx.tenant_id, user_id=ctx.user.id, scope=ctx.scope) as conn:
+        row = await _row_or_404(conn, ctx.tenant_id, customer_id)
+        identities = await conn.fetch(IDENTITIES, customer_id)
+        conversations = await conn.fetch(EXPORT_CONVERSATIONS, customer_id)
+        messages = await conn.fetch(EXPORT_MESSAGES, customer_id)
+        leads = await conn.fetch(OPEN_LEADS, customer_id, False)
+        tasks = await conn.fetch(EXPORT_TASKS, customer_id)
+        await conn.execute(
+            """insert into audit_log (tenant_id, actor_type, actor_id, action, entity_type,
+                                      entity_id)
+               values ($1, 'user', $2, 'contact.exported', 'contact', $3)""",
+            ctx.tenant_id,
+            str(ctx.user.id),
+            customer_id,
+        )
+    document = {
+        "exported_at": datetime.now(UTC),
+        "customer": {
+            "id": row["id"],
+            "name": row["full_name"],
+            "language": row["language"],
+            "country": row["country"],
+            "tags": list(row["tags"] or []),
+            "consent": dict(row["consent"] or {}),
+            "profile": dict(row["profile"] or {}),
+            "last_seen_at": row["last_seen_at"],
+        },
+        "identities": [{"kind": i["kind"], "value": i["value"]} for i in identities],
+        "conversations": [dict(conversation) for conversation in conversations],
+        "messages": [
+            {
+                **{key: message[key] for key in message.keys() if key != "media"},
+                "media": _exported(request, list(message["media"] or [])),
+            }
+            for message in messages
+        ],
+        "leads": [lead_out(lead) for lead in leads],
+        "tasks": [dict(task) for task in tasks],
+    }
+    return JSONResponse(
+        jsonable_encoder(document),
+        headers={"Content-Disposition": f'attachment; filename="customer-{customer_id}.json"'},
+    )
+
+
+@router.delete("/{customer_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def erase_customer(
+    customer_id: UUID,
+    ctx: Annotated[TenantContext, Depends(require_role("admin"))],
+) -> None:
+    """Gone from every table that held them — the PDPL right to erasure.
+
+    Looked up in the caller's session first, so a customer they cannot see is a
+    404 like any other; erased in a session without a user, the only one that
+    reaches every colleague's notifications about them. What remains is one
+    audit row: who, when, and why — never what (docs/sales/05-workflows.md § 14).
+    """
+    async with tenant_session(ctx.tenant_id, user_id=ctx.user.id, scope=ctx.scope) as conn:
+        await _row_or_404(conn, ctx.tenant_id, customer_id)
+    async with tenant_session(ctx.tenant_id) as conn:
+        paths = await conn.fetchval(
+            "select app.erase_contact($1, $2, 'request')", customer_id, ctx.user.id
+        )
+        if paths:
+            await emit(conn, "media.delete", {"paths": list(paths)}, tenant_id=ctx.tenant_id)

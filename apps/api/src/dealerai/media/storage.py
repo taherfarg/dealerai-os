@@ -173,3 +173,40 @@ async def upload(storage_path: str, data: bytes, *, content_type: str) -> str:
     if response.status_code >= 400:
         raise StorageUnavailable(f"upload failed ({response.status_code}): {response.text[:300]}")
     return storage_path
+
+
+def _unlink_all(root: Path, storage_paths: list[str]) -> None:
+    for storage_path in storage_paths:
+        _local_path(root, storage_path).unlink(missing_ok=True)
+
+
+async def remove(storage_paths: list[str]) -> None:
+    """Delete objects. One that is already gone is not an error: an erasure is
+    retried, and the second attempt must not fail on what the first finished.
+
+    Anon key with RLS-backed storage policies, like upload and download — the
+    bucket's policy has to allow delete for the app, which is a staging
+    checklist item (S7), not something to work around with the service role.
+    """
+    if not storage_paths:
+        return
+    root = _local_root()
+    if root is not None:
+        await asyncio.to_thread(_unlink_all, root, storage_paths)
+        return
+
+    settings = get_settings()
+    if not settings.supabase_anon_key:
+        raise StorageUnavailable("SUPABASE_ANON_KEY is not set")
+    async with httpx.AsyncClient(timeout=60) as client:
+        response = await client.request(
+            "DELETE",
+            f"{_base_url()}/storage/v1/object/{BUCKET}",
+            json={"prefixes": [path.lstrip("/") for path in storage_paths]},
+            headers={
+                "apikey": settings.supabase_anon_key,
+                "Authorization": f"Bearer {settings.supabase_anon_key}",
+            },
+        )
+    if response.status_code >= 400:
+        raise StorageUnavailable(f"delete failed ({response.status_code}): {response.text[:300]}")
