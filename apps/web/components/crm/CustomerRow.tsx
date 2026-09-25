@@ -11,14 +11,39 @@ const BAND_TONE: Record<string, string> = {
   cold: "bg-blue-500/10 text-blue-700 dark:text-blue-300",
 };
 
-/** One customer, as a table row on a desktop and a card on a phone. */
-export function CustomerRow({ customer, href }: { customer: Customer; href: string }) {
+/**
+ * One customer, as a table row on a desktop and a card on a phone. With
+ * `onSelect` it carries a checkbox, for handing many customers over at once.
+ */
+export function CustomerRow({
+  customer,
+  href,
+  selected = false,
+  onSelect,
+}: {
+  customer: Customer;
+  href: string;
+  selected?: boolean;
+  onSelect?: (selected: boolean) => void;
+}) {
   const t = useT();
   return (
-    <li data-band={customer.band ?? "none"}>
+    <li data-band={customer.band ?? "none"} className={onSelect ? "flex items-stretch" : undefined}>
+      {onSelect && (
+        <label className="flex min-h-11 min-w-11 items-center justify-center border-b border-black/5 dark:border-white/10">
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={(event) => onSelect(event.target.checked)}
+            aria-label={`${t("bulk.select")} ${customer.name ?? ""}`.trim()}
+          />
+        </label>
+      )}
       <Link
         href={href}
-        className="hover:bg-background grid gap-x-3 gap-y-1 border-b border-black/5 px-3 py-3 md:grid-cols-[1fr_10rem_8rem_6rem_6rem] md:items-center dark:border-white/10"
+        className={`hover:bg-background grid gap-x-3 gap-y-1 border-b border-black/5 px-3 py-3 md:grid-cols-[1fr_10rem_8rem_6rem_6rem] md:items-center dark:border-white/10 ${
+          onSelect ? "min-w-0 flex-1" : ""
+        }`}
       >
         <span className="truncate text-sm font-medium">
           {countryFlag(customer.country)} {customer.name ?? t("inbox.unknownCustomer")}

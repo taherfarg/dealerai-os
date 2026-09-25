@@ -3,12 +3,19 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { use, useState } from "react";
+import { EraseDialog } from "@/components/crm/EraseDialog";
 import { MergeDialog } from "@/components/crm/MergeDialog";
 import { ProfileField, type Field } from "@/components/crm/ProfileField";
 import { ReassignDialog } from "@/components/crm/ReassignDialog";
 import { Timeline } from "@/components/crm/Timeline";
 import { ApiError } from "@/lib/api/client";
-import { useCustomer, useEditCustomer, useMe, useTasks } from "@/lib/api/hooks";
+import {
+  useCustomer,
+  useEditCustomer,
+  useExportCustomer,
+  useMe,
+  useTasks,
+} from "@/lib/api/hooks";
 import { useFilters } from "@/lib/filters";
 import { countryFlag, formatMoney, formatRelative } from "@/lib/format";
 import { useT } from "@/lib/i18n-client";
@@ -36,9 +43,10 @@ export default function CustomerPage({
   const me = useMe();
   const customer = useCustomer(contactId);
   const edit = useEditCustomer(contactId);
+  const exporting = useExportCustomer(contactId);
   const tasks = useTasks({ assignee: "me", bucket: "today" });
   const [tab, setTab] = useFilters({ tab: "timeline" });
-  const [dialog, setDialog] = useState<"reassign" | "merge" | null>(null);
+  const [dialog, setDialog] = useState<"reassign" | "merge" | "erase" | null>(null);
 
   if (customer.isError) {
     const problem = customer.error instanceof ApiError ? customer.error.problem : null;
@@ -101,6 +109,27 @@ export default function CustomerPage({
               className="hover:bg-background min-h-11 rounded-md px-3 text-sm"
             >
               {t("customer.merge")}
+            </button>
+          )}
+          {/* PDPL (06 § 4): a copy for settings.team; erasure for an owner or
+              admin — a role in the contract, not a permission. */}
+          {may("settings.team") && (
+            <button
+              type="button"
+              onClick={() => exporting.mutate()}
+              disabled={exporting.isPending}
+              className="hover:bg-background min-h-11 rounded-md px-3 text-sm"
+            >
+              {t("customer.export")}
+            </button>
+          )}
+          {(me.data?.role === "owner" || me.data?.role === "admin") && (
+            <button
+              type="button"
+              onClick={() => setDialog("erase")}
+              className="hover:bg-background min-h-11 rounded-md px-3 text-sm text-red-700 dark:text-red-400"
+            >
+              {t("customer.erase")}
             </button>
           )}
         </div>
@@ -183,6 +212,13 @@ export default function CustomerPage({
 
       {dialog === "reassign" && (
         <ReassignDialog customer={record} onClose={() => setDialog(null)} />
+      )}
+      {dialog === "erase" && (
+        <EraseDialog
+          customer={record}
+          onClose={() => setDialog(null)}
+          onErased={() => router.replace(`/${tenant}/customers`)}
+        />
       )}
       {dialog === "merge" && (
         <MergeDialog

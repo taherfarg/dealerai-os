@@ -1,7 +1,8 @@
 "use client";
 
-import { use } from "react";
+import { use, useState } from "react";
 import { CustomerRow } from "@/components/crm/CustomerRow";
+import { HandOverBar } from "@/components/crm/HandOverBar";
 import { useCustomers, useMe, useMembers, type CustomerFilters } from "@/lib/api/hooks";
 import { useFilters } from "@/lib/filters";
 import { useT } from "@/lib/i18n-client";
@@ -22,6 +23,16 @@ export default function CustomersPage({ params }: { params: Promise<{ tenant: st
   const customers = useCustomers(query);
   const rows = (customers.data?.pages ?? []).flatMap((page) => page.data);
   const canSeeOthers = (me.data?.permissions ?? []).includes("contacts.reassign");
+  // Handing many over is the same permission as handing one over.
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const toggle = (id: string, on: boolean) =>
+    setSelected((before) => {
+      const after = new Set(before);
+      if (on) after.add(id);
+      else after.delete(id);
+      return after;
+    });
+  const allShown = rows.length > 0 && rows.every((row) => selected.has(row.id));
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -69,15 +80,40 @@ export default function CustomersPage({ params }: { params: Promise<{ tenant: st
       {rows.length === 0 && !customers.isLoading ? (
         <p className="text-muted mt-8 text-center text-sm">{t("customers.empty")}</p>
       ) : (
-        <ul className="mt-4">
-          {rows.map((customer) => (
-            <CustomerRow
-              key={customer.id}
-              customer={customer}
-              href={`/${tenant}/customers/${customer.id}`}
-            />
-          ))}
-        </ul>
+        <>
+          {canSeeOthers && (
+            <label className="mt-3 flex min-h-11 items-center gap-2 px-3 text-sm">
+              <input
+                type="checkbox"
+                checked={allShown}
+                onChange={(event) =>
+                  setSelected(event.target.checked ? new Set(rows.map((row) => row.id)) : new Set())
+                }
+              />
+              {t("bulk.selectAll")}
+            </label>
+          )}
+          <ul className="mt-1">
+            {rows.map((customer) => (
+              <CustomerRow
+                key={customer.id}
+                customer={customer}
+                href={`/${tenant}/customers/${customer.id}`}
+                selected={selected.has(customer.id)}
+                onSelect={canSeeOthers ? (on) => toggle(customer.id, on) : undefined}
+              />
+            ))}
+          </ul>
+        </>
+      )}
+
+      {selected.size > 0 && (
+        <HandOverBar
+          ids={[...selected]}
+          names={Object.fromEntries(rows.map((row) => [row.id, row.name ?? row.id]))}
+          onClear={() => setSelected(new Set())}
+          onFinished={(failed) => setSelected(new Set(failed))}
+        />
       )}
 
       {customers.hasNextPage && (
