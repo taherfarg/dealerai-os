@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 from ..core.errors import Conflict, NotFound
 from ..db.session import tenant_session
 from ..deps import Ctx, TenantContext, require_permission
+from ..sales.settings import SalesSettings
 from .tenants import Role
 
 router = APIRouter(prefix="/v1", tags=["team"])
@@ -162,3 +163,40 @@ async def create_team(ctx: TeamAdmin, body: TeamIn) -> TeamOut:
                 user_id,
             )
     return TeamOut(id=team_id, name=body.name, member_ids=body.member_ids)
+
+
+@router.patch("/teams/{team_id}", response_model=TeamOut)
+async def rename_team(ctx: TeamAdmin, team_id: UUID, body: TeamIn) -> dict[str, Any]:
+    """A new name, and nothing else: membership is changed on the member
+    (PATCH /v1/members/{id}), the one place it is written."""
+    async with tenant_session(ctx.tenant_id, user_id=ctx.user.id, scope=ctx.scope) as conn:
+        try:
+            renamed = await conn.fetchval(
+                "update teams set name = $2 where id = $1 returning id", team_id, body.name
+            )
+        except asyncpg.UniqueViolationError as exc:
+            raise Conflict(f"a team called {body.name!r} already exists") from exc
+        if renamed is None:
+            raise NotFound("no such team")
+        members = await conn.fetchval(
+            "select coalesce(array_agg(user_id), '{}') from team_members where team_id = $1",
+            team_id,
+        )
+    return {"id": team_id, "name": body.name, "member_ids": members}
+
+
+@router.delete("/teams/{team_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_team(ctx: TeamAdmin, team_id: UUID) -> None:
+    """Refused while routing sends customers to it: a rule pointing at a team
+    that is gone routes a customer to nobody. Its people stay; its customers
+    keep their owners and lose only the team."""
+    async with tenant_session(ctx.tenant_id, user_id=ctx.user.id, scope=ctx.scope) as conn:
+        raw = await conn.fetchval("select sales_settings from tenants where id = $1", ctx.tenant_id)
+        settings = SalesSettings.model_validate(raw or {})
+        if settings.default_team_id == team_id or any(
+            rule.team_id == team_id for rule in settings.routing_rules
+        ):
+            raise Conflict("routing still sends customers to this team; change the routing first")
+        deleted = await conn.fetchval("delete from teams where id = $1 returning id", team_id)
+        if deleted is None:
+            raise NotFound("no such team")

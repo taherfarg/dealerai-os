@@ -10,6 +10,7 @@ import asyncio
 import uuid
 from collections.abc import Iterator
 
+import asyncpg
 import pytest
 from fastapi.testclient import TestClient
 
@@ -18,6 +19,7 @@ from conftest import (
     OWNER,
     SALES_1,
     SALES_2,
+    SALES_X,
     TEAM_EXPORT,
     TENANT_A,
     USER_A,
@@ -143,3 +145,52 @@ def test_teams_can_be_created_and_listed(client: TestClient) -> None:
 def test_a_manager_cannot_create_teams(client: TestClient) -> None:
     response = client.post("/v1/teams", json={"name": "Shadow"}, headers=auth(MANAGER))
     assert response.status_code == 403, response.text
+
+
+def test_a_team_can_be_renamed(client: TestClient) -> None:
+    response = client.patch(
+        f"/v1/teams/{TEAM_EXPORT}", json={"name": "Export and Africa"}, headers=auth(OWNER)
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["name"] == "Export and Africa"
+    names = [team["name"] for team in client.get("/v1/teams", headers=auth(OWNER)).json()]
+    assert "Export and Africa" in names and "Export" not in names
+
+
+def test_a_team_routing_still_sends_customers_to_cannot_be_deleted(client: TestClient) -> None:
+    rule = {"languages": ["fr"], "team_id": str(TEAM_EXPORT)}
+    saved = client.patch("/v1/settings/sales", json={"routing_rules": [rule]}, headers=auth(OWNER))
+    assert saved.status_code == 200, saved.text
+    response = client.delete(f"/v1/teams/{TEAM_EXPORT}", headers=auth(OWNER))
+    assert response.status_code == 409
+    assert "routing" in response.json()["detail"]
+
+
+async def _export_customer() -> uuid.UUID:
+    conn = await asyncpg.connect(get_settings().migration_dsn)
+    try:
+        return await conn.fetchval(  # type: ignore[no-any-return]
+            """insert into contacts (tenant_id, full_name, owner_id, team_id)
+               values ($1, 'Salma Export', $2, $3) returning id""",
+            TENANT_A,
+            SALES_X,
+            TEAM_EXPORT,
+        )
+    finally:
+        await conn.close()
+
+
+def test_deleting_a_team_keeps_its_people_and_its_customers(client: TestClient) -> None:
+    customer = asyncio.run(_export_customer())
+    response = client.delete(f"/v1/teams/{TEAM_EXPORT}", headers=auth(OWNER))
+    assert response.status_code == 204, response.text
+    members = {member["id"] for member in client.get("/v1/members", headers=auth(OWNER)).json()}
+    assert str(SALES_X) in members
+    kept = client.get(f"/v1/customers/{customer}", headers=auth(OWNER)).json()
+    assert kept["owner"]["id"] == str(SALES_X)
+
+
+def test_a_manager_cannot_rename_or_delete_a_team(client: TestClient) -> None:
+    renamed = client.patch(f"/v1/teams/{TEAM_EXPORT}", json={"name": "X"}, headers=auth(MANAGER))
+    assert renamed.status_code == 403
+    assert client.delete(f"/v1/teams/{TEAM_EXPORT}", headers=auth(MANAGER)).status_code == 403

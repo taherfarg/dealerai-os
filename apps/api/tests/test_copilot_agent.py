@@ -206,6 +206,17 @@ async def test_a_workspace_without_opening_hours_says_so(asked: list[dict[str, A
     assert "Opening hours are not set" in asked[0]["system"].tenant
 
 
+async def test_a_dealership_that_wants_gulf_arabic_says_so_in_the_prompt(
+    asked: list[dict[str, Any]],
+) -> None:
+    """docs/sales/00-prd.md Q3: one house voice in Arabic, when the owner chooses it."""
+    gulf = replace(_ground(), settings=SalesSettings(arabic_register="gulf"))
+    await copilot.write(tenant_id=TENANT, run_id=RUN, ground=gulf, read=_read())
+    await copilot.write(tenant_id=TENANT, run_id=RUN, ground=_ground(), read=_read())
+    assert "Gulf register" in asked[0]["system"].tenant
+    assert "Gulf register" not in asked[1]["system"].tenant, "mirroring the customer is the default"
+
+
 async def test_a_reserved_car_they_asked_about_is_named_on_the_turn(
     asked: list[dict[str, Any]],
 ) -> None:

@@ -43,6 +43,9 @@ from .routes import (
     webhooks,
 )
 
+# Not in the tuple above: create_app() has a local called `settings`.
+from .routes.settings import router as settings_router
+
 log = structlog.get_logger()
 
 
@@ -92,6 +95,7 @@ def create_app() -> FastAPI:
     app.include_router(content.router)
     app.include_router(me.router)
     app.include_router(team.router)
+    app.include_router(settings_router)
     app.include_router(webhooks.router)
     app.include_router(inbox.router)
     app.include_router(inbox.messages_router)

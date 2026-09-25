@@ -14,6 +14,10 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator
 
 Weekday = Literal["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
+#: docs/sales/00-prd.md Q3. `mirror` answers a Gulf customer in Gulf Arabic and
+#: an Egyptian one in Egyptian; `gulf` answers everybody in one polite Gulf
+#: register, for a dealership that wants one house voice.
+ArabicRegister = Literal["mirror", "gulf"]
 #: Indexed by datetime.weekday(), so Monday is first.
 WEEKDAYS: tuple[Weekday, ...] = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
 
@@ -64,6 +68,7 @@ class SalesSettings(BaseModel):
     #: before spending anything. `db/queries/copilot.py` reads the same key in
     #: SQL, so the name must not drift.
     drafts_enabled: bool = True
+    arabic_register: ArabicRegister = "mirror"
     #: Days to wait before each AI follow-up on one lead, measured from the one
     #: before it. The list *is* the schedule: three entries means three
     #: follow-ups and then silence, after which the `silent` signal carries the

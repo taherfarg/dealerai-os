@@ -257,5 +257,9 @@ def _tenant_layer(ground: Ground) -> str:
             'Opening hours are not set. Never state any, and never say "any time": '
             "offer one specific time and let the salesperson confirm it."
         )
+    if ground.settings.arabic_register == "gulf":
+        lines.append(
+            "Write Arabic in a polite Gulf register, whatever dialect the customer writes in."
+        )
     lines.append(f"Prices are in {context['currency']}.")
     return "\n".join(lines)
