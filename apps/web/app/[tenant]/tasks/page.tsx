@@ -3,7 +3,14 @@
 import { use, useState } from "react";
 import { TaskComposer } from "@/components/crm/TaskComposer";
 import { TaskRow } from "@/components/crm/TaskRow";
-import { useEditTask, useMe, useSendDraft, useTasks, type Bucket } from "@/lib/api/hooks";
+import {
+  useEditTask,
+  useMe,
+  useMembers,
+  useSendDraft,
+  useTasks,
+  type Bucket,
+} from "@/lib/api/hooks";
 import { useFilters } from "@/lib/filters";
 import { useT } from "@/lib/i18n-client";
 
@@ -14,6 +21,7 @@ export default function TasksPage({ params }: { params: Promise<{ tenant: string
   const { tenant } = use(params);
   const t = useT();
   const me = useMe();
+  const members = useMembers();
   const [filters, setFilters] = useFilters(DEFAULTS);
   const bucket = (BUCKETS.includes(filters.bucket as Bucket) ? filters.bucket : "today") as Bucket;
   const tasks = useTasks({ assignee: filters.assignee, bucket });
@@ -59,6 +67,14 @@ export default function TasksPage({ params }: { params: Promise<{ tenant: string
           >
             <option value="me">{t("tasks.mine")}</option>
             <option value="team">{t("tasks.team")}</option>
+            {/* One person, so a link from the dashboard opens with their name showing. */}
+            {(members.data ?? [])
+              .filter((member) => member.id !== me.data?.user.id && member.role !== "viewer")
+              .map((member) => (
+                <option key={member.id} value={member.id}>
+                  {member.name ?? member.email}
+                </option>
+              ))}
           </select>
         )}
       </div>
