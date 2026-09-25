@@ -16,6 +16,7 @@ _HREFS: dict[str, str] = {
     "contact": "/customers/{id}",
     "lead": "/pipeline?lead={id}",
     "task": "/tasks",
+    "brief": "/dashboard",
 }
 
 

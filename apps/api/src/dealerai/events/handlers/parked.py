@@ -31,7 +31,6 @@ PARKED: dict[str, str] = {
     "vehicle.photos_assessed": "M4 publishing — creative picks from ranked photos",
     "approval.requested": "M4 approvals — the reviewer's queue",
     "agent_run.finished": "M4 run history — what the agents did, for the dashboard",
-    "sales.brief_due": "S6 the morning brief — scheduled by sales/clock.py already",
 }
 
 

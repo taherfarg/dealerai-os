@@ -159,3 +159,15 @@ having count(*) >= 2
  order by count(*) desc, min(t.due_at)
  limit $2
 """
+
+#: $1 since, $2 until: the cars the copilot's drafts were built on most often —
+#: the chips _sources() writes (events/handlers/copilot.py).
+MOST_ASKED = """
+select source->>'label' as car, count(*) as times
+  from ai_suggestions s
+  cross join lateral jsonb_array_elements(s.sources) source
+ where s.created_at >= $1 and s.created_at < $2 and source->>'kind' = 'vehicle'
+ group by 1
+ order by 2 desc, 1
+ limit 3
+"""

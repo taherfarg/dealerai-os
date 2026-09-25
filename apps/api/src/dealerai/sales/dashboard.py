@@ -137,3 +137,59 @@ async def attention(conn: Any, now: datetime) -> list[dict[str, Any]]:
         for row in await conn.fetch(q.ATTENTION_OVERDUE, now, BRIEF_ITEMS)
     ]
     return rank(waits, hot, overdue)
+
+
+async def most_asked(conn: Any, since: datetime, until: datetime) -> list[tuple[str, int]]:
+    return [(row["car"], row["times"]) for row in await conn.fetch(q.MOST_ASKED, since, until)]
+
+
+def render_facts(
+    day: date,
+    facts: dict[str, Any],
+    team: list[dict[str, Any]],
+    cars: list[tuple[str, int]],
+) -> str:
+    """The brief's facts as the headline's model reads them, and as
+    guards/facts.py checks the headline against — so every number it may use
+    is here in the form it may use it: minutes rather than seconds, a share
+    already worked out. Salespeople are named; no customer is."""
+
+    def minutes(seconds: int | None) -> str:
+        return "nothing answered" if seconds is None else f"{round(seconds / 60)} min"
+
+    replies = facts["replies_inbox"] + facts["replies_phone"]
+    lines = [
+        f"## Yesterday, {day:%A} {day.day} {day:%B}",
+        f"- new conversations: {facts['new_conversations']}",
+        f"- first reply, median: {minutes(facts['median_first_response_seconds'])}"
+        f" (the target is {minutes(facts['first_response_target_seconds'])})",
+        f"- replies that missed the target: {facts['missed_targets']}",
+        f"- new leads: {facts['new_leads']}; won: {facts['won']}; lost: {facts['lost']}",
+    ]
+    if replies:
+        lines.append(
+            f"- replies from the inbox: {facts['replies_inbox']} of {replies}"
+            f" ({round(100 * facts['replies_inbox'] / replies)}%);"
+            f" typed on the phone: {facts['replies_phone']}"
+        )
+    if cars:
+        lines.append(
+            "- cars asked about most: " + ", ".join(f"{car} ({times})" for car, times in cars)
+        )
+    lines += [
+        "",
+        "## This morning",
+        f"- customers waiting: {facts['waiting_now']};"
+        f" past the target: {facts['waiting_past_target']}",
+        f"- hot leads with no next step: {facts['hot_without_next_step']}",
+        f"- open tasks past their due time: {facts['overdue_tasks']}",
+    ]
+    if team:
+        lines += ["", "## By salesperson"]
+        lines += [
+            f"- {rep['name'] or 'unnamed'}: first reply median"
+            f" {minutes(rep['median_first_response_seconds'])}, missed {rep['missed_targets']},"
+            f" tasks past due {rep['overdue_tasks']}, won this month {rep['won_this_month']}"
+            for rep in team
+        ]
+    return "\n".join(lines)
