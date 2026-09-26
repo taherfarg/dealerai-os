@@ -24,6 +24,7 @@ from ...db.session import tenant_session
 from ...media import storage
 from ...sales import hours
 from ...sales.identity import resolve_whatsapp_identity
+from ...sales.language import language_of
 from ...sales.messaging import is_opt_out, variable_numbers
 from ...sales.settings import SalesSettings
 from ..bus import Event, emit, handler
@@ -233,6 +234,14 @@ async def on_message_received(event: Event) -> None:
         )
         if message_id is None:
             return
+        if body and (language := language_of(body)):
+            # Routing reads it next, before anything else has read the message;
+            # a language a person set is theirs to keep.
+            await conn.execute(
+                "update contacts set locale = $2 where id = $1 and locale is null",
+                contact_id,
+                language,
+            )
 
         tenant = await conn.fetchrow(
             "select sales_settings, timezone from tenants where id=$1", tenant_id

@@ -113,6 +113,26 @@ async def test_a_customer_message_creates_the_thread_message_and_followups(
     assert draft["run_after"] >= MESSAGE_AT + timedelta(seconds=20)
 
 
+async def test_a_new_customer_has_a_language_before_routing_reads_it(
+    db: None, su: asyncpg.Connection, seeded: None
+) -> None:
+    """Nothing recorded one: every language rule on the routing screen matched
+    nobody who arrived on WhatsApp, and French speakers landed in Local."""
+    await _channel(su)
+    await on_message_received(_event(message_id="wamid.hi", text="OK"))
+    await on_message_received(
+        _event(message_id="wamid.fr", text="Bonjour, vous exportez vers Dakar ?")
+    )
+    await on_message_received(_event(message_id="wamid.en", text="Hello, is it available?"))
+    locale = await su.fetchval(
+        """select c.locale from contacts c
+             join contact_identities i on i.contact_id = c.id
+            where i.kind = 'whatsapp_user_id' and i.value = 'AE.13491208655302741918'"""
+    )
+    # "OK" said nothing; the first message that did decides, and stays.
+    assert locale == "fr"
+
+
 async def test_an_audio_message_is_visible_before_media_work(
     db: None, su: asyncpg.Connection, seeded: None
 ) -> None:
