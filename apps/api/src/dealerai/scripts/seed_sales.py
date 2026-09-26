@@ -699,6 +699,7 @@ async def _seed(conn: asyncpg.Connection) -> list[tuple[int, str]]:
             said.append((waiting_since, "in", None))
         last_heard = max(at for at, direction, _ in said if direction == "in")
         answered_at = next((at for at, direction, _ in said if direction == "out"), None)
+        sla_due = waiting_since + timedelta(minutes=TARGET_MIN) if waiting_since else None
         first_wrote[customer.name] = opened_at
 
         contact_id = await conn.fetchval(
@@ -752,13 +753,29 @@ async def _seed(conn: asyncpg.Connection) -> list[tuple[int, str]]:
                 else last_heard + timedelta(hours=24)
             ),
             waiting_since,
-            waiting_since + timedelta(minutes=TARGET_MIN) if waiting_since else None,
+            sla_due,
             # When somebody answered: the number My day shows as the median.
             answered_at,
             opened_at,
         )
         conversations[customer.name] = conversation_id
         contacts[customer.name] = contact_id
+
+        # A wait still inside its target has the check the inbound message
+        # books (events/handlers/whatsapp.py): the warning two minutes before —
+        # or, once that has passed, the miss it would have booked in turn.
+        if waiting_since and sla_due and sla_due > now:
+            warn = sla_due - timedelta(minutes=2)
+            level, run_after = ("due_soon", warn) if warn > now else ("missed", sla_due)
+            started = waiting_since.isoformat()
+            await _queue(
+                conn,
+                "conversation.sla_check",
+                {"conversation_id": str(conversation_id), "level": level, "waiting_since": started},
+                dedupe_key=f"sla:{conversation_id}:{started}:{level}",
+                run_after=run_after,
+                priority=8,
+            )
 
         # The row the SLA check leaves when a target passes with the customer
         # still waiting (events/handlers/inbox.py): answered after it, or not yet.
@@ -1039,16 +1056,39 @@ async def _seed(conn: asyncpg.Connection) -> list[tuple[int, str]]:
     # through the real handler. Shaped as sales/clock.py schedules it; the
     # tenant's delete above took any earlier one with it, so this is the only one.
     today = now.astimezone(tz).date().isoformat()
-    await conn.execute(
-        """insert into events (tenant_id, event_type, payload, dedupe_key, priority, run_after)
-           values ($1, 'sales.brief_due', $2::jsonb, $3, 1, $4)""",
-        TENANT,
-        json.dumps({"date": today}),
-        f"brief:{today}",
-        now,
+    await _queue(
+        conn,
+        "sales.brief_due",
+        {"date": today},
+        dedupe_key=f"brief:{today}",
+        run_after=now,
+        priority=1,
     )
 
     return document_chunks
+
+
+async def _queue(
+    conn: asyncpg.Connection,
+    event_type: str,
+    payload: dict[str, str],
+    *,
+    dedupe_key: str,
+    run_after: datetime,
+    priority: int,
+) -> None:
+    """events.bus.emit's row, for this connection: it has no jsonb codec, so
+    the payload goes as text. Deleting the tenant took any earlier copy."""
+    await conn.execute(
+        """insert into events (tenant_id, event_type, payload, dedupe_key, priority, run_after)
+           values ($1, $2, $3::jsonb, $4, $5, $6)""",
+        TENANT,
+        event_type,
+        json.dumps(payload),
+        dedupe_key,
+        priority,
+        run_after,
+    )
 
 
 async def _store_voice_note() -> str:

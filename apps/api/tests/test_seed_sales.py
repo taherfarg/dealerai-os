@@ -293,6 +293,26 @@ async def test_todays_brief_is_queued_once_however_often_the_seed_runs(
     assert rows[0]["run_after"] <= datetime.now(UTC)
 
 
+async def test_a_seeded_wait_has_its_check_booked_as_a_real_one_does(
+    db: None, su: asyncpg.Connection
+) -> None:
+    """Otherwise a customer turns red on screen and the miss is never counted.
+    James's warning is still ahead; Mona's has passed, so the miss it would have
+    booked is; Omar's miss already happened and is a row."""
+    assert await seed() == 0
+    booked = await su.fetch(
+        """select c.full_name, e.payload->>'level' as level
+             from events e
+             join conversations cv on cv.id = (e.payload->>'conversation_id')::uuid
+             join contacts c on c.id = cv.contact_id
+            where e.event_type = 'conversation.sla_check' and e.status = 'pending'"""
+    )
+    assert {row["full_name"]: row["level"] for row in booked} == {
+        "James Whitfield": "due_soon",
+        "Mona Fathy": "missed",
+    }
+
+
 async def test_a_duplicate_customer_is_waiting_to_be_merged(db: None) -> None:
     """The merge dialog needs two records of one person to be worth opening."""
     assert await seed() == 0
