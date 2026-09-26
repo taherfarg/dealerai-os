@@ -12,7 +12,9 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
+from typing import Any
 
+from ..core.text import contains_word
 from . import Finding, Findings
 
 GUARD = "brand"
@@ -53,22 +55,26 @@ class BrandRules:
     banned_emoji: tuple[str, ...] = field(default=())
 
 
-def _contains(haystack: str, needle: str) -> bool:
-    """Word-boundary match where the language has word boundaries.
+def ctas_for(profile: dict[str, Any], locale: str) -> tuple[str, ...]:
+    """The approved calls to action that apply to this language.
 
-    A plain substring test flags "guaranteed" inside "unguaranteed" and, worse,
-    flags Arabic words inside longer Arabic words constantly, because Arabic
-    prefixes attach directly. Falling back to a substring test for non-ASCII is
-    the honest trade: over-flagging Arabic beats missing it.
+    A dealer configures "DM to book a viewing" and the Arabic copywriter
+    correctly writes an Arabic CTA, which matches none of them — so a
+    language-blind check blocks every Arabic piece the system will ever
+    produce. An entry may declare its locale; one that does not applies to
+    every language, because a dealer who set up one list meant it for
+    everything.
     """
-    if not needle.isascii():
-        return needle in haystack
-    # A boundary only means something next to a word character. "#1" has none on
-    # its left, and \b there asserts a transition that never happens — so the
-    # single most common unsupportable claim would never match.
-    left = r"\b" if needle[:1].isalnum() else ""
-    right = r"\b" if needle[-1:].isalnum() else ""
-    return re.search(rf"{left}{re.escape(needle)}{right}", haystack, re.IGNORECASE) is not None
+    language = locale.split("-")[0].lower()
+    out: list[str] = []
+    for entry in profile.get("cta_styles") or []:
+        if isinstance(entry, str):
+            out.append(entry)
+        elif isinstance(entry, dict) and entry.get("text"):
+            declared = str(entry.get("locale") or "").split("-")[0].lower()
+            if not declared or declared == language:
+                out.append(str(entry["text"]))
+    return tuple(out)
 
 
 def check(text: str, rules: BrandRules | None = None) -> Findings:
@@ -77,12 +83,12 @@ def check(text: str, rules: BrandRules | None = None) -> Findings:
     lowered = text.lower()
 
     for word in rules.forbidden_words:
-        if _contains(lowered, word.lower()):
+        if contains_word(lowered, word.lower()):
             findings.append(Finding(GUARD, f"contains the forbidden word {word!r}", detail=word))
 
     if not rules.allow_unsupportable_claims:
         for claim in UNSUPPORTABLE:
-            if _contains(lowered, claim):
+            if contains_word(lowered, claim):
                 findings.append(
                     Finding(
                         GUARD,
@@ -101,7 +107,7 @@ def check(text: str, rules: BrandRules | None = None) -> Findings:
         )
 
     if rules.allowed_ctas and not any(
-        _contains(lowered, cta.lower()) for cta in rules.allowed_ctas
+        contains_word(lowered, cta.lower()) for cta in rules.allowed_ctas
     ):
         findings.append(
             Finding(

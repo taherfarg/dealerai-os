@@ -317,17 +317,18 @@ async def change_status(
         if row is None:
             raise NotFound("no such vehicle")
 
-        await emit(
-            conn,
-            f"vehicle.{body.status}" if body.status == "sold" else "vehicle.status_changed",
-            {
-                "vehicle_id": str(vehicle_id),
-                "status": body.status,
-                "reason": body.reason,
-            },
-            tenant_id=ctx.tenant_id,
-            priority=5 if body.status == "sold" else 0,
-        )
+        # Both types are written out rather than built from body.status: a
+        # computed event type is invisible to the check that every type has a
+        # handler (tests/test_import_contracts.py).
+        change = {
+            "vehicle_id": str(vehicle_id),
+            "status": body.status,
+            "reason": body.reason,
+        }
+        if body.status == "sold":
+            await emit(conn, "vehicle.sold", change, tenant_id=ctx.tenant_id, priority=5)
+        else:
+            await emit(conn, "vehicle.status_changed", change, tenant_id=ctx.tenant_id, priority=0)
     return _present(row)
 
 

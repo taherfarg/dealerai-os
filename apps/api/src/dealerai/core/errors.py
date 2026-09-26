@@ -51,6 +51,31 @@ class Conflict(AppError):
     title = "Conflict"
 
 
+class StageInUse(AppError):
+    """A pipeline stage that still holds leads cannot be deleted.
+
+    The detail says how many, because "409" on its own tells a manager nothing
+    about what to do next.
+    """
+
+    status = 409
+    slug = "stage-in-use"
+    title = "That stage still holds leads"
+
+
+class AlreadyMerged(AppError):
+    """This customer was merged into another one.
+
+    409 rather than 404 because the record did exist and the answer is where it
+    went: a link somebody saved before the merge should explain itself, not look
+    like a mistake.
+    """
+
+    status = 409
+    slug = "already-merged"
+    title = "This customer was merged into another"
+
+
 class Unusable(AppError):
     """The request was well-formed and its content was not — a CSV with no
     header row, a mapping naming a column that does not exist."""
@@ -64,6 +89,30 @@ class GuardRejected(AppError):
     status = 422
     slug = "guard-rejected"
     title = "Rejected by a guard"
+
+
+class WindowClosed(AppError):
+    """WhatsApp's 24-hour service window, refused before the connector is called.
+
+    Its own type because the composer answers it by offering templates rather
+    than by showing an error (docs/sales/06-api-contract.md § 11).
+    """
+
+    status = 422
+    slug = "window-closed"
+    title = "The 24-hour window is closed"
+
+
+class ConsentRequired(AppError):
+    status = 422
+    slug = "consent-required"
+    title = "The customer has not agreed to this message"
+
+
+class ChannelUnavailable(AppError):
+    status = 409
+    slug = "channel-unavailable"
+    title = "The channel cannot send right now"
 
 
 class BudgetExceeded(AppError):

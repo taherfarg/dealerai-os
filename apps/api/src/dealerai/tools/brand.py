@@ -68,6 +68,8 @@ async def get_brand_profile(ctx: TenantContext) -> dict[str, Any]:
         "typography": data["typography"] or {},
         "tone": data["tone"] or {},
         "ctas": list(_ctas(data["cta_styles"])),
+        # Raw, so a locale-aware check can filter them.
+        "cta_style_entries": data["cta_styles"] or [],
         "hashtag_rules": data["hashtag_rules"] or {},
         "forbidden_terms": list(data["forbidden_terms"] or ()),
         # Only this market's wording. Handing the model every country's
@@ -80,8 +82,11 @@ async def get_brand_profile(ctx: TenantContext) -> dict[str, Any]:
 
 
 @tool(name="check_brand_rules", group=GROUP)
-async def check_brand_rules(ctx: TenantContext, *, text: str) -> dict[str, Any]:
+async def check_brand_rules(ctx: TenantContext, *, text: str, locale: str = "en") -> dict[str, Any]:
     """Check a draft against this dealership's brand rules before you finish.
+
+    Pass the language you are writing in: the approved calls to action for
+    Arabic are not the ones for English.
 
     Returns the problems, each naming what to change. Calling this and fixing
     what it reports is cheaper than having the caption rejected after render.
@@ -94,7 +99,9 @@ async def check_brand_rules(ctx: TenantContext, *, text: str) -> dict[str, Any]:
     rules = brand_guard.BrandRules(
         forbidden_words=tuple(profile.get("forbidden_terms", ())),
         required_disclaimer=profile.get("required_disclaimer"),
-        allowed_ctas=tuple(profile.get("ctas", ())),
+        allowed_ctas=brand_guard.ctas_for(
+            {"cta_styles": profile.get("cta_style_entries", [])}, locale
+        ),
         max_hashtags=int(hashtag_rules.get("max", brand_guard.MAX_HASHTAGS)),
     )
     findings = brand_guard.check(text, rules)

@@ -20,7 +20,14 @@ node_modules/
 dist/
 
 # local infra + generated media
+.codegraph/
 .supabase/
+.storage/
 /tmp/
 *.log
 renders/
+
+# Labelled evals built from real customer conversations. Never committed.
+apps/api/tests/evals/sales/private/
+apps/api/tests/evals/sales/last-report.md
+apps/api/tests/evals/sales/last-brief-*.md

@@ -16,6 +16,7 @@
   --brand: #0a2540;
   --accent: #c8a15a;
   --danger: #b42318;
+  --success: #067647;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -28,6 +29,7 @@
     --brand: #7aa5d2;
     --accent: #d8b876;
     --danger: #f97066;
+    --success: #47cd89;
   }
 }
 
@@ -40,6 +42,7 @@
   --color-brand: var(--brand);
   --color-accent: var(--accent);
   --color-danger: var(--danger);
+  --color-success: var(--success);
 }
 
 body {

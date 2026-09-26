@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from dealerai.guards.inventory import check
+from dealerai.guards.inventory import check, check_held
 
 
 def test_an_available_vehicle_passes() -> None:
@@ -29,3 +29,17 @@ def test_content_about_no_vehicle_at_all_is_blocked() -> None:
     """Almost always a bug upstream — a brief that lost its vehicle ids and
     would otherwise sail through every guard by referencing nothing."""
     assert len(check({})) == 1
+
+
+def test_a_reserved_car_they_asked_about_is_not_called_available() -> None:
+    findings = check_held("متوفر عندنا نيسان باترول، لكنها محجوزة حالياً", held="Nissan Patrol")
+    assert [f.detail for f in findings] == ["متوفر"]
+    assert "Nissan Patrol" in findings[0].message
+
+
+def test_saying_it_is_reserved_passes() -> None:
+    assert check_held("الباترول محجوزة لعميل آخر حالياً.", held="Nissan Patrol") == []
+
+
+def test_without_a_held_car_the_word_is_free() -> None:
+    assert check_held("Yes, it is available.", held=None) == []

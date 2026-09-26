@@ -12,6 +12,16 @@ asserts the registry is non-empty for that reason.
 
 from __future__ import annotations
 
-from . import inventory, runs
+from . import copilot, crm, inbox, inventory, manager, parked, privacy, runs, whatsapp
 
-__all__ = ["inventory", "runs"]
+__all__ = [
+    "copilot",
+    "crm",
+    "inbox",
+    "inventory",
+    "manager",
+    "parked",
+    "privacy",
+    "runs",
+    "whatsapp",
+]

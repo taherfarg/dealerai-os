@@ -17,7 +17,7 @@ Two rules carry the weight:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Literal, Protocol
+from typing import Any, ClassVar, Literal, Protocol
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -49,6 +49,16 @@ class EventSpec:
 
 
 @dataclass(frozen=True, slots=True)
+class Spawn:
+    """A task an agent wants added to its own run."""
+
+    task_key: str
+    agent: str
+    depends_on: tuple[str, ...] = ()
+    input: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
 class AgentContext:
     tenant_id: UUID
     run_id: UUID
@@ -70,6 +80,13 @@ class AgentResult:
     output: dict[str, Any] = field(default_factory=dict)
     artifacts: tuple[ArtifactRef, ...] = ()
     events: tuple[EventSpec, ...] = ()
+    #: Tasks to append to the run, committed with this result.
+    #:
+    #: How a plan grows when its shape is not knowable in advance: the content
+    #: strategist does not know how many briefs a vehicle deserves until it has
+    #: looked at it, and a DAG fixed at plan time cannot express that. Same
+    #: mechanism the Director's one permitted re-plan will use.
+    spawns: tuple[Spawn, ...] = ()
     reason: str | None = None
     cost_usd: float = 0.0
 
@@ -79,18 +96,29 @@ class AgentResult:
 
 
 class Agent(Protocol):
-    """Structural, not inherited. An agent is anything with these attributes."""
+    """Structural, not inherited. An agent is anything with these attributes.
 
-    name: str
-    input_schema: type[BaseModel]
-    output_schema: type[BaseModel]
-    task_kind: TaskKind
+    Everything is a ClassVar because it is: an agent holds no per-instance
+    state, and a mutable protocol attribute is invariant, so `input_schema:
+    type[BaseModel]` would reject the very `type[Input]` every agent declares.
+    """
+
+    name: ClassVar[str]
+    input_schema: ClassVar[type[BaseModel]]
+    output_schema: ClassVar[type[BaseModel]]
+    #: Which model tier this agent's calls route to, or None when it makes no
+    #: model call at all — the image agent composites, it does not think.
+    task_kind: ClassVar[TaskKind | None]
     #: What the autonomy gate checks before this agent runs. None means the
     #: agent does nothing a dealer would want to approve — drafting, reading,
     #: summarising. Anything that leaves the building has an Action.
-    action: Action | None
+    action: ClassVar[Action | None]
 
-    async def run(self, inp: BaseModel, ctx: AgentContext) -> AgentResult: ...
+    #: `inp` is Any rather than BaseModel because a parameter type is
+    #: contravariant: an agent declaring its own Input would not satisfy a
+    #: narrower signature. The executor validates against `input_schema` before
+    #: calling, so what arrives really is that type.
+    async def run(self, inp: Any, ctx: AgentContext) -> AgentResult: ...
 
 
 _REGISTRY: dict[str, Agent] = {}

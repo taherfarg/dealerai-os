@@ -10,6 +10,7 @@ from ...agents.content import enrichment
 from ...db.session import tenant_session
 from ...media import storage, vision
 from ..bus import Event, emit, handler
+from .copilot import offer_a_new_arrival
 
 log = structlog.get_logger()
 
@@ -138,3 +139,7 @@ async def on_vehicle_created(event: Event) -> None:
             tenant_id=tenant_id,
             dedupe_key=f"vehicle.ready:{vehicle_id}",
         )
+        # A car somebody has been waiting for. A function rather than a second
+        # handler for this type, because bus.register refuses one — and this is
+        # where we already know the vehicle is ready and hold a connection.
+        await offer_a_new_arrival(conn, tenant_id, vehicle_id)

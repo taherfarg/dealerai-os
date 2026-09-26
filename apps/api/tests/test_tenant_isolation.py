@@ -6,7 +6,8 @@ It checks isolation two ways:
   * structurally  — every tenant-owned table has RLS enabled AND forced AND a
                     policy. This is what catches "someone added a table and
                     forgot", which is how leaks actually happen.
-  * behaviourally — real rows, both access paths, including views.
+  * behaviourally — real rows through the API's access path, including views.
+                    The browser path is closed; see tests/test_visibility.py.
 
 It also asserts that connecting as service_role DOES leak. A test that cannot
 fail proves nothing; that case is what gives the rest of the file its teeth.
@@ -150,31 +151,13 @@ async def test_tenant_context_does_not_leak_between_transactions(db: None, seede
 
 
 # --------------------------------------------------------------------------
-# behavioural — browser path (authenticated + JWT claims)
+# browser path
+#
+# Closed since migration 0006: anon and authenticated hold no table privileges,
+# so the browser reaches tenant data only through the API.
+# tests/test_visibility.py::test_browser_roles_cannot_read_any_table proves it
+# for every table; the case below stays as the concrete one.
 # --------------------------------------------------------------------------
-
-
-@pytest.mark.parametrize("table", SEEDED_TABLES)
-async def test_jwt_path_sees_only_its_own_tenant(
-    su: asyncpg.Connection, seeded: None, table: str
-) -> None:
-    async with jwt_session(su, USER_A) as conn:
-        mine = await conn.fetchval(
-            f"select count(*) from {table} where tenant_id = $1",
-            TENANT_A,  # noqa: S608
-        )
-        total = await conn.fetchval(f"select count(*) from {table}")  # noqa: S608
-
-    assert mine >= 1, f"{table}: user A cannot see their own tenant's rows"
-    assert total == mine, f"LEAK: {table} exposed other tenants to user A over the JWT path"
-
-
-async def test_jwt_path_message_bodies_do_not_cross(su: asyncpg.Connection, seeded: None) -> None:
-    """The concrete version of the abstract claim: customer conversations."""
-    async with jwt_session(su, USER_A) as conn:
-        bodies = [r["body"] for r in await conn.fetch("select body from messages")]
-    assert any("alpha" in b for b in bodies)
-    assert not any("beta" in b for b in bodies), f"LEAK: read another tenant's messages: {bodies}"
 
 
 async def test_unauthenticated_sees_nothing(su: asyncpg.Connection, seeded: None) -> None:

@@ -1,0 +1,24 @@
+[
+  {"q": "When do the ships leave for Algeria?", "lang": "en", "expect": "Export policy › Shipping"},
+  {"q": "How long does it take to reach Casablanca?", "lang": "en", "expect": "Export policy › Shipping"},
+  {"q": "What papers do I need to send you for export?", "lang": "en", "expect": "Export policy › Documents the buyer must provide"},
+  {"q": "Who pays the customs duty?", "lang": "en", "expect": "Export policy › Customs and duty"},
+  {"q": "Can you ship a left hand drive car to Kenya?", "lang": "en", "expect": "Export policy › Countries we do not ship to"},
+  {"q": "What is in Annex B?", "lang": "en", "expect": "Export policy › Documents the buyer must provide"},
+  {"q": "How much do I have to put down?", "lang": "en", "expect": "Financing › Down payment and instalments"},
+  {"q": "How long does the bank take to approve?", "lang": "en", "expect": "Financing › How long approval takes"},
+  {"q": "Can I finance if I am buying for export?", "lang": "en", "expect": "Financing › Who can finance a car with us"},
+  {"q": "What warranty comes with a used car?", "lang": "en", "expect": "Warranty and trade-in › Warranty on a used vehicle"},
+  {"q": "Can you value my car from photos?", "lang": "en", "expect": "Warranty and trade-in › Trading in your car"},
+
+  {"q": "متى تسافر البواخر إلى الجزائر؟", "lang": "ar", "expect": "Export policy › Shipping"},
+  {"q": "ما هي الأوراق المطلوبة للتصدير؟", "lang": "ar", "expect": "Export policy › Documents the buyer must provide"},
+  {"q": "من يدفع الجمارك عند الوصول؟", "lang": "ar", "expect": "Export policy › Customs and duty"},
+  {"q": "كم الدفعة الأولى للتمويل؟", "lang": "ar", "expect": "Financing › Down payment and instalments"},
+  {"q": "كم يستغرق موافقة البنك؟", "lang": "ar", "expect": "Financing › How long approval takes"},
+  {"q": "ما هو الضمان على السيارة المستعملة؟", "lang": "ar", "expect": "Warranty and trade-in › Warranty on a used vehicle"},
+
+  {"q": "Quand partent les bateaux pour Alger ?", "lang": "fr", "expect": "Export policy › Shipping"},
+  {"q": "Quels documents faut-il pour l'export ?", "lang": "fr", "expect": "Export policy › Documents the buyer must provide"},
+  {"q": "Qui paie les droits de douane ?", "lang": "fr", "expect": "Export policy › Customs and duty"}
+]

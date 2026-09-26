@@ -193,7 +193,10 @@ def build_html(
 #: client hit in ai/gateway.py, for the same reason. One loop lives for the life
 #: of the worker, so production has exactly one browser.
 _browsers: dict[int, tuple[Any, Browser]] = {}
-_lock = asyncio.Lock()
+#: Keyed by loop for the same reason the browsers are. A module-level Lock binds
+#: to the first loop that awaits it and raises "bound to a different event loop"
+#: on the second — which reads like a threading bug and is not one.
+_locks: dict[int, asyncio.Lock] = {}
 
 
 def _loop_key() -> int:
@@ -210,7 +213,7 @@ async def get_browser() -> Browser:
     of the render budget spent on process startup.
     """
     key = _loop_key()
-    async with _lock:
+    async with _locks.setdefault(key, asyncio.Lock()):
         existing = _browsers.get(key)
         if existing is not None and existing[1].is_connected():
             return existing[1]
@@ -229,7 +232,9 @@ async def close_browser() -> None:
     produces "I/O operation on closed pipe" long after the code that opened it
     has finished.
     """
-    entry = _browsers.pop(_loop_key(), None)
+    key = _loop_key()
+    _locks.pop(key, None)
+    entry = _browsers.pop(key, None)
     if entry is None:
         return
     playwright, browser = entry

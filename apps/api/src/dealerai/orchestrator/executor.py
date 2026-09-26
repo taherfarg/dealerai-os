@@ -39,6 +39,21 @@ TERMINAL = frozenset({"completed", "failed", "skipped"})
 #: third time too, and each attempt costs a model call.
 MAX_ATTEMPTS = 2
 
+#: A ceiling on how far a run can grow. An agent that spawns agents that spawn
+#: agents is a bill, not a feature, and the cap is what makes the loop below
+#: guaranteed to end.
+MAX_TASKS_PER_RUN = 200
+
+#: How many tasks of a run may be in flight together.
+#:
+#: "Everything that is ready" is not a concurrency policy. A content run fans
+#: out to eight image agents, each opening several 1080x1920 browser pages, and
+#: running all of them at once is a self-inflicted overload — the machine
+#: thrashes and the renders time out, which looks exactly like a broken agent.
+#: Four keeps the diamond in the acceptance test genuinely parallel while
+#: keeping a fifty-brief run from taking the process down with it.
+MAX_PARALLEL_TASKS = 4
+
 
 @dataclass(frozen=True, slots=True)
 class Task:
@@ -208,6 +223,12 @@ _SKIP = """
 update agent_tasks set status = 'skipped', error = $2, finished_at = now() where id = $1
 """
 
+_SPAWN = """
+insert into agent_tasks (tenant_id, run_id, task_key, agent, depends_on, input, status)
+values ($1,$2,$3,$4,$5,$6,'pending')
+on conflict (run_id, task_key) do nothing
+"""
+
 _RETRY = "update agent_tasks set status = 'pending' where id = $1"
 
 
@@ -304,6 +325,25 @@ async def _commit(tenant_id: UUID, task: Task, run_id: UUID, result: base.AgentR
         await conn.execute(
             _FINISH, task.id, status, result.output, result.reason, round(result.cost_usd, 4)
         )
+        if result.spawns:
+            # In the same transaction as the result that produced them, for the
+            # same reason events are: a task whose spawns escaped without it
+            # would leave the run waiting on work nothing asked for.
+            existing = await conn.fetchval(
+                "select count(*) from agent_tasks where run_id = $1", run_id
+            )
+            if existing + len(result.spawns) > MAX_TASKS_PER_RUN:
+                raise ValueError(f"{task.agent} would grow the run past {MAX_TASKS_PER_RUN} tasks")
+            for spawn in result.spawns:
+                await conn.execute(
+                    _SPAWN,
+                    tenant_id,
+                    run_id,
+                    spawn.task_key,
+                    spawn.agent,
+                    list(spawn.depends_on),
+                    spawn.input,
+                )
         await conn.execute(
             "update agent_runs set cost_usd = cost_usd + $2 where id = $1",
             run_id,
@@ -359,6 +399,29 @@ async def _pause(
 # --------------------------------------------------------------------------
 
 
+async def _bounded(
+    limit: asyncio.Semaphore,
+    task: Task,
+    inp: dict[str, Any],
+    *,
+    tenant_id: UUID,
+    run_id: UUID,
+    autonomy: str,
+    actor: str,
+) -> None:
+    """`_run_task` behind a semaphore.
+
+    A module-level function rather than a closure inside the loop: a closure
+    would capture the loop's variables by reference, which is correct here only
+    because gather finishes before the next iteration — and that is exactly the
+    kind of "correct for now" a linter is right to refuse.
+    """
+    async with limit:
+        await _run_task(
+            task, inp, tenant_id=tenant_id, run_id=run_id, autonomy=autonomy, actor=actor
+        )
+
+
 async def execute_run(tenant_id: UUID, run_id: UUID) -> str:
     """Drive a run until nothing more can happen without a human.
 
@@ -379,19 +442,22 @@ async def execute_run(tenant_id: UUID, run_id: UUID) -> str:
         if not batch:
             break
         outputs = {t.task_key: t.output for t in tasks if t.status == "completed" and t.output}
-        # Parallel by default: t2 and t3 both depending only on t1 is the whole
-        # reason the plan is a DAG and not a list.
+        # Parallel, but bounded: t2 and t3 both depending only on t1 is the whole
+        # reason the plan is a DAG and not a list, and eight of them at once is
+        # how a run brings down the worker it is running in.
+        limit = asyncio.Semaphore(MAX_PARALLEL_TASKS)
         await asyncio.gather(
             *(
-                _run_task(
-                    t,
-                    resolve_input(t.input, outputs),
+                _bounded(
+                    limit,
+                    task,
+                    resolve_input(task.input, outputs),
                     tenant_id=tenant_id,
                     run_id=run_id,
                     autonomy=run["autonomy"],
                     actor=run["trigger_type"],
                 )
-                for t in batch
+                for task in batch
             )
         )
 

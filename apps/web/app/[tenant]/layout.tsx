@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Shell } from "@/components/Shell";
 import { api } from "@/lib/api";
 import type { Locale } from "@/lib/i18n";
+import { Providers } from "./providers";
 
 type Tenant = { id: string; slug: string; name: string };
 type Approval = { id: string };
@@ -35,8 +36,10 @@ export default async function TenantLayout({
   }
 
   return (
-    <Shell tenant={tenant} tenants={tenants} locale={locale} pendingApprovals={pending}>
-      {children}
-    </Shell>
+    <Providers tenantId={tenant.id} slug={tenant.slug} locale={locale}>
+      <Shell tenant={tenant} tenants={tenants} locale={locale} pendingApprovals={pending}>
+        {children}
+      </Shell>
+    </Providers>
   );
 }

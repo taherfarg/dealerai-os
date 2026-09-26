@@ -1,0 +1,331 @@
+-- =============================================================================
+-- 0006_sales_core — Sales S0: teams, customer identities, ownership, and the
+-- settings the visibility policies read. See docs/sales/02-data-model.md.
+-- =============================================================================
+
+-- =============================================================================
+-- TEAMS
+-- =============================================================================
+create table teams (
+  id         uuid primary key default gen_random_uuid(),
+  tenant_id  uuid not null references tenants(id) on delete cascade,
+  name       text not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (tenant_id, name)
+);
+
+-- A manager manages every team they belong to. No is_manager flag: the role
+-- decides, and two sources for one fact drift.
+create table team_members (
+  tenant_id  uuid not null references tenants(id) on delete cascade,
+  team_id    uuid not null references teams(id) on delete cascade,
+  user_id    uuid not null references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (team_id, user_id)
+);
+create index on team_members (tenant_id, user_id);
+
+-- =============================================================================
+-- CUSTOMER IDENTITIES
+-- One row per way a customer can reach us. The unique index is what makes two
+-- simultaneous webhooks from one new customer produce one contact, not two —
+-- a jsonb of platform ids cannot enforce that.
+-- =============================================================================
+create table contact_identities (
+  id          uuid primary key default gen_random_uuid(),
+  tenant_id   uuid not null references tenants(id) on delete cascade,
+  contact_id  uuid not null references contacts(id) on delete cascade,
+  kind        text not null check (kind in
+                ('whatsapp_user_id','phone','instagram_id','messenger_psid','email')),
+  value       text not null,
+  is_primary  boolean not null default false,
+  verified_at timestamptz,
+  created_at  timestamptz not null default now(),
+  unique (tenant_id, kind, value),
+  -- E.164 only. Voice gives +971…, WhatsApp gives 971…, people type 050…;
+  -- normalising at the edge is the difference between one customer and three.
+  constraint phone_is_e164 check (kind <> 'phone' or value ~ '^\+[1-9][0-9]{6,14}$')
+);
+create index on contact_identities (tenant_id, contact_id);
+create unique index contact_identities_primary_uq
+  on contact_identities (contact_id, kind) where is_primary;
+
+-- Move what contacts held until now, then drop it. Nothing in the application
+-- read these columns: the inbox and CRM code does not exist yet.
+insert into contact_identities (tenant_id, contact_id, kind, value, is_primary)
+  select tenant_id, id, 'phone', phone, true from contacts where phone is not null
+  on conflict do nothing;
+insert into contact_identities (tenant_id, contact_id, kind, value, is_primary)
+  select tenant_id, id, 'email', lower(email), true from contacts where email is not null
+  on conflict do nothing;
+
+drop index if exists contacts_phone_uq;
+drop index if exists contacts_external_refs_gin;
+alter table contacts
+  drop column if exists phone,
+  drop column if exists email,
+  drop column if exists external_refs,
+  add column owner_id uuid references auth.users(id) on delete set null,
+  add column team_id uuid references teams(id) on delete set null,
+  add column profile jsonb not null default '{}'::jsonb,
+  add column profile_updated_at timestamptz;
+create index on contacts (tenant_id, owner_id);
+create index on contacts (tenant_id, team_id) where owner_id is null;
+
+-- =============================================================================
+-- OWNERSHIP AND WAITING STATE
+-- owner_id is denormalised onto conversations so a visibility policy reads one
+-- row. app.reassign_contact, added with the CRM slice, will be the single writer
+-- that keeps them equal, and brings the invariant test with it.
+-- =============================================================================
+alter table conversations
+  add column owner_id uuid references auth.users(id) on delete set null,
+  add column team_id uuid references teams(id) on delete set null,
+  add column waiting_since timestamptz,
+  add column sla_due_at timestamptz,
+  add column first_response_at timestamptz,
+  add column summary jsonb;
+create index on conversations (tenant_id, owner_id);
+create index on conversations (tenant_id, team_id, status) where assigned_to is null;
+create index on conversations (tenant_id, sla_due_at) where waiting_since is not null;
+
+alter table leads
+  add column team_id uuid references teams(id) on delete set null;
+create index on leads (tenant_id, owner_id);
+
+-- =============================================================================
+-- PEOPLE AND TENANT SETTINGS
+-- =============================================================================
+alter table memberships drop constraint memberships_role_check;
+alter table memberships add constraint memberships_role_check
+  check (role in ('owner','admin','manager','marketer','sales','viewer'));
+alter table memberships
+  add column languages text[] not null default '{}',
+  add column accepting_chats boolean not null default true,
+  add column last_assigned_at timestamptz,
+  add column max_open_conversations int;
+create index on memberships (tenant_id, last_assigned_at) where accepting_chats;
+
+-- Read whole, never filtered on: jsonb, per docs/03-database-schema.md § 3.
+-- Validated by the SalesSettings model at the application edge.
+alter table tenants
+  add column sales_settings jsonb not null default '{}'::jsonb;
+
+-- =============================================================================
+-- RLS for the new tables: the same loop and the same policy as 0001
+-- =============================================================================
+do $$
+declare t text;
+begin
+  foreach t in array array['teams','team_members','contact_identities']
+  loop
+    execute format('alter table %I enable row level security', t);
+    execute format('alter table %I force row level security', t);
+    execute format(
+      'create policy tenant_isolation on %I
+         using (app.has_tenant_access(tenant_id))
+         with check (app.has_tenant_access(tenant_id))', t);
+  end loop;
+end $$;
+
+create trigger teams_touch before update on teams
+  for each row execute function app.touch_updated_at();
+
+-- =============================================================================
+-- VISIBILITY
+-- The same idea as tenancy, one level down: the session states who is asking
+-- and how wide they may see (db/session.py sets app.user_id and app.scope), and
+-- the policies enforce it. Call sites wrap each function in (select …) so
+-- Postgres evaluates it once per statement instead of once per row, and inside
+-- coalesce(…) so `= any (…)` sees an array expression: `= any ((select …))` on
+-- its own is the subquery form, which compares the uuid with the whole array.
+-- =============================================================================
+
+create or replace function app.current_user_id()
+returns uuid
+language sql
+stable
+set search_path = public, pg_temp
+as $$
+  select nullif(current_setting('app.user_id', true), '')::uuid
+$$;
+
+create or replace function app.my_team_ids()
+returns uuid[]
+language sql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+  select coalesce(array_agg(tm.team_id), '{}')
+  from public.team_members tm
+  where tm.user_id = app.current_user_id()
+$$;
+
+-- NULL means "no owner filter": the scope is 'all'. An empty array would mean
+-- "sees nothing", which is a different thing, so the distinction is load-bearing.
+create or replace function app.visible_owner_ids()
+returns uuid[]
+language sql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+  select case coalesce(nullif(current_setting('app.scope', true), ''), 'all')
+    when 'own' then array[app.current_user_id()]
+    when 'team' then (
+      select coalesce(array_agg(distinct tm2.user_id), '{}') || array[app.current_user_id()]
+      from public.team_members tm1
+      join public.team_members tm2 on tm2.team_id = tm1.team_id
+      where tm1.user_id = app.current_user_id())
+    else null
+  end
+$$;
+
+-- Whether the unassigned queue of your teams is visible. Always for scope 'all';
+-- otherwise the tenant's setting, which defaults to visible.
+create or replace function app.pool_visible()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+  select case
+    when coalesce(nullif(current_setting('app.scope', true), ''), 'all') = 'all' then true
+    else coalesce(
+      (select (t.sales_settings->>'unassigned_visible_to_sales')::boolean
+       from public.tenants t
+       where t.id = nullif(current_setting('app.tenant_id', true), '')::uuid),
+      true)
+  end
+$$;
+
+revoke all on function app.my_team_ids(), app.visible_owner_ids(), app.pool_visible() from public;
+grant execute on function app.current_user_id() to dealerai_app, authenticated;
+grant execute on function app.my_team_ids() to dealerai_app, authenticated;
+grant execute on function app.visible_owner_ids() to dealerai_app, authenticated;
+grant execute on function app.pool_visible() to dealerai_app, authenticated;
+
+-- =============================================================================
+-- VISIBILITY POLICIES
+-- The tenant predicate stays exactly as it was; visibility is an extra clause.
+--
+-- WITH CHECK stays tenant-only on purpose: reassigning a conversation to a
+-- colleague makes it invisible to the person doing it, and a visibility check on
+-- the new row would make that update fail. Who may reassign is a permission,
+-- checked in the route; who may see is RLS.
+--
+-- Each table gets exactly one policy. Permissive policies are OR'ed, so leaving
+-- the old tenant_isolation policy beside a stricter one would quietly undo it.
+-- =============================================================================
+
+drop policy tenant_isolation on contacts;
+create policy tenant_visibility on contacts
+  using (
+    app.has_tenant_access(tenant_id)
+    and (
+      (select app.visible_owner_ids()) is null
+      or owner_id = any (coalesce((select app.visible_owner_ids()), '{}'))
+      or (owner_id is null and team_id = any (coalesce((select app.my_team_ids()), '{}'))
+          and (select app.pool_visible()))
+      -- covering for a colleague: assigned one of this customer's conversations
+      or exists (select 1 from public.conversations c
+                 where c.contact_id = contacts.id
+                   and c.assigned_to = (select app.current_user_id()))
+    )
+  )
+  with check (app.has_tenant_access(tenant_id));
+
+drop policy tenant_isolation on conversations;
+create policy tenant_visibility on conversations
+  using (
+    app.has_tenant_access(tenant_id)
+    and (
+      (select app.visible_owner_ids()) is null
+      or owner_id = any (coalesce((select app.visible_owner_ids()), '{}'))
+      or assigned_to = (select app.current_user_id())
+      or (owner_id is null and assigned_to is null
+          and team_id = any (coalesce((select app.my_team_ids()), '{}'))
+          and (select app.pool_visible()))
+    )
+  )
+  with check (app.has_tenant_access(tenant_id));
+
+drop policy tenant_isolation on leads;
+create policy tenant_visibility on leads
+  using (
+    app.has_tenant_access(tenant_id)
+    and (
+      (select app.visible_owner_ids()) is null
+      or owner_id = any (coalesce((select app.visible_owner_ids()), '{}'))
+      or (owner_id is null and team_id = any (coalesce((select app.my_team_ids()), '{}'))
+          and (select app.pool_visible()))
+    )
+  )
+  with check (app.has_tenant_access(tenant_id));
+
+-- Children inherit their parent's visibility: the inner select is itself
+-- filtered by the parent's policy above.
+drop policy tenant_isolation on messages;
+create policy tenant_visibility on messages
+  using (
+    app.has_tenant_access(tenant_id)
+    and exists (select 1 from public.conversations c where c.id = messages.conversation_id)
+  )
+  with check (app.has_tenant_access(tenant_id));
+
+drop policy tenant_isolation on contact_identities;
+create policy tenant_visibility on contact_identities
+  using (
+    app.has_tenant_access(tenant_id)
+    and exists (select 1 from public.contacts c where c.id = contact_identities.contact_id)
+  )
+  with check (app.has_tenant_access(tenant_id));
+
+drop policy tenant_isolation on activities;
+create policy tenant_visibility on activities
+  using (
+    app.has_tenant_access(tenant_id)
+    and (
+      (select app.visible_owner_ids()) is null
+      or exists (select 1 from public.leads l where l.id = activities.lead_id)
+      or exists (select 1 from public.contacts c where c.id = activities.contact_id)
+    )
+  )
+  with check (app.has_tenant_access(tenant_id));
+
+-- =============================================================================
+-- THE BROWSER NO LONGER READS TABLES
+-- docs/sales/README.md records this as a change to DealerAI OS 01 § 2 path A:
+-- every read goes through FastAPI, where the scope is set and the visibility
+-- policies apply. Leaving PostgREST open would be a second, weaker door.
+--
+-- On Supabase, tables created later inherit default privileges for anon and
+-- authenticated (see 0005_harden.sql), so every later Sales migration repeats
+-- the table revoke for the tables it adds.
+-- =============================================================================
+revoke all on all tables in schema public from anon, authenticated;
+revoke all on all sequences in schema public from anon, authenticated;
+alter default privileges in schema public revoke all on tables from anon, authenticated;
+alter default privileges in schema public revoke all on sequences from anon, authenticated;
+
+-- The browser called this directly while it still had a path; nothing does now.
+revoke execute on function app.tenants_for_user(uuid) from authenticated;
+
+-- =============================================================================
+-- NAMES ARE READABLE INSIDE THE WORKSPACE
+-- 0001 let a person read only their own profile, through auth.uid(), which
+-- exists only on the browser path that is now closed. On the API path a
+-- person's name must be readable by the people they work with: members of the
+-- tenant in context.
+-- =============================================================================
+create policy profile_tenant_read on profiles
+  for select using (
+    exists (
+      select 1 from public.memberships m
+      where m.user_id = profiles.id
+        and m.tenant_id = nullif(current_setting('app.tenant_id', true), '')::uuid
+    )
+  );

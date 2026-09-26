@@ -15,7 +15,8 @@ jobs:
 
     services:
       db:
-        image: pgvector/pgvector:pg15
+        # The major version the local container and the Supabase project run.
+        image: pgvector/pgvector:pg17
         env:
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: dealerai
@@ -99,4 +100,39 @@ jobs:
           npm run typecheck
           npm run check:rtl
           npm run lint
+          npm run test
           npm run build
+
+  # The web app's types are generated from the API's OpenAPI document. A route or
+  # model that changed without regenerating apps/web/lib/api is drift, and drift
+  # is how a field quietly disappears from a screen. Exporting the schema needs no
+  # database: nothing connects at import time.
+  contract:
+    runs-on: ubuntu-latest
+    env:
+      ENV: local
+      LOG_LEVEL: warning
+      DATABASE_URL: postgresql://dealerai_app:dealerai_app@localhost:54332/dealerai
+      MIGRATION_DATABASE_URL: postgresql://postgres:postgres@localhost:54332/dealerai
+      GOOGLE_API_KEY: ""
+      SUPABASE_JWT_SECRET: super-secret-jwt-token-with-at-least-32-characters-long
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Install API
+        working-directory: apps/api
+        run: uv sync --all-extras --dev
+
+      - name: Generated API types are current
+        run: npm run check:openapi

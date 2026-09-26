@@ -17,6 +17,14 @@ dependencies = [
     "pillow>=12.3.0",
     "python-multipart>=0.0.32",
     "playwright>=1.62.0",
+    # zoneinfo has no IANA database on Windows, and response targets are computed
+    # in the tenant's timezone. Data, not code.
+    "tzdata>=2026.1",
+    # Text extraction for uploaded knowledge documents. A PDF parser is not a
+    # few lines of our own, and python-docx is the boring way to read the one
+    # part of a .docx that matters.
+    "pypdf>=6.1.1",
+    "python-docx>=1.2.0",
 ]
 
 [dependency-groups]

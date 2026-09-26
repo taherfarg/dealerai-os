@@ -14,6 +14,7 @@ from __future__ import annotations
 import hashlib
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from pathlib import Path
 
 from .base import (
     ConnectorHealth,
@@ -27,6 +28,8 @@ from .base import (
     PublishKind,
     PublishRequest,
     PublishResult,
+    RequestRejected,
+    TemplateInfo,
 )
 
 ALL_KINDS: frozenset[PublishKind] = frozenset({"post", "story", "reel", "carousel"})
@@ -54,6 +57,9 @@ class MockConnector:
     sent: list[MessageRequest] = field(default_factory=list)
     replies: list[tuple[str, str]] = field(default_factory=list)
     comments: list[InboundComment] = field(default_factory=list)
+    #: media id -> (bytes, mime), for download_media.
+    media: dict[str, tuple[bytes, str]] = field(default_factory=dict)
+    templates: list[TemplateInfo] = field(default_factory=list)
 
     # ---- test seams -----------------------------------------------------
 
@@ -130,6 +136,16 @@ class MockConnector:
         self.sent.append(req)
         return MessageResult(external_id=_stable_id("msg", self.platform, req.idempotency_key))
 
+    async def download_media(self, media_id: str) -> tuple[bytes, str]:
+        self._maybe_fail()
+        if media_id not in self.media:
+            raise RequestRejected(f"no media with id {media_id!r}", code="100")
+        return self.media[media_id]
+
+    async def list_templates(self) -> list[TemplateInfo]:
+        self._maybe_fail()
+        return list(self.templates)
+
     async def get_insights(self, media_external_id: str, window: InsightWindow) -> Insights:
         self._maybe_fail()
         # Derived from the id so the same media always reports the same numbers
@@ -161,6 +177,46 @@ def whatsapp_like() -> MockConnector:
         supports=frozenset(),
         enforces_messaging_window=True,
     )
+
+
+#: The media id the simulator sends for a voice note (scripts/wa_simulate.py).
+SIMULATOR_VOICE_MEDIA_ID = "local-media-1"
+
+_SAMPLES = Path(__file__).parent / "samples"
+
+#: What the seed writes into message_templates, so a local template sync agrees
+#: with it instead of disabling the rows.
+SIMULATOR_TEMPLATES = (
+    ("en_US", "The {{1}} is available for {{2}}."),
+    ("ar", "السيارة {{1}} متوفرة بسعر {{2}}."),
+    ("fr", "Le véhicule {{1}} est disponible à {{2}}."),
+)
+
+
+def whatsapp_simulator() -> MockConnector:
+    """The local channel's connector.
+
+    It serves a real six-second voice note, not a placeholder: Gemini transcribes
+    whatever it is handed, so fake audio produces a fabricated transcript that
+    looks exactly like a working one.
+    """
+    connector = whatsapp_like()
+    connector.media[SIMULATOR_VOICE_MEDIA_ID] = (
+        (_SAMPLES / "voice-note.ogg").read_bytes(),
+        "audio/ogg; codecs=opus",
+    )
+    connector.templates.extend(
+        TemplateInfo(
+            external_id=f"seed-template-{language}",
+            name="vehicle_available",
+            language=language,
+            category="utility",
+            status="approved",
+            components=[{"type": "BODY", "text": body}],
+        )
+        for language, body in SIMULATOR_TEMPLATES
+    )
+    return connector
 
 
 def instagram_like() -> MockConnector:

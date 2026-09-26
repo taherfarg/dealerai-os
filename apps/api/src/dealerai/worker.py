@@ -13,16 +13,35 @@ import signal
 import structlog
 
 # Imported for its side effects: this is what registers the handlers.
+from . import agents as _agents  # noqa: F401  registers the agents
 from . import tools as _tools  # noqa: F401  registers the agent tools
 from .config import get_settings
 from .core.logging import configure_logging
 from .db import session
 from .events import handlers as _handlers  # noqa: F401
 from .events.worker import Worker
+from .sales import clock
 
 log = structlog.get_logger()
 
 CONCURRENCY = 2
+
+#: How often every tenant's next brief and retention pass is checked
+#: (sales/clock.py). Two inserts per tenant, which the dedupe key almost
+#: always turns into nothing.
+CLOCK_EVERY_SECONDS = 3600
+
+
+async def keep_the_clocks(stop: asyncio.Event) -> None:
+    while not stop.is_set():
+        try:
+            await clock.schedule_everyone()
+        except Exception:
+            # The next pass is the retry. A worker that dies here stops
+            # answering customers to protect a morning brief.
+            log.exception("clock_pass_failed")
+        with contextlib.suppress(TimeoutError):
+            await asyncio.wait_for(stop.wait(), timeout=CLOCK_EVERY_SECONDS)
 
 
 async def main() -> None:
@@ -40,7 +59,7 @@ async def main() -> None:
     workers = [Worker(f"worker-{i}") for i in range(CONCURRENCY)]
     log.info("worker_started", env=settings.env, concurrency=CONCURRENCY)
     try:
-        await asyncio.gather(*(w.run_forever(stop) for w in workers))
+        await asyncio.gather(*(w.run_forever(stop) for w in workers), keep_the_clocks(stop))
     finally:
         await session.close_pool()
         log.info("worker_stopped")

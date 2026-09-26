@@ -40,6 +40,11 @@ async def init_pool(dsn: str | None = None) -> asyncpg.Pool:
     return _pool
 
 
+def pool_is_open() -> bool:
+    """For a caller that opens the pool only if nobody has, and closes only its own."""
+    return _pool is not None
+
+
 async def close_pool() -> None:
     global _pool
     if _pool is not None:
@@ -53,17 +58,39 @@ def _require_pool() -> asyncpg.Pool:
     return _pool
 
 
-@contextlib.asynccontextmanager
-async def tenant_session(tenant_id: UUID | str) -> AsyncIterator[asyncpg.Connection]:
-    """Open a transaction scoped to exactly one tenant.
+#: What a caller may see: their own rows, their teams' rows, or everything.
+SCOPES = ("own", "team", "all")
 
-    SET LOCAL (via set_config(..., true)) is transaction-scoped, so a pooled
-    connection cannot leak a tenant context into the next request. Plain SET
-    would, which is why it is never used here.
+
+@contextlib.asynccontextmanager
+async def tenant_session(
+    tenant_id: UUID | str,
+    *,
+    user_id: UUID | str | None = None,
+    scope: str = "all",
+) -> AsyncIterator[asyncpg.Connection]:
+    """Open a transaction scoped to one tenant, and optionally to one person.
+
+    `scope` is what that person may see — own, team or all — and the visibility
+    policies in 0006_sales_core.sql filter on it. The worker keeps the default:
+    it acts on rows that were already routed.
+
+    All three settings use SET LOCAL (set_config(..., true)), which is
+    transaction-scoped, so a pooled connection cannot carry a tenant *or a user*
+    into the next request. Plain SET would, which is why it is never used here.
     """
+    if scope not in SCOPES:
+        raise ValueError(f"unknown scope {scope!r}; expected one of {SCOPES}")
     async with _require_pool().acquire() as conn:
         async with conn.transaction():
-            await conn.execute("select set_config('app.tenant_id', $1, true)", str(tenant_id))
+            await conn.execute(
+                """select set_config('app.tenant_id', $1, true),
+                          set_config('app.user_id', $2, true),
+                          set_config('app.scope', $3, true)""",
+                str(tenant_id),
+                str(user_id) if user_id else "",
+                scope,
+            )
             yield conn
 
 
@@ -71,13 +98,29 @@ async def tenant_session(tenant_id: UUID | str) -> AsyncIterator[asyncpg.Connect
 async def system_session() -> AsyncIterator[asyncpg.Connection]:
     """A connection with NO tenant context.
 
-    Legitimate uses are exactly two: the event-queue claim (which runs before
-    the tenant is known) and the health check. Everything else must go through
-    tenant_session. Under RLS this session can see nothing tenant-owned, which
-    is the intended safety net rather than an inconvenience.
+    Legitimate uses are the event-queue claim, webhook delivery routing (both
+    run before the tenant is known), and the health check. Everything else must
+    go through tenant_session. Under RLS this session can see nothing
+    tenant-owned, which is the intended safety net rather than an inconvenience.
     """
     async with _require_pool().acquire() as conn:
         yield conn
+
+
+@contextlib.asynccontextmanager
+async def listen_connection() -> AsyncIterator[asyncpg.Connection]:
+    """One long-lived connection for LISTEN.
+
+    Held out of the pool for the life of the process, so db_pool_max must be at
+    least two. A transaction-pooled connection cannot LISTEN at all, which is why
+    deployment points the API at the session pooler (docs/sales/01 § 6).
+    """
+    pool = _require_pool()
+    conn = await pool.acquire()
+    try:
+        yield conn
+    finally:
+        await pool.release(conn)
 
 
 async def healthcheck() -> dict[str, Any]:

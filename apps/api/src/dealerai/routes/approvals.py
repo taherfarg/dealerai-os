@@ -8,8 +8,9 @@ from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
 
 from ..core.errors import Conflict, Forbidden, NotFound
+from ..core.permissions import ROLES
 from ..db.session import tenant_session
-from ..deps import ROLES, Ctx
+from ..deps import Ctx
 from ..events.bus import emit
 from ..orchestrator.approvals import approver_role
 

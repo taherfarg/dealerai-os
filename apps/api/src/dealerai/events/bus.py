@@ -27,6 +27,7 @@ class Event:
     payload: dict[str, Any]
     attempts: int
     dedupe_key: str | None
+    max_attempts: int = 5
 
 
 Handler = Callable[[Event], Awaitable[None]]

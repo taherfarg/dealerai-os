@@ -39,7 +39,11 @@ UNITS = (
     r"km|kms|kilometers?|kilometres?|miles?|mi"
     r"|hp|bhp|ps|kw|nm|lb-?ft|cc|l|litres?|liters?"
     r"|seats?|doors?|cylinders?|speed|years?|months?|days?|kg"
-    r"|كم|كيلو|حصان|مقاعد|أبواب|سنوات|سنة|شهر|شهور|أشهر|لتر"
+    # Arabic units are matched as prefixes: كيلومتر, كيلومترًا and كيلومترات are
+    # all the same unit with different endings, and enumerating inflections is a
+    # game with no last move. A `\b` after one of these would fail inside the
+    # longer word, and "18,000 كيلومتر" would be read as a price.
+    r"|كم|كيلو|حصان|مقاعد|أبواب|سنوات|سنة|سنوي|شهر|شهور|أشهر|لتر|مقعد|باب"
 )
 
 #: Below this nothing is a car price, and the market has no vehicle under a
@@ -51,11 +55,20 @@ MIN_PRICE = Decimal(1000)
 #: is not a price claim, and no car in this market costs 2,023.
 YEAR_RANGE = range(1950, 2101)
 
+#: `(?![A-Za-z])` rather than `\b` after the unit. A boundary is wrong in both
+#: directions here: it fails inside an inflected Arabic word, and it is not
+#: needed for the ASCII units because alternation backtracks — "km" tries first
+#: inside "kilometres", the lookahead rejects it, and "kilometres" matches next.
+#: `(?!\d)` after the thousands groups: a group is exactly three digits and then
+#: *not another digit*. Without it "BYD Seal 05 2024" reads as the grouped
+#: number "05 202" with a stray "4" — a price, by this guard's rules, that no
+#: row holds — and every draft naming that car was blocked. The copilot eval
+#: found it on its first full run.
 _FIGURE = re.compile(
     rf"(?P<before>(?:{CURRENCY})\s*)?"
-    r"(?P<number>\d{1,3}(?:[,\s]\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?)"
+    r"(?P<number>\d{1,3}(?:[,\s]\d{3})+(?!\d)(?:\.\d+)?|\d+(?:\.\d+)?)"
     r"(?P<k>\s*[kK](?![a-zA-Z]))?"
-    rf"\s*(?P<after>{CURRENCY}|{UNITS})?\b",
+    rf"\s*(?P<after>(?:{CURRENCY}|{UNITS})(?![A-Za-z]))?",
     re.IGNORECASE,
 )
 

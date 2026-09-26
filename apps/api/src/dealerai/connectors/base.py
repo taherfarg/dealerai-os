@@ -72,6 +72,18 @@ class OutsideMessagingWindow(ConnectorError):
     title = "Free-form messaging window has closed"
 
 
+class RequestRejected(ConnectorError):
+    """The platform refused a request that cannot succeed unchanged on retry."""
+
+    status = 422
+    slug = "request-rejected"
+    title = "The platform rejected the request"
+
+    def __init__(self, detail: str | None = None, *, code: str = "unknown") -> None:
+        super().__init__(detail)
+        self.code = code
+
+
 # --------------------------------------------------------------------------
 # DTOs
 # --------------------------------------------------------------------------
@@ -123,11 +135,26 @@ class MessageRequest:
     template: str | None = None
     template_params: dict[str, str] = field(default_factory=dict)
     thread_external_id: str | None = None
+    #: The template's language code exactly as the platform stores it ("en_US", "ar").
+    template_language: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
 class MessageResult:
     external_id: str
+
+
+@dataclass(frozen=True, slots=True)
+class TemplateInfo:
+    """A pre-approved message as the platform reports it, in our vocabulary."""
+
+    external_id: str
+    name: str
+    language: str
+    category: str
+    status: str
+    components: list[dict[str, Any]] = field(default_factory=list)
+    rejected_reason: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -178,3 +205,17 @@ class SocialConnector(Protocol):
     async def get_insights(self, media_external_id: str, window: InsightWindow) -> Insights: ...
 
     async def health(self) -> ConnectorHealth: ...
+
+
+@runtime_checkable
+class MessagingConnector(Protocol):
+    """A conversation channel: WhatsApp now, Instagram and Messenger messages later."""
+
+    platform: str
+    enforces_messaging_window: bool
+
+    async def send_message(self, req: MessageRequest) -> MessageResult: ...
+
+    async def download_media(self, media_id: str) -> tuple[bytes, str]: ...
+
+    async def list_templates(self) -> list[TemplateInfo]: ...

@@ -12,6 +12,9 @@
     "db:down": "docker compose down",
     "db:reset": "docker compose down -v && npm run db:up && npm run db:migrate",
     "db:migrate": "cd apps/api && uv run python -m dealerai.scripts.migrate",
+    "db:seed": "cd apps/api && uv run python -m dealerai.scripts.seed_sales",
+    "api-types": "cd apps/api && uv run python -m dealerai.scripts.export_openapi && cd ../web && npx openapi-typescript lib/api/openapi.json -o lib/api/schema.ts",
+    "check:openapi": "npm run api-types && git diff --exit-code -- apps/web/lib/api/openapi.json apps/web/lib/api/schema.ts",
     "db:psql": "docker compose exec db psql -U postgres -d dealerai",
     "api": "cd apps/api && uv run uvicorn dealerai.main:app --reload --port 8000",
     "dev": "npm run db:up && npm run db:migrate && npm run api",
@@ -20,6 +23,7 @@
     "typecheck": "cd apps/api && uv run mypy src",
     "check": "npm run lint && npm run typecheck && npm run test && npm run test:guards && npm run check:web",
     "worker": "cd apps/api && uv run python -m dealerai.worker",
+    "wa:simulate": "cd apps/api && uv run python -m dealerai.scripts.wa_simulate",
     "eval": "cd apps/api && uv run pytest -m eval -v",
     "eval:gateway": "cd apps/api && uv run pytest tests/evals/test_gateway_cache.py -m eval -v",
     "db:migrate:staging": "cd apps/api && uv run python -m dealerai.scripts.migrate --env-file .env.staging",
@@ -30,7 +34,12 @@
     "creative:goldens": "cd apps/api && uv run pytest tests/media -k golden --update-goldens -q",
     "test:guards": "cd apps/api && uv run pytest tests/guards --cov=dealerai.guards --cov=dealerai.core.text --cov-branch --cov-report=term-missing --cov-fail-under=100",
     "eval:tools": "cd apps/api && uv run pytest tests/evals/test_tools_live.py -m eval -v",
-    "eval:csv": "cd apps/api && uv run pytest tests/evals/test_csv_mapping_live.py -m eval -v"
+    "eval:content": "cd apps/api && uv run pytest tests/evals/test_content_live.py -m eval -v",
+    "eval:csv": "cd apps/api && uv run pytest tests/evals/test_csv_mapping_live.py -m eval -v",
+    "eval:transcribe": "cd apps/api && uv run pytest tests/evals/test_transcribe_live.py -m eval -v",
+    "eval:sales": "cd apps/api && uv run pytest tests/evals/test_copilot_live.py -m eval -v -s",
+    "eval:knowledge": "cd apps/api && uv run pytest tests/evals/test_knowledge_recall_live.py -m eval -v -s",
+    "eval:brief": "cd apps/api && uv run pytest tests/evals/test_brief_live.py -m eval -v -s"
   },
   "engines": {
     "node": ">=22"

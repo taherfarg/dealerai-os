@@ -89,6 +89,13 @@ def test_a_model_year_is_not_a_price(text: str) -> None:
     assert values(text) == []
 
 
+def test_a_two_digit_model_name_before_a_year_is_not_a_price() -> None:
+    """The grouped-number regex must not read `05 202` out of `05 2024`."""
+    text = "BYD Seal 05 2024 is AED 89,000"
+    assert values(text) == [Decimal(89000)]
+    assert check(text, allowed={Decimal(89000)}) == []
+
+
 @pytest.mark.parametrize(
     "text",
     [
@@ -148,3 +155,34 @@ def test_with_no_allowed_prices_every_figure_is_rejected() -> None:
 
 def test_a_k_suffix_inside_a_word_is_not_a_multiplier() -> None:
     assert values("15000 kilometres") == []
+
+
+# --------------------------------------------------------------------------
+# Arabic measurements
+# --------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "18,000 كم",
+        "١٨٬٠٠٠ كم",
+        "18,000 كيلومتر",
+        "18,000 كيلومترًا",
+        "400 حصان",
+        "8 مقاعد",
+        "5 سنوات",
+    ],
+)
+def test_an_arabic_measurement_is_not_a_price(text: str) -> None:
+    """Found by the live content eval: an Arabic caption saying "18,000 كيلومتر"
+    was read as a price claim and blocked the whole piece. An inflected Arabic
+    word has no word boundary after its stem."""
+    assert values(text) == [], f"{text!r} was read as a price"
+
+
+def test_an_arabic_price_is_still_a_price() -> None:
+    """The control. Loosening the unit match must not stop the guard seeing a
+    real figure."""
+    assert values("٣١٠٬٠٠٠ درهم") == [Decimal(310000)]
+    assert values("السعر 310,000 درهم") == [Decimal(310000)]
