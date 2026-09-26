@@ -84,7 +84,7 @@ say so explicitly if you do.
 | Area | State |
 |---|---|
 | Documentation | Draft, 2026-09-16 — awaiting review |
-| Code | **S4 AI copilot complete** on `sales/phase-1`: drafts in the composer with their sources and a confidence band, six guards on every one, knowledge documents with hybrid retrieval, the profile and score written from conversations, follow-ups that are allowed to write nothing, and the eval gates, every one passing on the final run ([review](plans/s4-copilot.md#review--2026-09-24)). PDPL export and erasure remain the one gap. Next: S5, coexistence |
+| Code | **S6 manager view complete** on `sales/phase-1` (S0–S4 before it): the manager's dashboard, every number read through the reader's own visibility, with a morning brief whose one model-written line a guard refuses if it holds a number the facts do not; settings screens for channels, the team, routing and targets, pipelines, quick replies, knowledge and the AI; bulk hand-over; and PDPL export and erasure — erasure reaching the raw payloads — with nightly retention ([review](plans/s6-manager-view.md#review--2026-09-26)). Next: S5, coexistence, waiting on Meta |
 | Meta | Business verification and Tech Provider review not started (Pollux Motors). **Critical path** |
 | Supabase project | Schema live in ap-northeast-1 (Tokyo). Moving to Mumbai before real customer data is open question Q1 in [00](00-prd.md) |
 

@@ -4022,3 +4022,96 @@ git commit -m "docs(sales): S6 manager view complete, with the exit run recorded
 
 Inline in this session with `superpowers:executing-plans`, as S4 was — no subagents unless asked.
 Checkpoints after Task 4 (the corrected numbers), Task 8 (the whole backend), Task 12, and Task 16.
+
+---
+
+## Review — 2026-09-26
+
+Sixteen tasks, then the runs no suite stands in for: the brief's live eval, and the exit path in a
+browser against a freshly seeded workspace — the API, the worker and the web app, the simulator as
+the customer. Everything below was invisible to a suite that was passing at the time.
+
+| Found | Why it mattered | Fixed in |
+|---|---|---|
+| A new customer reached nobody's list. Pollux had no default team, and a conversation routed *and* assigned in one go never stored the team routing chose — only the "nobody is free" path did | Layla Hassan was invisible to Sara; once the seed had a default team she was counted in "waiting now", which reads through visibility, and missing from the waiting list and the Team inbox, which filter by team | `6fd0c8f`, `210231d` |
+| No customer who arrived on WhatsApp had a language: only the seed wrote `contacts.locale` | Every language rule on the new routing screen matched nobody, the rotation's shared-language preference never applied, and French speakers landed in Local. The first message that says enough now decides it — Arabic script, Arabizi, or French or English by their words — before routing reads it | `67360df` |
+| Erased, and still there: Omar's number, WhatsApp id and name in a finished `whatsapp.message_received` event and in two raw webhook bodies | Erasure matched events by our ids and only while pending, and nothing ever deleted a finished event — every customer's raw messages stayed in the queue table for good. Erasure now deletes every event and webhook body that names the customer, by our ids or by their identities, quoted so a longer number that contains theirs is not them; retention deletes finished events after 14 days | `7d2ba55` (migration 0012) |
+| One commit writing thirty rows sent the API thirty dashboard requests in five milliseconds | Every live event invalidated the dashboard on its own, and TanStack cancels and restarts the fetch each time; the API still runs each in full. S6's own bulk hand-over does the same, and S5's history sync will. Events gather for a quarter of a second and each stale query is invalidated once: thirty became one | `8c26a90` |
+| A draft quoted the service plan uploaded from the screen word for word, and showed no chip for it | A passage the model finds with its own `search_knowledge` call never reaches the handler's ground, and chips were matched only against that. Cited passages it does not hold are read by id, under the tenant's visibility | `3ab1531` |
+| A salesperson who typed `/settings/routing` got the whole form | The nav hid the section and the page did not; only Save was refused. The settings layout decides once, for every section | `fcbf645` |
+| The seed wrote waiting customers without the checks an inbound message books | Mona turned red and her miss was never counted, nor anybody told: the "missed" tile disagreed with the list beside it | `990c1de` |
+| The brief's Arabic called a hot lead "متصدر اهتمام" and the median "متوسط" — an average; the prompt's own example taught it — above tiles that say "فرصة ساخنة" and "وسيط أول رد" | The prompt carries the dashboard's glossary. The eval now records its model cost on the run, as the handler does | `cbe4635` |
+
+Sound as built, and left alone: the numbers — every tile matched a `psql` count over the rows it
+names, today (5 · 3 · 4m · 1 · 0 · 1 · 0 · 0) and yesterday (4 · 3 · 3m 30s · 1 · 1 · 1 · 1 · 0);
+the brief, written by the real handler from the seeded event, per reader and in the reader's own
+scope, every headline the run produced shown and so passed by the facts guard; the per-key settings
+writers; the stage refusal; the quick-reply menu and fill; the drafts switch; the export with its
+signed media link; the erase dialog, which offers the copy first and keeps Delete disabled until the
+name is typed; retention, which erased exactly one customer; and the viewer's dashboard, with no
+hand-over anywhere.
+
+Known and deliberately not changed in S6:
+
+- With a target of two minutes or less, the due-soon warning falls due the moment the customer
+  writes and runs before the conversation is assigned, so nobody gets it; the miss still reaches the
+  assignee and the team's managers on time. The plan's step 6 expected amber "a minute after" — with
+  a two-minute window it is amber from the first second.
+- The rotation gives new customers to anyone accepting chats, managers included: Sara took Layla and
+  Tom. `accepting_chats` on the Team screen is the control.
+- API refusals ("Qualified still holds 1 lead. Move them first.") are English in the Arabic UI, as
+  S4's guard reasons are, and template and channel statuses are raw English words — S7's Arabic
+  pass. Arabic counts are not pluralised ("1 مقاطع"); the brief writes "1 عميل" because a fact's
+  number must appear exactly as given.
+- The team table lists the manager beside her salespeople.
+- A new customer's language is three word lists (ponytail). Upgrade trigger: a fourth language in
+  the routing rules, or customers routed to the wrong team in the pilot.
+- An erasure scans the tenant's events and raw webhook bodies as text, and retention's nightly 500
+  do too. The 14-day pruning bounds both tables; fine at pilot scale.
+- Deleting media from Supabase Storage needs a bucket policy for the worker's key — S7, with the move
+  off local storage.
+- A hidden tab pauses TanStack's interval polling, so a document's "ready" appears when the tab is
+  looked at again — correct in a real browser, and why the exit run's hidden pane needed a reload.
+- Locally on Windows, `uvicorn --reload` hangs on a backend change while a browser holds the live
+  stream open (S4's note). It did twice; the API was restarted by hand after every backend change.
+- A test run wipes the shared local database; re-seed afterwards.
+
+**Checks, final:** `npm run check` — 1,454 backend tests, the guards at 100% branch coverage, 154
+web tests, types, lint and logical CSS; `npm run check:openapi` — no drift; `npm run eval:brief` —
+three headlines out of three used only the facts, before and after the glossary (about $0.02 for
+both runs).
+
+**Verified end to end on 2026-09-26**, with the API, the worker and the web app against a freshly
+seeded workspace, and the simulator as the customer:
+
+1. **Sara** opened the dashboard. The worker had written her brief from the seeded event — "1 customer
+   is past the target, 1 hot lead has no next step, and 3 tasks are past due; 1 reply missed its
+   target yesterday." — and after switching language, right to left, in the dashboard's own words.
+   The items linked to Omar's thread, his lead on the board, and Mohamed's two overdue tasks.
+2. Every tile matched `psql` over the rows it names, today and yesterday (above).
+3. **Layla Hassan** wrote: "waiting now" went from 3 to 4 and she appeared in the waiting list with
+   no reload — after the two routing fixes above; before them she reached nobody's list.
+4. Omar, handed from Ahmed to Mohamed from the waiting list, was Mohamed's in the Team inbox.
+5. Yesterday's view: Salem's row read 9 min, 1 missed, 1 task past due; opening him said nobody was
+   waiting on him and linked to "Send Karim the export quote". Mohamed's listed Omar.
+6. **Khalid** set the target to 2 minutes and French → Export. Tom Baker's timer was amber from the
+   first second and his miss was written at two minutes, against Sara; Amélie Durand, writing in
+   French, landed in Export with Salem.
+7. "Contacted" was renamed and saved; removing "Qualified" said it still held one lead.
+8. `/hours` was added in three languages; in Omar's thread `/ho` then Enter put "أهلاً Omar، المعرض
+   مفتوح يومياً…" in the composer and sent nothing.
+9. A PDF uploaded from the screen was ready in three seconds with one passage, and James's question
+   was answered from it word for word, with a **Service plan** chip after the fix above.
+10. With drafts off, Noura Saeed's message got none (`draft_skipped`); back on.
+11. Omar's export held his conversation, both messages, his two leads, his task and a link that
+    returned the voice note without a session. Deleted from the screen: gone from the inbox, the
+    customers list — his unmerged duplicate stays, a different record — and the pipeline; his page
+    is a 404, his file is gone from `.storage`, and after the fix above `psql` finds him only in the
+    `contact.erased` audit line.
+12. Retention at one month, with Priya Nair aged 40 days: the retention event erased her and nobody
+    else.
+13. Arabic at 375 px: tiles two to a row, the team as cards, and no sideways scroll on the dashboard
+    or any of the seven settings sections.
+14. A viewer saw the dashboard with no hand-over anywhere. A salesperson saw Settings → Quick replies,
+    read-only, and — after the fix above — any other section typed into the address bar says it is
+    not part of their role.
