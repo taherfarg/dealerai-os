@@ -1,8 +1,11 @@
 "use client";
 
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { use, type ReactNode } from "react";
 import { NavLinks } from "@/components/NavLinks";
-import { SECTIONS } from "@/components/settings/sections";
+import { SECTIONS, firstSection, mayOpen } from "@/components/settings/sections";
+import { useMe } from "@/lib/api/hooks";
 import { useT } from "@/lib/i18n-client";
 
 /** The sections beside the section: a column from md up, a scrolling row below it. */
@@ -15,6 +18,9 @@ export default function SettingsLayout({
 }) {
   const { tenant } = use(params);
   const t = useT();
+  const permissions = useMe().data?.permissions;
+  const allowed = mayOpen(usePathname(), permissions);
+  const elsewhere = permissions && firstSection(permissions);
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-4 md:flex-row">
       <nav
@@ -23,7 +29,18 @@ export default function SettingsLayout({
       >
         <NavLinks slug={tenant} items={SECTIONS} />
       </nav>
-      <div className="min-w-0 flex-1 pb-24">{children}</div>
+      <div className="min-w-0 flex-1 pb-24">
+        {allowed
+          ? children
+          : elsewhere && (
+              <p className="text-sm">
+                {t("settings.notYours")}{" "}
+                <Link href={`/${tenant}${elsewhere.href}`} className="underline">
+                  {t(elsewhere.key)}
+                </Link>
+              </p>
+            )}
+      </div>
     </div>
   );
 }

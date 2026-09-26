@@ -293,6 +293,7 @@ export const en = {
   "settings.unsaved": "Unsaved changes",
   "settings.discard": "Discard",
   "settings.saveFailed": "That could not be saved.",
+  "settings.notYours": "This section is not part of your role. Open",
   "routing.target": "Reply to a waiting customer within",
   "routing.minutes": "minutes",
   "routing.targetHint": "Counted in opening hours: a message at midnight is due after opening.",

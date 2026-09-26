@@ -296,6 +296,7 @@ export const ar = {
   "settings.unsaved": "تغييرات غير محفوظة",
   "settings.discard": "تجاهل",
   "settings.saveFailed": "تعذّر الحفظ.",
+  "settings.notYours": "هذا القسم ليس ضمن صلاحيات دورك. افتح",
   "routing.target": "الرد على العميل المنتظر خلال",
   "routing.minutes": "دقيقة",
   "routing.targetHint": "يُحسب ضمن ساعات العمل: رسالة منتصف الليل تستحق الرد بعد الافتتاح.",
