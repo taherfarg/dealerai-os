@@ -244,6 +244,39 @@ async def test_a_source_the_draft_did_not_use_is_not_shown(
     assert json.loads((await _one(su, thread["conversation"]))["sources"]) == []
 
 
+async def test_a_passage_the_model_looked_up_itself_is_a_chip(
+    db: None, su: asyncpg.Connection, thread: dict[str, Any], model: Model
+) -> None:
+    """Availability retrieves nothing up front, so the model asked
+    search_knowledge about the service plan and quoted it — and the draft showed
+    no chip for the document it quoted (the S6 exit run)."""
+    document_id = await su.fetchval(
+        """insert into documents (tenant_id, kind, title, source, status)
+           values ($1, 'policy', 'Service plan', 'upload', 'ready') returning id""",
+        TENANT_A,
+    )
+    chunk_id = await su.fetchval(
+        """insert into doc_chunks (tenant_id, document_id, chunk_index, content, meta)
+           values ($1, $2, 0, 'Every new car comes with a three-year service plan.',
+                   '{"heading": "Service plan"}'::jsonb) returning id""",
+        TENANT_A,
+        document_id,
+    )
+    model.read = Read(intent="availability", confidence=0.9, language="en", script="latin")
+    model.replies(
+        "Yes, and every new car comes with a three-year service plan.",
+        # The second id opens nothing, so it is still no chip.
+        used_chunk_ids=[chunk_id, 999_999_999],
+    )
+    await copilot.on_draft_requested(_event(thread))
+
+    sources = json.loads((await _one(su, thread["conversation"]))["sources"])
+    assert [(source["kind"], source["title"]) for source in sources] == [
+        ("document", "Service plan")
+    ]
+    assert sources[0]["document_id"] == str(document_id)
+
+
 # ---------------------------------------------------------------------------
 # The six refusals, each before the first model call
 # ---------------------------------------------------------------------------

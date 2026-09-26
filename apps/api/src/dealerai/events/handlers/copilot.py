@@ -288,6 +288,13 @@ async def _draft(tenant_id: UUID, conversation_id: UUID, message_id: UUID, run: 
 
     # 5 CONFIDENCE · 6 PERSIST
     draft = drafted.draft
+    held = {chunk["chunk_id"] for chunk in ground.chunks}
+    if found := [chunk_id for chunk_id in draft.used_chunk_ids if chunk_id not in held]:
+        # Passages the model looked up itself: the draft quoted them, so they
+        # are what the chip must open. Read under the tenant's own visibility.
+        async with tenant_session(tenant_id) as conn:
+            cited = await conn.fetch(q.CITED_PASSAGES, found)
+        ground = replace(ground, chunks=[*ground.chunks, *(dict(row) for row in cited)])
     sources = _sources(draft, ground)
     band = confidence.band(
         read.intent,

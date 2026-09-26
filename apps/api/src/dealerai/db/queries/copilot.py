@@ -159,6 +159,15 @@ select c.id, c.document_id, c.content, c.meta->>'heading' as heading,
  limit $5
 """
 
+#: $1 the chunk ids a draft says it used. What search_knowledge found reaches
+#: the model through the tool, not through the ground the handler holds.
+CITED_PASSAGES = """
+select c.id as chunk_id, c.document_id::text as document_id, coalesce(d.title, '') as title,
+       coalesce(c.meta->>'heading', '') as heading, c.content
+  from doc_chunks c join documents d on d.id = c.document_id
+ where c.id = any($1::bigint[]) and d.status = 'ready'
+"""
+
 # ---------------------------------------------------------------------------
 # The draft loop
 # ---------------------------------------------------------------------------
