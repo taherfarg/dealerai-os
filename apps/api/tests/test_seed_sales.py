@@ -2,15 +2,27 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
+from zoneinfo import ZoneInfo
 
+import asyncpg
 import pytest
 
 from dealerai.db.session import tenant_session
+from dealerai.sales import dashboard
 from dealerai.sales.scoring import from_stored, score
+from dealerai.sales.settings import SalesSettings
 from dealerai.scripts import seed_sales
-from dealerai.scripts.seed_sales import CHANNEL, CUSTOMERS, PEOPLE, TENANT, person_id, seed
+from dealerai.scripts.seed_sales import (
+    CHANNEL,
+    CUSTOMERS,
+    PEOPLE,
+    TENANT,
+    TIMEZONE,
+    person_id,
+    seed,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -172,7 +184,7 @@ async def test_the_seeded_board_has_somewhere_to_start_and_somewhere_to_finish(
                     group by s.category"""
             )
         )
-        assert by_category["won"] == 1
+        assert by_category["won"] == 2, "one on each board"
         assert by_category["lost"] == 1
         assert by_category["open"] >= 3, "most columns should have something in them"
 
@@ -207,11 +219,78 @@ async def test_the_seeded_day_has_something_late_in_it(db: None) -> None:
         )
         assert buckets is not None
         assert (buckets["overdue"], buckets["soon"], buckets["later"], buckets["done"]) == (
-            1,
+            3,
             2,
             1,
             1,
         )
+
+
+async def test_the_workspace_has_quick_replies(db: None) -> None:
+    """Something to type `/` for on the first day, in every language the
+    dealership writes in, each greeting the customer by name."""
+    assert await seed() == 0
+    async with tenant_session(TENANT) as conn:
+        rows = await conn.fetch("select shortcut, body from quick_replies")
+    assert {row["shortcut"] for row in rows} == {"/price", "/location", "/documents"}
+    for row in rows:
+        assert set(row["body"]) == {"ar", "en", "fr"}
+        assert all("{name}" in text for text in row["body"].values())
+
+
+async def test_yesterday_has_a_first_response_a_miss_and_a_win(db: None) -> None:
+    """The morning brief is about yesterday, so the seed has one — counted by
+    the dashboard's own functions, which are what the brief reads."""
+    assert await seed() == 0
+    now = datetime.now(UTC)
+    tz = ZoneInfo(TIMEZONE)
+    since, until = dashboard.day_window(now.astimezone(tz).date() - timedelta(days=1), tz)
+    async with tenant_session(TENANT) as conn:
+        settings = SalesSettings.model_validate(
+            await conn.fetchval("select sales_settings from tenants where id = $1", TENANT)
+        )
+        waits = await dashboard.answered(conn, since, until, tz=tz, settings=settings)
+        facts = await dashboard.facts(conn, since, until, now, waits, settings)
+        missed_by = await conn.fetchval(
+            "select assigned_to from sla_misses where due_at >= $1 and due_at < $2", since, until
+        )
+        won_on = await conn.fetchval(
+            """select p.name from leads l
+                 join pipeline_stages s on s.id = l.stage_id
+                 join pipelines p on p.id = l.pipeline_id
+                where s.category = 'won' and l.stage_entered_at >= $1
+                  and l.stage_entered_at < $2""",
+            since,
+            until,
+        )
+        items = await dashboard.attention(conn, now)
+
+    assert facts["new_conversations"] == 4
+    median = dashboard.median_of(waits)
+    assert median is not None and 2 * 60 <= median <= 9 * 60, "a median worth reading"
+    assert facts["missed_targets"] == 1 and missed_by == person_id("Salem Bousaid")
+    assert facts["won"] == 1 and won_on == "Local sale"
+    # What the brief puts in front of a manager: somebody waiting, a hot lead
+    # nobody is working, and whoever has the most tasks past due.
+    assert {item["kind"] for item in items} == {"waiting", "hot_lead", "overdue_tasks"}
+    overdue = next(item for item in items if item["kind"] == "overdue_tasks")
+    assert overdue["name"] == "Mohamed Riad"
+
+
+async def test_todays_brief_is_queued_once_however_often_the_seed_runs(
+    db: None, su: asyncpg.Connection
+) -> None:
+    """A running worker writes it through the real handler; the seed only asks."""
+    assert await seed() == 0
+    assert await seed() == 0
+    today = datetime.now(ZoneInfo(TIMEZONE)).date().isoformat()
+    rows = await su.fetch(
+        """select dedupe_key, status, run_after from events
+            where tenant_id = $1 and event_type = 'sales.brief_due'""",
+        TENANT,
+    )
+    assert [(row["dedupe_key"], row["status"]) for row in rows] == [(f"brief:{today}", "pending")]
+    assert rows[0]["run_after"] <= datetime.now(UTC)
 
 
 async def test_a_duplicate_customer_is_waiting_to_be_merged(db: None) -> None:

@@ -13,10 +13,11 @@ from __future__ import annotations
 import asyncio
 import json
 import sys
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, time, timedelta
 from pathlib import Path
 from typing import NamedTuple
 from uuid import NAMESPACE_URL, UUID, uuid5
+from zoneinfo import ZoneInfo
 
 import asyncpg
 
@@ -30,6 +31,7 @@ from ..sales.messaging import render_template
 
 TENANT = UUID("11111111-0000-4000-8000-000000000001")
 TENANT_SLUG = "pollux-motors"
+TIMEZONE = "Asia/Dubai"
 CHANNEL = UUID("11111111-0000-4000-8000-000000000002")
 PHONE_NUMBER_ID = "pollux-local-phone"
 WABA_ID = "pollux-local-waba"
@@ -104,6 +106,9 @@ class Deal(NamedTuple):
     lost_reason: str | None = None
     #: How long ago it entered its stage, in days.
     days_in_stage: int = 0
+    #: Instead: created when the customer first wrote, and in its stage this
+    #: many hours later — a lead that started and finished the same day.
+    hours_to_stage: float | None = None
 
 
 DEALS: tuple[Deal, ...] = (
@@ -193,6 +198,24 @@ DEALS: tuple[Deal, ...] = (
         lost_reason="Bought a used Prado from another dealer",
         days_in_stage=9,
     ),
+    # Yesterday's win: asked in the morning, bought in the afternoon.
+    Deal(
+        "Rashid Al Ketbi",
+        "Local sale",
+        "Won",
+        "X5 Plus",
+        7600000,
+        70,
+        "hot",
+        (
+            "asked_availability",
+            "requested_visit_or_test_drive",
+            "negotiating_specific_car",
+            "shared_id_or_asked_payment_details",
+            "responsive",
+        ),
+        hours_to_stage=5,
+    ),
 )
 
 
@@ -211,6 +234,62 @@ CHORES: tuple[Chore, ...] = (
     Chore("Call Omar about the passport copy", "Ahmed Nasser", "Omar Al Mazrouei", "call", 2),
     Chore("Book the Land Cruiser inspection", "Ahmed Nasser", "Mona Fathy", "meeting", 72),
     Chore("Chase Mona for the deposit", "Ahmed Nasser", "Mona Fathy", "follow_up", -30, done=True),
+    # Two late for one person: the brief names whoever has most past due.
+    Chore(
+        "Register Rashid's X5 Plus and book the handover",
+        "Mohamed Riad",
+        "Rashid Al Ketbi",
+        "todo",
+        -3,
+    ),
+    Chore("Confirm Hessa's Seal 05 test drive", "Mohamed Riad", "Hessa Al Mansoori", "call", -5),
+)
+
+#: (shortcut, title, body by language) — `{name}` is the customer's first name
+#: (components/inbox/QuickReplyMenu). No figures: a price or a date typed from a
+#: shortcut is a promise nobody checked.
+QUICK_REPLIES: tuple[tuple[str, str, dict[str, str]], ...] = (
+    (
+        "/price",
+        "Today's price",
+        {
+            "ar": "أهلاً {name}، أتأكد لك الآن من سعر اليوم للسيارة التي سألت عنها وأرسله لك "
+            "بعد قليل.",
+            "en": "Hello {name}, I'm checking today's price for the exact car you asked about "
+            "and will send it to you in a moment.",
+            "fr": "Bonjour {name}, je vérifie le prix du jour pour le véhicule qui vous "
+            "intéresse et je vous l'envoie dans un instant.",
+        },
+    ),
+    (
+        "/location",
+        "Showroom location",
+        {
+            "ar": "أهلاً {name}، أرسل لك الآن موقع المعرض على الخريطة. أخبرني متى تحب تزورنا "
+            "وأجهّز لك السيارة.",
+            "en": "Hello {name}, I'm sending you our showroom's location now. Tell me when "
+            "you'd like to come and I'll have the car ready.",
+            "fr": "Bonjour {name}, je vous envoie tout de suite la localisation du showroom. "
+            "Dites-moi quand vous souhaitez passer et je préparerai le véhicule.",
+        },
+    ),
+    (
+        "/documents",
+        "Export documents",
+        {
+            # The export policy's own list (tests/evals/sales/policies/export-policy.md).
+            "ar": "أهلاً {name}، للتصدير نحتاج نسخة من جواز السفر، وشهادة إقامة في بلد الوجهة، "
+            "واسم المستلم الكامل وعنوانه بالأحرف اللاتينية. وللشراء باسم شركة نحتاج أيضاً "
+            "الرخصة التجارية.",
+            "en": "Hello {name}, for export we need a passport copy, a certificate of "
+            "residence in the destination country, and the consignee's full name and "
+            "address in Latin letters. For a company purchase we also need the trade licence.",
+            "fr": "Bonjour {name}, pour l'export il nous faut une copie du passeport, un "
+            "certificat de résidence dans le pays de destination, et le nom complet et "
+            "l'adresse du destinataire en lettres latines. Pour un achat au nom d'une "
+            "société, il faut aussi la licence commerciale.",
+        },
+    ),
 )
 
 #: What the AI inferred and what a person answered, on the same two customers —
@@ -253,11 +332,17 @@ class Customer(NamedTuple):
     waiting_min: float | None = None
     #: Whether the last thing they sent was a voice note.
     voice: bool = False
+    #: When they first wrote yesterday, showroom time; None means today.
+    wrote_yesterday: time | None = None
+    #: How long they waited for the first reply, if they got one.
+    answered_after_min: float = 4
 
 
 #: A Monday morning: one customer missed, one about to be, one nobody has
 #: taken, one answered and one closed — so the inbox has something to show the
-#: first time it is opened, and so does every screen S3 adds to it.
+#: first time it is opened, and so does every screen S3 adds to it. Then the
+#: four who wrote yesterday, which is what the morning brief is about: answered
+#: in two to nine minutes, the nine a miss against Salem.
 #:
 #: Re-seed before a demo. The "due soon" row becomes a missed one a couple of
 #: minutes later, which is the product working rather than the seed rotting.
@@ -315,6 +400,55 @@ CUSTOMERS: tuple[Customer, ...] = (
         waiting_min=TARGET_MIN - 1.5,
         voice=True,
     ),
+    Customer(
+        "Rashid Al Ketbi",
+        "+971500000106",
+        "AE",
+        "ar",
+        "local",
+        "Mohamed Riad",
+        "مرحبا، شانجان X5 بلس الرمادية متوفرة؟ أبي أمر عليكم اليوم.",
+        reply="هلا راشد، نعم متوفرة. حياك في المعرض وأجهز لك الأوراق.",
+        wrote_yesterday=time(10, 12),
+        answered_after_min=2,
+    ),
+    Customer(
+        "Priya Nair",
+        "+971500000107",
+        "AE",
+        "en",
+        "local",
+        "Ahmed Nasser",
+        "Hi, is the white Hilux 2.8 Diesel still available? What would finance look like?",
+        reply="Hi Priya, yes, it's here. I'll send you the finance options shortly.",
+        wrote_yesterday=time(11, 40),
+        answered_after_min=4,
+    ),
+    Customer(
+        "Moussa Diop",
+        "+221500000108",
+        "SN",
+        "fr",
+        "export",
+        "Salem Bousaid",
+        "Bonjour, vous exportez vers Dakar ? Je cherche un Land Cruiser.",
+        reply="Bonjour Moussa, oui, nous expédions vers Dakar. Je vous envoie la liste des "
+        "documents.",
+        wrote_yesterday=time(13, 5),
+        answered_after_min=9,
+    ),
+    Customer(
+        "Hessa Al Mansoori",
+        "+971500000109",
+        "AE",
+        "ar",
+        "local",
+        "Mohamed Riad",
+        "مساء الخير، ممكن أجرب بي واي دي سيل ٠٥ بكرة العصر؟",
+        reply="مساء النور يا حصة، أكيد. أحجز لك التجربة بكرة العصر.",
+        wrote_yesterday=time(16, 30),
+        answered_after_min=3,
+    ),
 )
 
 #: What the seeded voice note says, as the transcriber would have heard it.
@@ -354,9 +488,10 @@ async def _seed(conn: asyncpg.Connection) -> list[tuple[int, str]]:
 
     await conn.execute(
         """insert into tenants (id, slug, name, timezone, currency, locales, sales_settings)
-           values ($1, $2, 'Pollux Motors', 'Asia/Dubai', 'AED', '{en,ar,fr}', $3::jsonb)""",
+           values ($1, $2, 'Pollux Motors', $3, 'AED', '{en,ar,fr}', $4::jsonb)""",
         TENANT,
         TENANT_SLUG,
+        TIMEZONE,
         json.dumps({"first_response_target_min": TARGET_MIN, "unassigned_visible_to_sales": True}),
     )
 
@@ -469,6 +604,14 @@ async def _seed(conn: asyncpg.Connection) -> list[tuple[int, str]]:
             )
         ],
     )
+    await conn.executemany(
+        """insert into quick_replies (tenant_id, shortcut, title, body, created_by)
+           values ($1, $2, $3, $4::jsonb, $5)""",
+        [
+            (TENANT, shortcut, title, json.dumps(body), person_id("Sara Mansour"))
+            for shortcut, title, body in QUICK_REPLIES
+        ],
+    )
 
     # Upload the source files and record the chunks before embedding. The
     # embedder uses a tenant-scoped pool, so it must run after this transaction
@@ -515,11 +658,15 @@ async def _seed(conn: asyncpg.Connection) -> list[tuple[int, str]]:
             )
 
     now = datetime.now(UTC)
+    tz = ZoneInfo(TIMEZONE)
+    yesterday = now.astimezone(tz).date() - timedelta(days=1)
     # No local object store means no voice note; the rest of the queue is still
     # worth looking at, so this is not a reason to refuse to seed.
     stored_voice = await _store_voice_note() if get_settings().storage_dir else None
     conversations: dict[str, UUID] = {}
     contacts: dict[str, UUID] = {}
+    #: When each customer first wrote: where a same-day lead starts.
+    first_wrote: dict[str, datetime] = {}
     #: The message a profile field can point at as its evidence.
     first_messages: dict[str, UUID] = {}
     voice_at: datetime | None = None
@@ -527,6 +674,33 @@ async def _seed(conn: asyncpg.Connection) -> list[tuple[int, str]]:
     for i, customer in enumerate(CUSTOMERS):
         owner = person_id(customer.owner) if customer.owner else None
         team_id = teams[customer.team]
+        waiting_since = (
+            now - timedelta(minutes=customer.waiting_min)
+            if customer.waiting_min is not None
+            else None
+        )
+        # An answered conversation started earlier: yesterday, or earlier today.
+        # An unanswered one started when the customer wrote, which is what the
+        # timer counts from.
+        if customer.wrote_yesterday:
+            opened_at = datetime.combine(yesterday, customer.wrote_yesterday, tzinfo=tz)
+        elif customer.reply:
+            opened_at = now - timedelta(hours=i + 1)
+        else:
+            opened_at = waiting_since or now
+        #: (when, direction, what was said — None for the voice note)
+        said: list[tuple[datetime, str, str | None]] = [(opened_at, "in", customer.opening)]
+        if customer.reply:
+            said.append(
+                (opened_at + timedelta(minutes=customer.answered_after_min), "out", customer.reply)
+            )
+        if customer.voice and waiting_since:
+            voice_at = waiting_since
+            said.append((waiting_since, "in", None))
+        last_heard = max(at for at, direction, _ in said if direction == "in")
+        answered_at = next((at for at, direction, _ in said if direction == "out"), None)
+        first_wrote[customer.name] = opened_at
+
         contact_id = await conn.fetchval(
             """insert into contacts (tenant_id, full_name, locale, country, owner_id, team_id,
                                      last_seen_at)
@@ -537,7 +711,7 @@ async def _seed(conn: asyncpg.Connection) -> list[tuple[int, str]]:
             customer.country,
             owner,
             team_id,
-            now - timedelta(hours=i),
+            last_heard,
         )
         await conn.execute(
             """insert into contact_identities (tenant_id, contact_id, kind, value, is_primary)
@@ -555,28 +729,13 @@ async def _seed(conn: asyncpg.Connection) -> list[tuple[int, str]]:
             f"AE.seed.{i + 1}",
         )
 
-        waiting_since = (
-            now - timedelta(minutes=customer.waiting_min)
-            if customer.waiting_min is not None
-            else None
-        )
-        # An answered conversation started earlier in the day; an unanswered one
-        # started when the customer wrote, which is what the timer counts from.
-        opened_at = now - timedelta(hours=i + 1) if customer.reply else (waiting_since or now)
-        #: (when, direction, what was said — None for the voice note)
-        said: list[tuple[datetime, str, str | None]] = [(opened_at, "in", customer.opening)]
-        if customer.reply:
-            said.append((opened_at + timedelta(minutes=6), "out", customer.reply))
-        if customer.voice and waiting_since:
-            voice_at = waiting_since
-            said.append((waiting_since, "in", None))
-
         conversation_id = await conn.fetchval(
             """insert into conversations
                  (tenant_id, contact_id, channel_id, surface, owner_id, team_id,
                   assigned_to, status, last_message_at, last_inbound_at,
-                  wa_window_expires_at, waiting_since, sla_due_at, first_response_at)
-               values ($1,$2,$3,'whatsapp',$4,$5,$4,$6,$7,$8,$9,$10,$11,$12)
+                  wa_window_expires_at, waiting_since, sla_due_at, first_response_at,
+                  created_at)
+               values ($1,$2,$3,'whatsapp',$4,$5,$4,$6,$7,$8,$9,$10,$11,$12,$13)
                returning id""",
             TENANT,
             contact_id,
@@ -585,19 +744,36 @@ async def _seed(conn: asyncpg.Connection) -> list[tuple[int, str]]:
             team_id,
             customer.status,
             said[-1][0],
-            max(at for at, direction, _ in said if direction == "in"),
+            last_heard,
+            # WhatsApp's 24 hours from their last message. Karim's has run out.
             (
                 now - timedelta(hours=1)
                 if customer.name == "Karim Benali"
-                else now + timedelta(hours=24 - i)
+                else last_heard + timedelta(hours=24)
             ),
             waiting_since,
             waiting_since + timedelta(minutes=TARGET_MIN) if waiting_since else None,
             # When somebody answered: the number My day shows as the median.
-            next((at for at, direction, _ in said if direction == "out"), None),
+            answered_at,
+            opened_at,
         )
         conversations[customer.name] = conversation_id
         contacts[customer.name] = contact_id
+
+        # The row the SLA check leaves when a target passes with the customer
+        # still waiting (events/handlers/inbox.py): answered after it, or not yet.
+        due = opened_at + timedelta(minutes=TARGET_MIN)
+        if due < (answered_at or now):
+            await conn.execute(
+                """insert into sla_misses
+                     (tenant_id, conversation_id, assigned_to, waiting_since, due_at)
+                   values ($1, $2, $3, $4, $5)""",
+                TENANT,
+                conversation_id,
+                owner,
+                opened_at,
+                due,
+            )
 
         for n, (at, direction, body) in enumerate(said):
             spoken = body is None
@@ -669,9 +845,15 @@ async def _seed(conn: asyncpg.Connection) -> list[tuple[int, str]]:
         for row in await conn.fetch("select id, model from vehicles where tenant_id = $1", TENANT)
     }
     lead_ids: dict[str, UUID] = {}
+    owners = {customer.name: customer.owner for customer in CUSTOMERS}
     for deal in DEALS:
         stage_id = boards[deal.board][deal.stage]
-        entered = now - timedelta(days=deal.days_in_stage)
+        if deal.hours_to_stage is None:
+            entered = now - timedelta(days=deal.days_in_stage)
+            created = entered - timedelta(days=2)
+        else:
+            created = first_wrote[deal.customer]
+            entered = created + timedelta(hours=deal.hours_to_stage)
         lead_id = await conn.fetchval(
             """insert into leads (tenant_id, contact_id, conversation_id, pipeline_id, stage_id,
                                   stage_entered_at, owner_id, team_id, vehicle_id, budget_minor,
@@ -703,7 +885,7 @@ async def _seed(conn: asyncpg.Connection) -> list[tuple[int, str]]:
                 ]
             ),
             deal.lost_reason,
-            entered - timedelta(days=2),
+            created,
         )
         lead_ids[deal.customer] = lead_id
         # Where it has been: the drawer reads this, and a lead that arrived
@@ -721,7 +903,7 @@ async def _seed(conn: asyncpg.Connection) -> list[tuple[int, str]]:
                 contacts[deal.customer],
                 f"{first_open} → {deal.stage}",
                 json.dumps({"to": str(stage_id)}),
-                str(person_id("Ahmed Nasser")),
+                str(person_id(owners[deal.customer] or "Ahmed Nasser")),
                 entered,
             )
 
@@ -852,6 +1034,19 @@ async def _seed(conn: asyncpg.Connection) -> list[tuple[int, str]]:
             person_id(full_name),
             read_at,
         )
+
+    # Today's brief, asked for rather than written: a running worker writes it
+    # through the real handler. Shaped as sales/clock.py schedules it; the
+    # tenant's delete above took any earlier one with it, so this is the only one.
+    today = now.astimezone(tz).date().isoformat()
+    await conn.execute(
+        """insert into events (tenant_id, event_type, payload, dedupe_key, priority, run_after)
+           values ($1, 'sales.brief_due', $2::jsonb, $3, 1, $4)""",
+        TENANT,
+        json.dumps({"date": today}),
+        f"brief:{today}",
+        now,
+    )
 
     return document_chunks
 

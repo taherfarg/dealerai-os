@@ -10,6 +10,7 @@ import asyncpg
 import pytest
 from fastapi.testclient import TestClient
 
+from dealerai.agents.sales import brief as brief_agent
 from dealerai.config import get_settings
 from dealerai.db import session
 from dealerai.events.worker import Worker
@@ -87,6 +88,10 @@ def test_voice_and_echo_use_their_platform_specific_shapes() -> None:
     assert echo["entry"][0]["changes"][0]["value"]["messages"][0]["to_user_id"] == "AE.seed.1"
 
 
+async def _no_headline(**_: object) -> brief_agent.Written:
+    return brief_agent.Written(headline=None, cost_usd=0.0)
+
+
 async def _drain_then_read(external_id: str) -> asyncpg.Record | None:
     """The TestClient's lifespan closed the pool; the worker needs its own."""
     await session.init_pool()
@@ -116,6 +121,9 @@ def test_the_default_inbound_payload_becomes_a_message(
     sent the BSUID as wa_id, and every simulated message died in the worker.
     """
     monkeypatch.setattr(get_settings(), "whatsapp_app_secret", SECRET)
+    # The seed queues today's brief and the drain below runs it; the normal
+    # suite never reaches a model.
+    monkeypatch.setattr(brief_agent, "write", _no_headline)
     assert asyncio.run(seed()) == 0
     payload = build_payload(
         "inbound",
