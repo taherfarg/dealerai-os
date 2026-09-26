@@ -306,10 +306,13 @@ and French; stemming for one language mangles the other two.
 | `ai_suggestions` | 12 months | Aggregated into daily acceptance rows, detail dropped |
 | `notifications` | 90 days | Deleted |
 | `webhook_deliveries` | 14 days (existing) | Deleted |
+| `events`, finished (`done`, `failed`) | 14 days, as the webhook body they came from | Deleted — a payload can be the raw inbound message |
 
 Per customer: `GET /v1/customers/{id}/export` (admin) returns the record, identities, messages and
 media links; `DELETE /v1/customers/{id}` (owner/admin) cascades and writes `audit_log` — the PDPL
-export and erasure paths.
+export and erasure paths. Erasure also deletes every event and raw webhook body that names the
+customer, by our ids or by their identities as the platform writes them (`app.erase_contact`,
+migration 0012).
 
 ---
 

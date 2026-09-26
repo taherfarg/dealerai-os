@@ -154,6 +154,36 @@ async def _everywhere() -> dict[str, uuid.UUID]:
             TENANT_A,
             json.dumps({"conversation_id": str(conversation)}),
         )
+        # The raw inbound message, twice over: the finished event it became and
+        # the webhook body it arrived in. Neither names him by any id of ours.
+        await conn.execute(
+            """insert into contact_identities (tenant_id, contact_id, kind, value)
+               values ($1, $2, 'whatsapp_user_id', 'AE.omar.1')""",
+            TENANT_A,
+            omar,
+        )
+        # No tenant owns a raw body, so the tenant wipe leaves the last test's.
+        await conn.execute("delete from webhook_deliveries")
+        # Mona's number starts with his: only a quoted match tells them apart.
+        for name, number, user in (
+            ("Omar Haddad", "971500000001", "AE.omar.1"),
+            ("Mona Fathy", "9715000000012", "AE.mona.1"),
+        ):
+            raw = {
+                "contacts": [{"profile": {"name": name}, "wa_id": number, "user_id": user}],
+                "messages": [{"from": number, "text": {"body": "my passport"}}],
+            }
+            await conn.execute(
+                """insert into events (tenant_id, event_type, payload, status, processed_at)
+                   values ($1, 'whatsapp.message_received', $2::jsonb, 'done', now())""",
+                TENANT_A,
+                json.dumps(raw),
+            )
+            await conn.execute(
+                """insert into webhook_deliveries (platform, signature_ok, body)
+                   values ('whatsapp', true, $1::jsonb)""",
+                json.dumps({"entry": [{"changes": [{"value": raw}]}]}),
+            )
         # The snapshot a merge left: both records, whole.
         await conn.execute(
             """insert into audit_log (tenant_id, actor_type, actor_id, action, entity_type,
@@ -248,6 +278,10 @@ def test_erasure_leaves_nothing_of_them(client: TestClient, ids: dict[str, uuid.
             " and before is not null and meta->>'keep_id' = $1",
             str(ids["omar"]),
         ),
+        # The exit run found him here after an erasure: the raw payloads.
+        ("select count(*) from events where payload::text like $1", '%"971500000001"%'),
+        ("select count(*) from webhook_deliveries where body::text like $1", '%"971500000001"%'),
+        ("select count(*) from events where payload::text like $1", "%AE.omar.1%"),
     ):
         assert _count(sql, value) == 0, sql
 
@@ -290,6 +324,10 @@ def test_the_customer_beside_them_is_untouched(
 ) -> None:
     _erase(client, ids["omar"])
     assert _count("select count(*) from contacts where id = $1", ids["mona"]) == 1
+    # Her raw message is hers, though her number starts with his.
+    mona = '%"9715000000012"%'
+    assert _count("select count(*) from events where payload::text like $1", mona) == 1
+    assert _count("select count(*) from webhook_deliveries where body::text like $1", mona) == 1
 
 
 @pytest.mark.parametrize("user", [MANAGER, SALES_1])
@@ -330,7 +368,10 @@ def test_an_export_holds_everything_the_erasure_would_remove(
     )
     document = response.json()
     assert document["customer"]["name"] == "Omar Haddad"
-    assert document["identities"] == [{"kind": "phone", "value": "+971500000001"}]
+    assert sorted(document["identities"], key=lambda identity: identity["kind"]) == [
+        {"kind": "phone", "value": "+971500000001"},
+        {"kind": "whatsapp_user_id", "value": "AE.omar.1"},
+    ]
     [message] = document["messages"]
     assert message["body"] == "my passport"
     [media] = message["media"]

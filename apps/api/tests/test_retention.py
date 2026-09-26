@@ -121,7 +121,8 @@ async def test_old_notifications_and_briefs_go_and_recent_ones_stay(
 async def test_raw_webhook_bodies_go_after_fourteen_days(
     db: None, su: asyncpg.Connection, seeded: None
 ) -> None:
-    """They hold message text and phone numbers, and an erasure cannot find them."""
+    """They hold message text and phone numbers. An erasure finds its customer's
+    by their identities; this is for everybody else's."""
     old, recent = [
         await su.fetchval(
             """insert into webhook_deliveries (platform, signature_ok, received_at)
@@ -138,6 +139,32 @@ async def test_raw_webhook_bodies_go_after_fourteen_days(
         )
     }
     assert kept == {recent}
+
+
+async def test_finished_events_go_with_the_webhook_bodies_they_came_from(
+    db: None, su: asyncpg.Connection, seeded: None
+) -> None:
+    """A finished event holds what caused it — the raw inbound message
+    included — and nothing ever deleted one."""
+    ids = {
+        (status, age): await su.fetchval(
+            """insert into events (tenant_id, event_type, status, created_at, processed_at)
+               values ($1, 'whatsapp.message_received', $2,
+                       now() - make_interval(days => $3), now() - make_interval(days => $3))
+               returning id""",
+            TENANT_A,
+            status,
+            age,
+        )
+        for status, age in (("done", 15), ("failed", 15), ("done", 1), ("pending", 15))
+    }
+    await _run()
+    kept = {
+        key
+        for key, event_id in ids.items()
+        if await su.fetchval("select exists(select 1 from events where id = $1)", event_id)
+    }
+    assert kept == {("done", 1), ("pending", 15)}
 
 
 async def test_the_other_dealership_is_untouched(

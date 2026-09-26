@@ -23,6 +23,9 @@ log = structlog.get_logger()
 NOTIFICATIONS_KEPT = timedelta(days=90)
 BRIEFS_KEPT = timedelta(days=90)
 WEBHOOKS_KEPT = timedelta(days=14)
+#: A finished event holds what caused it — the raw inbound message included —
+#: so it is kept as long as the webhook body it came from.
+FINISHED_EVENTS_KEPT = WEBHOOKS_KEPT
 #: ponytail: a backlog clears over several nights. Raise it if a first run
 #: ever finds thousands.
 ERASED_PER_NIGHT = 500
@@ -92,9 +95,15 @@ async def on_retention_due(event: Event) -> None:
         if paths:
             await emit(conn, "media.delete", {"paths": paths}, tenant_id=tenant_id)
     async with system_session() as conn:
-        # Written before a tenant is known, so no tenant owns the old ones:
-        # every tenant's pass may delete them, and a second delete finds none.
+        # Written before a tenant is known, and events can have none, so no
+        # tenant owns the old ones: every tenant's pass may delete them, and a
+        # second delete finds none.
         await conn.execute(
             "delete from webhook_deliveries where received_at < $1", now - WEBHOOKS_KEPT
+        )
+        await conn.execute(
+            """delete from events where status in ('done', 'failed')
+                 and coalesce(processed_at, created_at) < $1""",
+            now - FINISHED_EVENTS_KEPT,
         )
     log.info("retention_done", tenant_id=str(tenant_id), erased=len(stale))
