@@ -72,6 +72,7 @@ async def _waiting_conversation(
     *,
     owner: uuid.UUID | None = None,
     language: str = "ar",
+    team: uuid.UUID | None = TEAM_LOCAL,
 ) -> uuid.UUID:
     contact_id = await su.fetchval(
         """insert into contacts (tenant_id, full_name, locale, country, owner_id, team_id)
@@ -79,7 +80,7 @@ async def _waiting_conversation(
         TENANT_A,
         language,
         owner,
-        TEAM_LOCAL,
+        team,
     )
     return await su.fetchval(  # type: ignore[no-any-return]
         """insert into conversations
@@ -88,7 +89,7 @@ async def _waiting_conversation(
         TENANT_A,
         contact_id,
         CHANNEL,
-        TEAM_LOCAL,
+        team,
         owner,
     )
 
@@ -139,6 +140,33 @@ async def test_the_handler_assigns_and_says_so(db: None, workspace: asyncpg.Conn
         )
         == 1
     )
+
+
+async def test_the_routed_team_is_kept_when_somebody_takes_it(
+    db: None, workspace: asyncpg.Connection
+) -> None:
+    """A new customer arrives with no team. Routed and assigned in one go, the
+    conversation kept only its assignee: it was missing from the manager's Team
+    inbox and the dashboard's waiting list while the dashboard's tile counted it."""
+    su = workspace
+    await su.execute(
+        """update tenants set sales_settings = coalesce(sales_settings, '{}'::jsonb)
+             || jsonb_build_object('default_team_id', $2::uuid) where id = $1""",
+        TENANT_A,
+        TEAM_LOCAL,
+    )
+    conversation_id = await _waiting_conversation(su, team=None)
+
+    await inbox.on_assign_requested(_event(conversation_id))
+
+    row = await su.fetchrow(
+        """select cv.assigned_to, cv.team_id, ct.team_id as customer_team
+             from conversations cv join contacts ct on ct.id = cv.contact_id
+            where cv.id = $1""",
+        conversation_id,
+    )
+    assert row is not None and row["assigned_to"] in LOCAL_TEAM
+    assert (row["team_id"], row["customer_team"]) == (TEAM_LOCAL, TEAM_LOCAL)
 
 
 async def test_two_conversations_do_not_land_on_one_person(

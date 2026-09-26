@@ -101,6 +101,18 @@ async def on_assign_requested(event: Event) -> None:
             from_ad=row["from_ad"],
             default_team_id=settings.default_team_id,
         )
+        if team_id is not None and row["team_id"] is None:
+            # Kept whether or not anybody takes it: the team inbox, the manager's
+            # waiting list and the unassigned pool all read the team, and a
+            # customer who arrived with none belongs to the one they were routed to.
+            await conn.execute(
+                "update conversations set team_id = $2 where id = $1", conversation_id, team_id
+            )
+            await conn.execute(
+                "update contacts set team_id = coalesce(team_id, $2) where id = $1",
+                row["contact_id"],
+                team_id,
+            )
 
         chosen = await _keep_their_own(conn, tenant_id, row["contact_owner"])
         if chosen is None and team_id is not None:
@@ -109,10 +121,6 @@ async def on_assign_requested(event: Event) -> None:
         if chosen is None:
             # Not a failure: the team is away or full. Try again shortly — a rep
             # back from lunch is as common as a team opening.
-            if team_id is not None and row["team_id"] is None:
-                await conn.execute(
-                    "update conversations set team_id = $2 where id = $1", conversation_id, team_id
-                )
             now = datetime.now(UTC)
             await emit(
                 conn,
