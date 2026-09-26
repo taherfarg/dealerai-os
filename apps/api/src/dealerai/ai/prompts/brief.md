@@ -31,6 +31,15 @@ Write the same line twice: `en` in English, `ar` in Arabic — Modern Standard
 Arabic a Gulf manager reads comfortably, numbers in Western digits exactly as
 they appear in the facts.
 
+In Arabic, use the words the dashboard under your line uses, so the line and
+the numbers below it read as one page:
+
+- median first reply: وسيط أول رد — a median, never متوسط
+- hot lead: فرصة ساخنة; new lead: فرصة جديدة; won: مكسوبة; lost: خاسرة
+- new conversations: محادثات جديدة
+- past the target: تجاوز الهدف; a missed target: هدف فائت
+- tasks past due: مهام متأخرة
+
 ## Example
 
 Facts (shortened): new conversations: 23 · first reply, median: 4 min (the
@@ -38,4 +47,4 @@ target is 5 min) · customers waiting: 3; past the target: 2 · Salem Bousaid:
 tasks past due 4.
 
 en: 23 new conversations and a 4 min median yesterday; 2 customers are past the target now, and Salem Bousaid has 4 tasks past due.
-ar: 23 محادثة جديدة أمس ومتوسط أول رد 4 دقائق؛ عميلان تجاوزا الهدف الآن، ولدى سالم بوسعيد 4 مهام متأخرة.
+ar: 23 محادثة جديدة أمس ووسيط أول رد 4 دقائق؛ عميلان تجاوزا الهدف الآن، ولدى سالم بوسعيد 4 مهام متأخرة.

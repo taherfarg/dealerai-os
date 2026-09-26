@@ -109,6 +109,7 @@ async def test_a_headline_uses_only_the_facts(db: None, seeded: None, morning: s
     block = MORNINGS[morning]
     async with agent_run(TENANT_A, goal="brief", goal_input={"eval": morning}) as run:
         written = await brief.write(tenant_id=TENANT_A, run_id=run.id, facts=block)
+        run.cost_usd += written.cost_usd
     headline = written.headline
     report = f"[{morning}]\n  en: {headline and headline.en}\n  ar: {headline and headline.ar}\n"
     (REPORTS / f"last-brief-{morning}.md").write_text(report, encoding="utf-8")
