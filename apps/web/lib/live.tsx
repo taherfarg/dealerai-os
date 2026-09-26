@@ -1,6 +1,6 @@
 "use client";
 
-import { useQueryClient, type QueryClient } from "@tanstack/react-query";
+import { useQueryClient, type QueryClient, type QueryKey } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { API_BASE } from "@/lib/api/client";
 import { useTenantApi } from "@/lib/api/context";
@@ -11,6 +11,8 @@ import { getBrowserAccessToken } from "@/lib/auth/token";
 type LiveEvent = { type: string; id?: string | null; conversation_id?: string | null };
 
 const MAX_BACKOFF_MS = 30_000;
+/** How long a burst gathers before anything refetches. */
+const COALESCE_MS = 250;
 
 /** Pull the `data:` line out of one SSE frame. Comments (`: heartbeat`) have none. */
 export function parseFrame(frame: string): LiveEvent | null {
@@ -23,47 +25,49 @@ export function parseFrame(frame: string): LiveEvent | null {
   }
 }
 
-/** Refresh only the state affected by an event. */
-export function invalidateLiveEvent(
-  queryClient: QueryClient,
-  tenantId: string,
-  event: LiveEvent,
-): void {
+/** The state one event makes stale. */
+function staleKeys(tenantId: string, event: LiveEvent): QueryKey[] {
   const conversationId = event.conversation_id ?? undefined;
   if (event.type === "suggestion.ready") {
     // Only the draft. A new suggestion changes no thread, list or count, and
     // invalidating those would refetch four queries every time the AI finishes.
-    if (conversationId) {
-      queryClient.invalidateQueries({ queryKey: keys.suggestion(tenantId, conversationId) });
-    }
-    return;
+    return conversationId ? [keys.suggestion(tenantId, conversationId)] : [];
   }
   // The dashboard counts all of what follows. Only the open day refetches —
-  // TanStack marks the rest stale — so one line covers every event below.
-  queryClient.invalidateQueries({ queryKey: keys.dashboardAll(tenantId) });
+  // TanStack marks the rest stale — so one key covers every event below.
+  const stale: QueryKey[] = [keys.dashboardAll(tenantId)];
   if (conversationId) {
-    if (event.type.startsWith("message.")) {
-      queryClient.invalidateQueries({ queryKey: keys.messages(tenantId, conversationId) });
-    }
-    queryClient.invalidateQueries({ queryKey: keys.conversation(tenantId, conversationId) });
+    if (event.type.startsWith("message.")) stale.push(keys.messages(tenantId, conversationId));
+    stale.push(keys.conversation(tenantId, conversationId));
   }
-  if (event.type === "notification.created") {
-    queryClient.invalidateQueries({ queryKey: keys.notifications(tenantId) });
-  }
+  if (event.type === "notification.created") stale.push(keys.notifications(tenantId));
   if (event.type === "lead.updated") {
-    queryClient.invalidateQueries({ queryKey: keys.leadList(tenantId) });
-    if (event.id) queryClient.invalidateQueries({ queryKey: keys.lead(tenantId, event.id) });
-    queryClient.invalidateQueries({ queryKey: keys.myDay(tenantId) });
-    return; // a lead move is not a conversation change
+    // A lead move is not a conversation change.
+    stale.push(keys.leadList(tenantId), keys.myDay(tenantId));
+    if (event.id) stale.push(keys.lead(tenantId, event.id));
+    return stale;
   }
   if (event.type === "task.updated") {
-    queryClient.invalidateQueries({ queryKey: keys.taskList(tenantId) });
-    queryClient.invalidateQueries({ queryKey: keys.myDay(tenantId) });
-    return;
+    return [...stale, keys.taskList(tenantId), keys.myDay(tenantId)];
   }
-  queryClient.invalidateQueries({ queryKey: keys.conversationList(tenantId) });
-  queryClient.invalidateQueries({ queryKey: keys.counts(tenantId) });
-  queryClient.invalidateQueries({ queryKey: keys.myDay(tenantId) });
+  return [...stale, keys.conversationList(tenantId), keys.counts(tenantId), keys.myDay(tenantId)];
+}
+
+/**
+ * Refresh only the state a burst of events affected, each query once. One
+ * refresh per event refetched the dashboard thirty times for a thirty-row
+ * change — each fetch cancelling the one before it, each still run by the API.
+ */
+export function invalidateLiveEvents(
+  queryClient: QueryClient,
+  tenantId: string,
+  events: readonly LiveEvent[],
+): void {
+  const stale = new Map<string, QueryKey>();
+  for (const event of events) {
+    for (const key of staleKeys(tenantId, event)) stale.set(JSON.stringify(key), key);
+  }
+  for (const queryKey of stale.values()) void queryClient.invalidateQueries({ queryKey });
 }
 
 /**
@@ -82,6 +86,18 @@ export function useLiveEvents(): void {
     const controller = new AbortController();
     let attempt = 0;
     let stopped = false;
+    // A burst — one commit writes many rows — refreshes once, a moment later.
+    let burst: LiveEvent[] = [];
+    let flush: ReturnType<typeof setTimeout> | undefined;
+    const gather = (event: LiveEvent) => {
+      burst.push(event);
+      flush ??= setTimeout(() => {
+        const events = burst;
+        burst = [];
+        flush = undefined;
+        invalidateLiveEvents(queryClient, tenantId, events);
+      }, COALESCE_MS);
+    };
 
     const read = async () => {
       while (!stopped) {
@@ -108,7 +124,7 @@ export function useLiveEvents(): void {
             buffer = frames.pop() ?? "";
             for (const frame of frames) {
               const event = parseFrame(frame);
-              if (event) invalidateLiveEvent(queryClient, tenantId, event);
+              if (event) gather(event);
             }
           }
         } catch {
@@ -124,6 +140,7 @@ export function useLiveEvents(): void {
     void read();
     return () => {
       stopped = true;
+      clearTimeout(flush);
       controller.abort();
     };
   }, [queryClient, tenantId]);
