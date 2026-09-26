@@ -70,8 +70,15 @@ def model(monkeypatch: pytest.MonkeyPatch) -> Model:
         stub.prompts.append(str(kwargs.get("prompt")))
         return Conversation(text="{}", parsed=stub.next_draft(), cost_usd=0.004)
 
+    async def no_passages(*args: Any, **kwargs: Any) -> list[Any]:
+        # Retrieval embeds the question — a call to the model service, which
+        # this suite never makes (CI has no key). A test that wants passages
+        # writes them itself.
+        return []
+
     monkeypatch.setattr(copilot, "classify", fake_classify)
     monkeypatch.setattr(copilot_agent, "converse", fake_converse)
+    monkeypatch.setattr(copilot.knowledge, "search", no_passages)
     stub.replies(f"Yes, the Land Cruiser is available at AED {PRICE // 100:,}.")
     return stub
 

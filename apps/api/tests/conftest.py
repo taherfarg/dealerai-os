@@ -4,6 +4,7 @@ import asyncio
 import json
 import uuid
 from collections.abc import AsyncIterator
+from pathlib import Path
 
 import asyncpg
 import pytest
@@ -101,6 +102,25 @@ async def su(_migrated: None) -> AsyncIterator[asyncpg.Connection]:
         yield conn
     finally:
         await conn.close()
+
+
+@pytest.fixture
+def offline_seed(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """`seed()` with no service but Postgres, as CI runs it: the policies and
+    the voice note go to a temporary folder, and the policies' vectors are made
+    up rather than bought. Locally the key and the folder in .env hid both."""
+    from dealerai.scripts import seed_sales
+
+    monkeypatch.setattr(get_settings(), "storage_dir", str(tmp_path))
+
+    async def embed_documents(
+        texts: list[str], *, tenant_id: object, kind: str
+    ) -> list[list[float]]:
+        assert tenant_id == seed_sales.TENANT and kind == "document"
+        assert all(text.strip() for text in texts)
+        return [[1.0] + [0.0] * 1535 for _ in texts]
+
+    monkeypatch.setattr(seed_sales, "embed", embed_documents)
 
 
 @pytest.fixture

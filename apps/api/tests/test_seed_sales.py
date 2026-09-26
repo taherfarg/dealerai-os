@@ -24,19 +24,7 @@ from dealerai.scripts.seed_sales import (
     seed,
 )
 
-
-@pytest.fixture(autouse=True)
-def local_document_embeddings(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Seed shape tests exercise storage without billing the embedding service."""
-
-    async def embed_documents(
-        texts: list[str], *, tenant_id: object, kind: str
-    ) -> list[list[float]]:
-        assert tenant_id == TENANT and kind == "document"
-        assert all(text.strip() for text in texts)
-        return [[1.0] + [0.0] * 1535 for _ in texts]
-
-    monkeypatch.setattr(seed_sales, "embed", embed_documents, raising=False)
+pytestmark = pytest.mark.usefixtures("offline_seed")
 
 
 async def test_the_seed_has_copilot_examples_and_embedded_policies(db: None) -> None:

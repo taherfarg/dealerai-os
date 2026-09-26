@@ -113,7 +113,7 @@ async def _drain_then_read(external_id: str) -> asyncpg.Record | None:
 
 
 def test_the_default_inbound_payload_becomes_a_message(
-    _migrated: None, monkeypatch: pytest.MonkeyPatch
+    _migrated: None, monkeypatch: pytest.MonkeyPatch, offline_seed: None
 ) -> None:
     """`npm run wa:simulate inbound`, end to end.
 
