@@ -313,6 +313,20 @@ async def test_a_seeded_wait_has_its_check_booked_as_a_real_one_does(
     }
 
 
+async def test_a_customer_no_rule_routes_lands_where_a_manager_sees_them(db: None) -> None:
+    """With no default team a new customer has no team, and only the owner sees
+    them: the exit run's new customer never reached Sara's dashboard."""
+    assert await seed() == 0
+    async with tenant_session(TENANT) as conn:
+        team = await conn.fetchval(
+            """select t.name from tenants tn
+                 join teams t on t.id = (tn.sales_settings->>'default_team_id')::uuid
+                where tn.id = $1""",
+            TENANT,
+        )
+    assert team == "Local sales"
+
+
 async def test_a_duplicate_customer_is_waiting_to_be_merged(db: None) -> None:
     """The merge dialog needs two records of one person to be worth opening."""
     assert await seed() == 0

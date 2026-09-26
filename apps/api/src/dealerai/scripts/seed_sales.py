@@ -524,6 +524,15 @@ async def _seed(conn: asyncpg.Connection) -> list[tuple[int, str]]:
         teams[key] = await conn.fetchval(
             "insert into teams (tenant_id, name) values ($1, $2) returning id", TENANT, name
         )
+    # Where a conversation no rule routes goes. Without it a new customer has
+    # no team, and only the owner can see them — not the manager whose
+    # dashboard is waiting for them.
+    await conn.execute(
+        """update tenants set sales_settings = sales_settings || jsonb_build_object(
+             'default_team_id', $2::uuid) where id = $1""",
+        TENANT,
+        teams["local"],
+    )
 
     for full_name, role, languages, team in PEOPLE:
         user_id = person_id(full_name)
