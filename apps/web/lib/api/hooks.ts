@@ -861,6 +861,22 @@ export function useTeams() {
   });
 }
 
+export type Invitation = components["schemas"]["InviteOut"];
+
+/** A signed, expiring link for one email, into teams (routes/tenants.create_invite). */
+export function useInvite() {
+  const { api, tenantId, header } = useTenantApi();
+  return useMutation({
+    mutationFn: async (body: components["schemas"]["InviteCreate"]) =>
+      unwrap(
+        await api.POST("/v1/tenants/{tenant_id}/invites", {
+          params: { header, path: { tenant_id: tenantId } },
+          body,
+        }),
+      ),
+  });
+}
+
 /** A new team without an id, a new name with one. */
 export function useSaveTeam() {
   const { api, tenantId, header } = useTenantApi();
