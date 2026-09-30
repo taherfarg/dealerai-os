@@ -1603,11 +1603,13 @@
       "InviteCreate": {
         "properties": {
           "email": {
+            "maxLength": 254,
+            "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$",
             "title": "Email",
             "type": "string"
           },
           "role": {
-            "default": "marketer",
+            "default": "sales",
             "enum": [
               "viewer",
               "sales",
@@ -1618,6 +1620,15 @@
             ],
             "title": "Role",
             "type": "string"
+          },
+          "team_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 20,
+            "title": "Team Ids",
+            "type": "array"
           }
         },
         "required": [
@@ -1656,6 +1667,38 @@
           "role"
         ],
         "title": "InviteOut",
+        "type": "object"
+      },
+      "JoinedOut": {
+        "properties": {
+          "role": {
+            "enum": [
+              "viewer",
+              "sales",
+              "marketer",
+              "manager",
+              "admin",
+              "owner"
+            ],
+            "title": "Role",
+            "type": "string"
+          },
+          "tenant_id": {
+            "format": "uuid",
+            "title": "Tenant Id",
+            "type": "string"
+          },
+          "tenant_slug": {
+            "title": "Tenant Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tenant_id",
+          "tenant_slug",
+          "role"
+        ],
+        "title": "JoinedOut",
         "type": "object"
       },
       "LastMessage": {
@@ -8396,7 +8439,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/dealerai__routes__tenants__MemberOut"
+                  "$ref": "#/components/schemas/JoinedOut"
                 }
               }
             },

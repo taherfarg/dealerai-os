@@ -10,9 +10,9 @@ from fastapi import APIRouter, Depends, status
 from pydantic import BaseModel, Field
 
 from ..config import get_settings
-from ..core.errors import Conflict, Forbidden, NotFound
+from ..core.errors import Conflict, Forbidden, NotFound, Unusable
 from ..core.permissions import ROLES
-from ..core.security import AuthUnavailable, Unauthenticated
+from ..core.security import AuthedUser, AuthUnavailable, Unauthenticated
 from ..db.session import system_session, tenant_session
 from ..deps import Ctx, CurrentUser, TenantContext, require_role
 
@@ -66,9 +66,28 @@ class MemberOut(BaseModel):
     email: str | None = None
 
 
+#: Loose on purpose: Supabase decides what an address is. This only stops a
+#: name typed into the email box from minting a link nobody can accept.
+EMAIL = r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
+
+
 class InviteCreate(BaseModel):
-    email: str
-    role: Role = "marketer"
+    email: str = Field(pattern=EMAIL, max_length=254)
+    role: Role = "sales"
+    team_ids: list[UUID] = Field(default_factory=list, max_length=20)
+
+
+class JoinedOut(BaseModel):
+    tenant_id: UUID
+    tenant_slug: str
+    role: Role
+
+
+def _name(user: AuthedUser) -> str | None:
+    """What they called themselves on sign-up, or what Google calls them."""
+    metadata = user.claims.get("user_metadata") or {}
+    name = metadata.get("full_name") or metadata.get("name")
+    return str(name) if name else None
 
 
 class InviteOut(BaseModel):
@@ -132,6 +151,9 @@ async def create_tenant(body: TenantCreate, user: CurrentUser) -> Any:
             )
         except asyncpg.UniqueViolationError as exc:
             raise Conflict(f"the slug {body.slug!r} is taken") from exc
+        await conn.execute(
+            "select app.remember_profile($1, $2, $3)", user.id, user.email, _name(user)
+        )
 
     # Read back through a tenant context — the caller is a member now.
     async with tenant_session(tenant_id) as conn:
@@ -259,13 +281,25 @@ async def create_invite(
             "invite someone above your own role"
         )
 
+    teams = list(dict.fromkeys(body.team_ids))
+    async with tenant_session(ctx.tenant_id) as conn:
+        tenant = await conn.fetchrow("select name from tenants where id = $1", tenant_id)
+        known = await conn.fetchval("select count(*) from teams where id = any($1::uuid[])", teams)
+    if tenant is None:
+        raise NotFound("no such tenant")
+    if known != len(teams):
+        raise Unusable("an invitation can only name this workspace's teams")
+
     expires_at = datetime.now(UTC) + timedelta(days=INVITE_TTL_DAYS)
     token = jwt.encode(
         {
             "kind": "invite",
             "tenant_id": str(tenant_id),
+            # For the page that opens the link, before its reader belongs anywhere.
+            "tenant_name": tenant["name"],
             "role": body.role,
-            "email": body.email,
+            "email": body.email.strip().lower(),
+            "teams": [str(team) for team in teams],
             "exp": int(expires_at.timestamp()),
         },
         _invite_secret(),
@@ -278,8 +312,8 @@ class InviteAccept(BaseModel):
     token: str
 
 
-@router.post("/invites/accept", response_model=MemberOut)
-async def accept_invite(body: InviteAccept, user: CurrentUser) -> MemberOut:
+@router.post("/invites/accept", response_model=JoinedOut)
+async def accept_invite(body: InviteAccept, user: CurrentUser) -> JoinedOut:
     try:
         claims = jwt.decode(body.token, _invite_secret(), algorithms=["HS256"])
     except jwt.ExpiredSignatureError as exc:
@@ -289,16 +323,29 @@ async def accept_invite(body: InviteAccept, user: CurrentUser) -> MemberOut:
 
     if claims.get("kind") != "invite":
         raise Unauthenticated("invalid invitation")
+    # A link forwarded on WhatsApp is not an invitation for whoever opens it.
+    if str(claims.get("email") or "").lower() != (user.email or "").strip().lower():
+        raise Forbidden("this invitation is for another email address")
 
     tenant_id = UUID(claims["tenant_id"])
     # Idempotent in SQL, not here: replaying a link must not create a second
-    # membership and must never change an existing role. Doing the check and
-    # the insert in one function closes the race between two concurrent clicks.
+    # membership, change a role or move anybody between teams, and two clicks
+    # at once must be one join (0013_sales_joining.sql).
     async with system_session() as conn:
         role = await conn.fetchval(
-            "select app.accept_invite($1,$2,$3)", tenant_id, user.id, claims["role"]
+            "select app.accept_invite($1, $2, $3, $4::uuid[], $5, $6)",
+            tenant_id,
+            user.id,
+            claims["role"],
+            [UUID(team) for team in claims.get("teams") or []],
+            user.email,
+            _name(user),
         )
-    return MemberOut(user_id=user.id, role=role, email=user.email)
+        # A member now, so the one-user read finds it.
+        slug = await conn.fetchval(
+            "select slug from app.tenants_for_user($1) where id = $2", user.id, tenant_id
+        )
+    return JoinedOut(tenant_id=tenant_id, tenant_slug=slug, role=role)
 
 
 @router.delete("/tenants/{tenant_id}/members/{user_id}", status_code=status.HTTP_204_NO_CONTENT)

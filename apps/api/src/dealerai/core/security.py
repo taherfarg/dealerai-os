@@ -71,6 +71,7 @@ def mint_test_token(
     *,
     secret: str,
     email: str | None = None,
+    name: str | None = None,
     expires_in_seconds: int = 3600,
 ) -> str:
     """Issue a token with Supabase's claim shape. Tests and local seeding only.
@@ -91,4 +92,8 @@ def mint_test_token(
     }
     if email:
         payload["email"] = email
+    if name:
+        # Where Supabase puts what somebody typed on sign-up, and what Google
+        # calls them.
+        payload["user_metadata"] = {"full_name": name}
     return jwt.encode(payload, secret, algorithm="HS256")

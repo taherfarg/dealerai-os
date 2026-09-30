@@ -1928,10 +1928,12 @@ export interface components {
             email: string;
             /**
              * Role
-             * @default marketer
+             * @default sales
              * @enum {string}
              */
             role: "viewer" | "sales" | "marketer" | "manager" | "admin" | "owner";
+            /** Team Ids */
+            team_ids?: string[];
         };
         /** InviteOut */
         InviteOut: {
@@ -1947,6 +1949,21 @@ export interface components {
             role: "viewer" | "sales" | "marketer" | "manager" | "admin" | "owner";
             /** Token */
             token: string;
+        };
+        /** JoinedOut */
+        JoinedOut: {
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "viewer" | "sales" | "marketer" | "manager" | "admin" | "owner";
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
+            /** Tenant Slug */
+            tenant_slug: string;
         };
         /** LastMessage */
         LastMessage: {
@@ -4680,7 +4697,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["dealerai__routes__tenants__MemberOut"];
+                    "application/json": components["schemas"]["JoinedOut"];
                 };
             };
             /** @description Validation Error */
