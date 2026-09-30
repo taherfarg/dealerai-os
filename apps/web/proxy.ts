@@ -18,12 +18,16 @@ export async function proxy(request: NextRequest) {
   // Local sign-in as a seeded person (lib/dev-auth.ts). Never in a production
   // build; the real Supabase gate below is untouched.
   if (process.env.NEXT_PUBLIC_DEV_AUTH === "1" && process.env.NODE_ENV !== "production") {
-    const { pathname } = request.nextUrl;
+    const { pathname, search } = request.nextUrl;
     if (pathname.startsWith("/dev-login") || request.cookies.get("dev_token")) {
       return NextResponse.next({ request });
     }
+    // Come back here afterwards — with the query, so an invitation's token
+    // survives the detour.
     const url = request.nextUrl.clone();
     url.pathname = "/dev-login";
+    url.search = "";
+    url.searchParams.set("next", `${pathname}${search}`);
     return NextResponse.redirect(url);
   }
 
