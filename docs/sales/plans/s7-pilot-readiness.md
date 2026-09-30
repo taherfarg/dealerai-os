@@ -734,15 +734,13 @@ explains why.
 
 - [ ] **Step 5: The strings**
 
-Added to `messages/en.ts` and `messages/ar.ts` (Tasks A3–A7 use them):
+Added to `messages/en.ts` and `messages/ar.ts` (Tasks A3–A7 use them). The catalogue already has
+`auth.signIn`, `auth.email`, `auth.password` and `auth.working` (Signing in…), from DealerAI OS;
+they are reused.
 
 | Key | English | Arabic |
 |---|---|---|
-| `auth.signIn` | Sign in | تسجيل الدخول |
 | `auth.signInTitle` | Sign in to your workspace. | سجّل الدخول إلى مساحة عملك. |
-| `auth.email` | Email | البريد الإلكتروني |
-| `auth.password` | Password | كلمة المرور |
-| `auth.signingIn` | Signing in… | جارٍ تسجيل الدخول… |
 | `auth.noAccount` | New here? | جديد هنا؟ |
 | `auth.createAccount` | Create an account | أنشئ حسابًا |
 | `auth.haveAccount` | Already have an account? | لديك حساب بالفعل؟ |
