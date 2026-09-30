@@ -13,25 +13,27 @@ out of the OpenAPI schema, so local and CI generate identical frontend types.
 
 from __future__ import annotations
 
-from uuid import NAMESPACE_URL, UUID, uuid5
+from uuid import UUID
 
-import asyncpg
 from fastapi import APIRouter
 from pydantic import BaseModel
 
 from ..config import get_settings
 from ..core.errors import NotFound
 from ..core.security import AuthUnavailable, mint_test_token
-from ..scripts.seed_sales import PEOPLE, TENANT, TENANT_SLUG, person_email, person_id
+from ..scripts.seed_sales import (
+    PEOPLE,
+    TENANT,
+    TENANT_SLUG,
+    local_person,
+    person_email,
+    person_id,
+)
 
 router = APIRouter(prefix="/internal/dev", tags=["dev"], include_in_schema=False)
 
 #: Long enough for a working day of local testing.
 SESSION_SECONDS = 12 * 3600
-
-#: Ids for people created here, stable per address: a re-seed or a restart keeps
-#: whatever they joined.
-_NEWCOMERS = uuid5(NAMESPACE_URL, "dealerai-os/dev/newcomers")
 
 
 class DevPerson(BaseModel):
@@ -82,18 +84,8 @@ async def create_session(body: DevSessionIn) -> DevSession:
         )
         return DevSession(access_token=token, tenant_id=TENANT, tenant_slug=TENANT_SLUG)
 
-    # Somebody new: where Supabase would put them on sign-up. The migration
-    # role, because the app role may not write auth.users — nor should it.
-    user_id = uuid5(_NEWCOMERS, email)
-    conn = await asyncpg.connect(settings.migration_dsn)
-    try:
-        await conn.execute(
-            "insert into auth.users (id, email) values ($1, $2) on conflict do nothing",
-            user_id,
-            email,
-        )
-    finally:
-        await conn.close()
+    # Somebody new: where Supabase would put them on sign-up.
+    user_id = await local_person(email)
     token = mint_test_token(
         user_id,
         secret=secret,

@@ -477,6 +477,31 @@ def person_email(full_name: str) -> str:
     return full_name.split()[0].lower() + "@pollux.test"
 
 
+#: Ids for people the local sign-in creates, stable per address: a re-seed or a
+#: restart keeps whatever they joined.
+_NEWCOMERS = uuid5(NAMESPACE_URL, "dealerai-os/dev/newcomers")
+
+
+async def local_person(email: str) -> UUID:
+    """Somebody new for the local sign-in (routes/dev.py), put where Supabase
+    would put them on sign-up. The migration role, because the app role may not
+    write auth.users — nor should it; and local only, like the rest of this."""
+    settings = get_settings()
+    if settings.env != "local":
+        raise RuntimeError(f"refusing to create a person: ENV is {settings.env!r}")
+    user_id = uuid5(_NEWCOMERS, email)
+    conn = await asyncpg.connect(settings.migration_dsn)
+    try:
+        await conn.execute(
+            "insert into auth.users (id, email) values ($1, $2) on conflict do nothing",
+            user_id,
+            email,
+        )
+    finally:
+        await conn.close()
+    return user_id
+
+
 async def _seed(conn: asyncpg.Connection) -> list[tuple[int, str]]:
     # Replace, never collide: the tenant cascades to memberships, teams and
     # customers; the people cascade to their profiles.
