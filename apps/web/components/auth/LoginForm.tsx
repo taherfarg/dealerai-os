@@ -6,6 +6,7 @@ import { useState } from "react";
 import { safeNext } from "@/lib/auth/next";
 import { useT } from "@/lib/i18n-client";
 import { createClient } from "@/lib/supabase/client";
+import { GoogleButton } from "./GoogleButton";
 
 const FIELD = "border-border bg-background min-h-11 rounded-md border px-3";
 
@@ -70,9 +71,9 @@ export function LoginForm() {
         />
       </label>
 
-      {error && (
+      {(error || params.get("error") === "link") && (
         <p role="alert" className="text-danger text-sm">
-          {error}
+          {error ?? t("auth.linkFailed")}
         </p>
       )}
 
@@ -83,6 +84,9 @@ export function LoginForm() {
       >
         {busy ? t("auth.working") : t("auth.signIn")}
       </button>
+
+      <p className="text-muted text-center text-xs">{t("auth.or")}</p>
+      <GoogleButton next={next} />
 
       <p className="text-muted text-sm">
         {t("auth.noAccount")}{" "}

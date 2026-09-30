@@ -1,7 +1,9 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { safeNext } from "@/lib/auth/next";
 
-const PUBLIC_PATHS = ["/login", "/signup", "/auth"];
+// An invitation is opened before its reader has an account.
+const PUBLIC_PATHS = ["/login", "/signup", "/auth", "/accept-invite"];
 
 /**
  * Refreshes the Supabase session on every request and gates the app.
@@ -19,7 +21,8 @@ export async function proxy(request: NextRequest) {
   // build; the real Supabase gate below is untouched.
   if (process.env.NEXT_PUBLIC_DEV_AUTH === "1" && process.env.NODE_ENV !== "production") {
     const { pathname, search } = request.nextUrl;
-    if (pathname.startsWith("/dev-login") || request.cookies.get("dev_token")) {
+    const open = pathname.startsWith("/dev-login") || pathname.startsWith("/accept-invite");
+    if (open || request.cookies.get("dev_token")) {
       return NextResponse.next({ request });
     }
     // Come back here afterwards — with the query, so an invitation's token
@@ -56,22 +59,23 @@ export async function proxy(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { pathname } = request.nextUrl;
+  const { pathname, search } = request.nextUrl;
   const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
 
   if (!user && !isPublic) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
-    // Come back here after signing in, so a shared link survives the detour.
-    url.searchParams.set("next", pathname);
+    url.search = "";
+    // Come back here after signing in — with the query, so a shared link
+    // survives the detour.
+    url.searchParams.set("next", `${pathname}${search}`);
     return NextResponse.redirect(url);
   }
 
-  if (user && pathname === "/login") {
-    const url = request.nextUrl.clone();
-    url.pathname = "/";
-    url.search = "";
-    return NextResponse.redirect(url);
+  // Signed in already: go where the link was going, not to the root.
+  if (user && (pathname === "/login" || pathname === "/signup")) {
+    const next = new URL(safeNext(request.nextUrl.searchParams.get("next")), request.url);
+    return NextResponse.redirect(next);
   }
 
   return response;

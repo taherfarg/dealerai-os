@@ -69,6 +69,14 @@ describe("LoginForm", () => {
     await waitFor(() => expect(state.push).toHaveBeenCalledWith("/"));
   });
 
+  it("says so when an email link or Google came back without a session", () => {
+    state.search = "error=link";
+    show();
+    expect(screen.getByRole("alert").textContent).toBe(
+      "That link has expired or was already used. Sign in, or ask for a new one.",
+    );
+  });
+
   it("offers an account, keeping where they were going", () => {
     state.search = "next=%2Faccept-invite%3Ftoken%3Dabc";
     show();
