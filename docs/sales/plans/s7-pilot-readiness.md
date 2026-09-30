@@ -1369,3 +1369,66 @@ git commit -m "docs(sales): S7 Part A, sign-in and joining, with the run recorde
 
 Inline in this session with `superpowers:executing-plans`, as S4 and S6 were — no subagents unless
 asked. Checkpoints after Task A2 (the backend), Task A7 (the screens), and Task A8.
+
+---
+
+## Part A review — 2026-09-30
+
+Eight tasks, then the joining path in a browser against a freshly seeded workspace, with the
+local sign-in standing in for Supabase Auth. The findings the plan fixed are in its table above;
+these are what building it and running it found besides.
+
+| Found | Why it mattered | Fixed in |
+|---|---|---|
+| The dev route opened its own database connection to write somebody new into `auth.users` | The import contract allows only modules that serve no request to open one — anything else could open one with no tenant context. The write lives in the local seed module, which already writes `auth.users` and refuses outside `ENV=local` | `0cd8032` |
+| In dev mode the gate sent a signed-out visitor from an invitation straight to the dev sign-in | They never saw what they were invited to. `/accept-invite` is open in both gates | `0795600` |
+| The password rule sat inside its label, so the field's name was "Password At least 8 characters" | A screen reader read the rule as the name. It is the field's description now | `0795600` |
+| The plan's first-workspace form had separate time-zone and currency fields | Three answers to one question. One "where the showroom is" choice sets the country, the clock and the currency, with the browser's own country names in the page's language | `75d0c04` |
+
+Sound as built, and left alone: the invitation's claims — one address, a role no higher than the
+inviter's, this workspace's teams and its name; the refusal of a forwarded link (403 in the run);
+the idempotent join (the same link again: 200, one membership); the profile written from what
+somebody typed on sign-up; the root's redirect, which started working the moment `/onboarding`
+existed; and the Arabic, which needed nothing beyond the catalogue.
+
+Known and deliberately not changed in Part A:
+
+- The real credential round trip — a Supabase password sign-in, an email confirmation, Google, and
+  the production gate's handling of `next` (step 7 below) — needs the hosted Auth and the founder
+  track's SMTP; it is Part D's, on staging. Locally the dev sign-in stands in, through the same
+  pages.
+- A salesperson's inbox opens on *Mine*, empty on their first day; their team's customers are one
+  tab away, under *Unassigned*.
+- An invitation cannot be revoked before it is used; it lasts seven days and works once, for one
+  address.
+- On a phone the settings sections are a scrolling row, so the last three sit off-screen until it is
+  scrolled.
+
+**Checks, final:** `npm run check` — 1,462 backend tests, the guards at 100% branch coverage, 194
+web tests, types, lint and logical CSS; `npm run check:openapi` — no drift.
+
+**Verified end to end on 2026-09-30**, with the API and the web app against a freshly seeded
+workspace:
+
+1. **Khalid** opened Settings → Team: *Invite someone* came first; as owner he was offered every
+   role; `layla@pollux.test`, Sales, Local sales made a link valid "until 7 Oct 2026, 11:03" in
+   Dubai time, with *Send on WhatsApp* holding it.
+2. Signed out, the link showed "You are invited to join · Pollux Motors · Role: Sales" and, after
+   switching, the same in Arabic, right to left; both ways in kept the token.
+3. As `someone.else@pollux.test` through the local sign-in, the page came back to the invitation and
+   said whose it was, offering only to sign out; the API refused that session with "this invitation
+   is for another email address" (403).
+4. Signed out from the page, then as `layla@pollux.test`, named Layla Hassan: Join landed in
+   `/pollux-motors/inbox` as a salesperson with `own` scope — *Unassigned* held Local's James and
+   nothing of Export's; the team view was refused, as it is for any salesperson. `psql`: one
+   membership (sales), one `team_members` row (Local sales), one profile, "Layla Hassan
+   <layla@pollux.test>"; Khalid's Team screen lists her by name in Local sales.
+5. The same link again: 200, the same role, still one membership.
+6. As `owner@newdealer.test`, named Hamad Al Nuaimi, with no workspace: the root sent them to
+   `/onboarding`, in Arabic; *New Dealer Motors* suggested `new-dealer-motors` and opened its Team
+   screen, *Invite someone* first, listing Hamad Al Nuaimi as owner.
+7. `/login?next=//evil.example` — not reachable locally: dev mode passes a signed-in visitor
+   straight through. `safeNext` and the sign-in form's redirect are unit-tested; the gate itself is
+   Part D's.
+8. Arabic at 375 px: the local sign-in, the invitation, the first workspace, sign-in, sign-up and the
+   Team screen are right to left with no sideways scroll.
