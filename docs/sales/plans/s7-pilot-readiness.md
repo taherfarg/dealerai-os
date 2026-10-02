@@ -12,7 +12,7 @@ week S5 connects the real number, two reps start the pilot and the eight success
 [00](../00-prd.md) §7 are measured on Pollux.
 
 **How this plan is split.** S7 is five pieces of work that can each be shipped and demonstrated on
-their own, so it is five parts. Parts A and B are planned in full below. The rest follow this
+their own, so it is five parts. Parts A, B and C are planned in full below. The rest follow this
 project's convention from [09](../09-implementation-plan.md): each is written at pickup, appended to
 this file under its own heading, with its own exit run.
 
@@ -20,7 +20,7 @@ this file under its own heading, with its own exit run.
 |---|---|---|---|
 | **A** | Sign-in and joining ([08](../08-screens.md) §14) | An owner creates the workspace and invites a salesperson by a link; the salesperson joins with the invited email and lands in the inbox with the invited role and teams — in both languages, locally | — |
 | **B** | Installable app and push ([07](../07-frontend.md) §8) | Installed on a phone; a customer assigned to a salesperson, or kept waiting, wakes that salesperson's phone | A |
-| **C** | Arabic and accessibility pass ([08](../08-screens.md) §15.9) | Every screen reviewed in Arabic at 375 px and with a keyboard and a screen reader; the English-in-Arabic items the S4 and S6 reviews left are gone | — |
+| **C** | Arabic and accessibility pass ([08](../08-screens.md) §15.9) | Every screen reviewed in Arabic at 375 px and with a keyboard and a screen reader; the English the app itself writes into the Arabic UI — the items the S2, S4 and S6 reviews left — is gone. What the model writes for the team stays English, as S4 decided | — |
 | **D** | Playwright suite and staging | The exit paths run on every pull request; staging runs the API, the worker and the web app against the hosted project, and a real sign-in completes there | A, the region decision (Q1) |
 | **E** | The pilot | Two reps on Pollux's real number for four weeks; the eight criteria measured | S5, B, D |
 
@@ -3559,3 +3559,883 @@ web tests, types, lint and logical CSS; `npm run check:openapi` — no drift.
 10. Arabic at 375 px, as an iPhone and as an Android phone: right to left, no sideways scroll. The
     iPhone got the Home Screen note in place of the button; the Android read "الإشعارات مفعّلة على
     هذا الجهاز". The first screenshot is what showed the scrambled date.
+
+---
+
+# Part C — Arabic and accessibility pass
+
+**Goal:** a salesperson who reads Arabic works a whole day in the app on a phone without meeting a
+scrambled number, a sentence in English that the app itself wrote, or a control they cannot reach:
+times, phone numbers and prices read the right way round; what a customer wrote keeps its own
+direction; the app's own words — refusals, notifications, statuses — are in the reader's language;
+and every dialog, menu and page can be used with a keyboard and makes sense to a screen reader.
+
+**How this part was planned.** By looking first. Every Sales screen was opened in Arabic at 375 px
+as a salesperson, a manager and the owner — 40 states in all, counting the panels, drawers, menus
+and dialogs a page load does not show — each with a screenshot, a sideways-overflow measurement and
+`axe-core`'s verdict (it is already installed, under the lint config), and a screenshot of every
+kind of screen was read. The table below is what that found. The layout held everywhere: no screen
+scrolled sideways, and no catalogue string was missing. What was wrong was inside the lines.
+
+**Architecture:** four ideas, each applied everywhere it is needed rather than screen by screen.
+(1) *Formatters take the reader's language* — a duration or an age is a phrase, and `lib/format.ts`
+says it in Arabic units when asked, so no caller composes one. (2) *Text keeps its own direction* —
+what a person wrote is `dir="auto"`, and what is a number is `dir="ltr"`, through two tiny
+components so the rule has one home. (3) *The server learns the reader's language twice*: per
+request, from `Accept-Language`, for what it refuses; and per person, in `profiles.locale`, for what
+it tells them later — a notification is written when its reader is not there to ask. (4) *A dialog is
+a `<dialog>`* — the platform's own modal traps focus, closes on Escape and gives focus back, so one
+small wrapper replaces four hand-made overlays and two sheets.
+
+**Tech stack:** Next.js 16 · Tailwind 4 · `Intl` · the HTML `<dialog>` element · FastAPI ·
+Postgres 17 · Vitest · pytest · `axe-core` (already present, for the audit only).
+
+**Before you start:**
+
+- Docker Desktop running; the API and the web app up; `npm run db:seed`.
+- **Run the suite against the scratch database** (`dealerai_test`, with `DATABASE_URL` and
+  `MIGRATION_DATABASE_URL` overridden), so a run does not empty the workspace somebody is looking
+  at.
+- Read [07](../07-frontend.md) §6 and §10, and [08](../08-screens.md) §15.
+- Never run `prettier` over the message catalogues: it re-wraps lines nobody touched.
+
+**Found by the audit** — fixed in the tasks named:
+
+| Found | Why it matters | Task |
+|---|---|---|
+| Durations and ages are English in Arabic: "تأخر الرد 38m 51s", "23h", "4m" | The number a salesperson watches all day is the one thing left untranslated | C1 |
+| "<1m" comes out as "1m>" | The sign is mirrored; it reads as *more* than a minute | C1 |
+| The lead drawer's date is formatted in English, for Dubai, whatever the workspace: "Sept 2026, 11:25 30" | The day has slid behind the time, as in Part B | C1 |
+| Phone numbers read "971500000104+" | A number copied from the screen is wrong | C2 |
+| A French or English message in the Arabic thread has its full stop or question mark at the front; the customer timeline too | [07](../07-frontend.md) §6 says customer text is `dir="auto"`. The inbox and CRM screens (S2, S3) were built before that was applied | C2 |
+| A Latin name or task title is cut from its start: "… Al Mazrouei", "…bout the passport copy" | In a right-to-left line the overflow leaves by the left, which is where a Latin run begins | C2 |
+| "Export documents/documents", "2024Negotiation", "ARأهلاً" — two things with no space between them | `ms-2` on an element with its own direction puts the margin on the far side | C2 |
+| The thread's back arrow points away from where it goes | "←" is a character; it does not mirror | C2 |
+| "+10" beside a score reason reads "10+" | Same cause as the phone numbers | C2 |
+| `connected`, `utility`, `approved`, `whatsapp`, `local` shown as they are stored | The S6 review's "raw English words" | C3 |
+| Score reasons ("Asked whether it is available") and a blocked draft's reason are English sentences the API composed | They are chosen from a short list, so they can be said in the reader's language | C3 |
+| "2 أشخاص", "0 يوم هنا", "1 مقاطع" | Arabic counts are six forms, not two. The S6 review's item | C3 |
+| "صباح الخير, Ahmed" — a Latin comma | Small, and on the first screen of the day | C3 |
+| A refusal is an English sentence in the Arabic UI: "Qualified still holds 1 lead. Move them first." | The S6 review's item. About 35 of the API's refusals can be caused from a screen | C5 |
+| A sign-in failure shows Supabase's own English sentence | The one message on the first screen | C5 |
+| Notification titles are English whatever the reader reads — in the bell, and now on a lock screen | The S2 review's item, and Part B's | C4, C6 |
+| The brief's notification carries the English headline though an Arabic one is written beside it | It was always there to use | C6 |
+| Erase, Merge, Hand over and Lost-reason are `div`s with `role="dialog"`: focus stays behind them, Tab walks the page underneath, Escape does nothing | [07](../07-frontend.md) §10: focus trapped and restored in dialogs | C7 |
+| The customer panel and the lead drawer cover the phone's whole screen and are not dialogs at all | A screen reader is never told the page changed | C7 |
+| The inbox, an unavailable settings section and a bad invitation have no `h1`; Channels goes from `h1` to `h3`; two navigation landmarks share one name; the offline page has no `main` | `axe`: page-has-heading-one, heading-order, landmark-unique, region | C8 |
+| The thread is not a `log`, so a new message is silent to a screen reader | [07](../07-frontend.md) §10 | C8 |
+| The quick-reply menu's options hold a button each | `axe`: nested-interactive, serious | C8 |
+| The time and the ticks on a sent message fail contrast on the gold bubble | `axe`: color-contrast, serious | C9 |
+| The thread's back link is 12 × 20 px; a source chip is 26 px high | Under a thumb, on the screen used most | C9 |
+| Arabic headings are letter-spaced (`tracking-wide`) | It pulls joined letters apart; [07](../07-frontend.md) §6 forbids it | C9 |
+| Nothing honours `prefers-reduced-motion`, and focus is whatever the browser draws | [07](../07-frontend.md) §10 | C9 |
+| On a phone the owner's nine settings sections are one scrolling row of three-line labels, with Sign out at the far end | Part A noted it at seven | C9 |
+| On the dashboard at 375 px a waiting customer's name is squeezed to nothing beside the hand-over menu | The row says who is waiting for everyone but the one it cannot fit | C9 |
+| Knowledge's file chooser reads "No file chosen · Choose File" | Those are the browser's words, in the browser's language, not the app's | C9 |
+| With the 24-hour window closed the composer says "send a template" and offers no way to | S2's plan had a template picker; it was never built. A customer who wrote yesterday can only be answered from the phone | C10 |
+
+## What Part C does not build
+
+| Item | Why, and when |
+|---|---|
+| What the model writes for the team — a draft's "needs a person" sentence, action chips, the summary and next step, a follow-up's reason — in Arabic | S4 made these English on purpose: read by the team, not the customer. Changing it is a setting ("the team's language") and three prompts, with the copilot's evals re-run. A decision for the dealership, not a pass; asked of the owner in this part's report |
+| Per-vehicle Arabic names for the inventory guard | S4 → S6 → here, and it is not a matter of language in the UI: it is the copilot's guard, with its own evals. The reserved-car check already covers the car that was asked about. With the copilot's next slice |
+| The keyboard map ([07](../07-frontend.md) §10: J/K, R, N, G then I…) | Shortcuts for a desk; the pilot's salespeople are on phones. Everything is reachable with Tab, Enter and Escape, which is what this part checks. When somebody works the inbox from a desk all day |
+| Web fonts (Geist, IBM Plex Sans Arabic) | The system's own Arabic face is on every phone and costs nothing to load. If Pollux wants one look everywhere |
+| Stage and team names in two languages | They are the dealership's own words (S3). A new workspace's default stages are English; a manager renames them in Settings → Pipelines |
+| The Marketing screens (Command Center, Content, Approvals, Inventory) | DealerAI OS's, not the Sales module's. Command Center has four English labels |
+
+## File structure
+
+| File | Responsibility |
+|---|---|
+| `apps/web/lib/format.ts` | **Modify.** Durations, ages and dates in the reader's language |
+| `apps/web/components/Bidi.tsx` | **Create.** `<Ltr>` for what is a number, `<Auto>` for what a person wrote |
+| `apps/web/components/inbox/*`, `components/crm/*`, `components/manager/WaitingList.tsx`, `app/[tenant]/{today,customers,dashboard}/…` | **Modify.** Direction, spacing and arrows; the formatters' new argument |
+| `apps/web/lib/words.ts` | **Create.** A stored code as a word: `word(t, "channel.status", value)`; `counted()` |
+| `apps/web/messages/{en,ar}.ts` | **Modify.** The words for codes, the count phrases, the new strings |
+| `supabase/migrations/0015_sales_reader_language.sql` | **Create.** `profiles.locale`, `app.set_locale()` |
+| `apps/api/src/dealerai/routes/me.py` | **Modify.** `locale` on `/v1/me`; `PUT /v1/me/locale` |
+| `apps/web/app/[tenant]/providers.tsx`, `lib/api/{client,hooks}.ts`, `lib/api.ts` | **Modify.** Telling the server the reader's language, per request and once per change |
+| `apps/api/src/dealerai/core/errors.py`, `routes/*.py` | **Modify.** `ar=` on a refusal; the handler chooses by `Accept-Language` |
+| `apps/api/src/dealerai/events/handlers/{notify,inbox,crm,copilot,manager}.py` | **Modify.** A notification's words in both languages; the reader's chosen on insert |
+| `apps/web/components/Modal.tsx` | **Create.** One modal on `<dialog>` |
+| `apps/web/components/crm/{Erase,Merge,Reassign,LostReason}Dialog.tsx`, `CustomerPanel.tsx`, `LeadDrawer.tsx`, `components/NotificationsBell.tsx` | **Modify.** Onto `Modal`; the bell closes on Escape |
+| `apps/web/components/inbox/{Thread,QuickReplyMenu,MessageBubble}.tsx`, settings and auth pages, `public/offline.html`, `components/Shell.tsx` | **Modify.** Headings, landmarks, the live thread, the menu's options |
+| `apps/web/app/globals.css`, `scripts/check-logical-css.mjs` | **Modify.** Focus, motion, letter-spacing; `space-x-*` joins the banned classes |
+| `apps/web/components/inbox/TemplatePicker.tsx`, `Composer.tsx` | **Create / Modify.** A template when the window is closed |
+
+---
+
+## Task C1: Times in the reader's language
+
+**Files:**
+- Modify: `apps/web/lib/format.ts`, `apps/web/lib/format.test.ts`, and every caller of
+  `formatDuration`, `formatRelative`, `formatUntil` and `formatDateTime` (17 files)
+
+- [ ] **Step 1: Write the failing tests** — in `lib/format.test.ts`:
+
+- "says a duration in the reader's units" — `formatDuration(2331, "ar")` is `"38 د 51 ث"`,
+  `formatDuration(82800, "ar")` is `"23 س"`; English is unchanged: `"38m 51s"`, `"23h"`.
+- "says an age in the reader's units" — under a minute is `"الآن"` in Arabic and `"<1m"` in
+  English; `"19 د"`, `"2 س"`, `"3 ي"`; past a week, the date in the reader's language.
+- "says how long is left" — `formatUntil` in both, and `"0 د"` once it has passed.
+- "keeps a date in the workspace's time and the reader's language" — unchanged from Part B, with
+  the language now required.
+
+- [ ] **Step 2: Run them and see them fail**
+
+Run: `npm run test --workspace web -- lib/format.test.ts`
+Expected: FAIL — the functions ignore a language.
+
+- [ ] **Step 3: The formatters**
+
+The language becomes a required argument, second, so that `tsc` names every caller that has not
+been given one — an optional one would leave English wherever nobody looked:
+
+```ts
+type Locale = "en" | "ar";
+
+// Arabic abbreviates a unit to its first letter, as WhatsApp does: دقيقة، ساعة، ثانية، يوم.
+const UNITS = {
+  en: { s: "s", m: "m", h: "h", d: "d", gap: "" },
+  ar: { s: "ث", m: "د", h: "س", d: "ي", gap: " " },
+} as const;
+
+const some = (n: number, unit: "s" | "m" | "h" | "d", locale: Locale) =>
+  `${n}${UNITS[locale].gap}${UNITS[locale][unit]}`;
+
+export function formatDuration(seconds: number, locale: Locale): string {
+  if (seconds < 60) return some(Math.round(seconds), "s", locale);
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) {
+    const rest = Math.round(seconds % 60);
+    return rest ? `${some(minutes, "m", locale)} ${some(rest, "s", locale)}` : some(minutes, "m", locale);
+  }
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return rest ? `${some(hours, "h", locale)} ${some(rest, "m", locale)}` : some(hours, "h", locale);
+}
+
+/** Compact age for lists: "<1m", "3m", "2h", "5d", then a date. */
+export function formatRelative(iso: string, locale: Locale, now: Date = new Date()): string {
+  const seconds = Math.max(0, (now.getTime() - new Date(iso).getTime()) / 1000);
+  // Not "<1 د": a sign beside Arabic is mirrored, and reads as more than a minute.
+  if (seconds < 60) return locale === "ar" ? "الآن" : "<1m";
+  if (seconds < 3600) return some(Math.floor(seconds / 60), "m", locale);
+  if (seconds < 86400) return some(Math.floor(seconds / 3600), "h", locale);
+  if (seconds < 7 * 86400) return some(Math.floor(seconds / 86400), "d", locale);
+  return new Date(iso).toLocaleDateString(DATE_LOCALE[locale], { day: "numeric", month: "short" });
+}
+```
+
+`formatUntil(iso, locale, now)` and `formatDateTime(iso, timeZone, locale)` follow, the language
+required in both. Each caller takes `useLocale()`; `LeadDrawer` also stops assuming Dubai and
+reads the workspace's time zone from `useMe()`, as `InviteForm` does.
+
+- [ ] **Step 4: Run the checks**
+
+Run: `npm run check --workspace web`
+Expected: PASS — `tsc` having named every caller on the way.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add apps/web/lib/format.ts apps/web/lib/format.test.ts apps/web/app apps/web/components
+git commit -m "feat(web): durations, ages and dates in the reader's language"
+```
+
+(The commit names the changed files one by one, as every commit here does; the two folders above
+stand for the seventeen callers.)
+
+---
+
+## Task C2: Text that keeps its own direction
+
+**Files:**
+- Create: `apps/web/components/Bidi.tsx`, `apps/web/components/Bidi.test.tsx`
+- Modify: `components/inbox/{MessageBubble,ConversationRow,Thread,QuickReplyMenu,DraftPanel}.tsx`,
+  `components/crm/{CustomerRow,CustomerPanel,LeadCard,LeadDrawer,TaskRow,Timeline,ScoreReasons,MergeDialog,BoardColumn}.tsx`,
+  `components/settings/QuickReplySettings.tsx`, `app/[tenant]/customers/[contactId]/page.tsx`,
+  `app/[tenant]/today/page.tsx`
+- Test: the component tests beside each, where one exists
+
+- [ ] **Step 1: Write the failing tests**
+
+`components/Bidi.test.tsx`:
+
+- "`Ltr` keeps a number the way it is written" — renders `dir="ltr"` and tabular figures around
+  `+971500000104`.
+- "`Auto` lets what a person wrote choose its direction" — renders `dir="auto"`.
+
+Beside the components (one assertion each, in the test file that already exists):
+
+- `MessageBubble` — a message's text is inside an element with `dir="auto"`.
+- `ConversationRow` — the name and the preview each have `dir="auto"`; the preview's "You:" is
+  outside the element that holds the customer's words.
+- `CustomerRow`, `CustomerPanel` — the phone number has `dir="ltr"`.
+- `TaskRow` — the title has `dir="auto"`.
+- `ScoreReasons` — `+10` has `dir="ltr"`.
+- `Thread` — the back link's arrow carries `rtl:-scale-x-100`.
+
+- [ ] **Step 2: Run them and see them fail**
+
+Run: `npm run test --workspace web -- components`
+Expected: FAIL.
+
+- [ ] **Step 3: The two components, then every place the audit named**
+
+`components/Bidi.tsx`:
+
+```tsx
+import type { ReactNode } from "react";
+
+/**
+ * What is a number stays the way it is written — a phone number, a price, a
+ * score — whatever the language around it ([07] § 6). Without this an Arabic
+ * line moves the plus sign of +971… to the other end.
+ */
+export function Ltr({ children, className = "" }: { children: ReactNode; className?: string }) {
+  return (
+    <span dir="ltr" className={`tabular-nums ${className}`}>
+      {children}
+    </span>
+  );
+}
+
+/**
+ * What a person wrote chooses its own direction: a name, a message, a title.
+ * On the element that truncates, so a Latin name in an Arabic line loses its
+ * end and not its beginning.
+ */
+export function Auto({
+  children,
+  className = "",
+  as: Tag = "span",
+}: {
+  children: ReactNode;
+  className?: string;
+  as?: "span" | "p" | "div";
+}) {
+  return (
+    <Tag dir="auto" className={className}>
+      {children}
+    </Tag>
+  );
+}
+```
+
+Then, by rule rather than by screen:
+
+- **A person's words** — message bodies, previews, timeline entries, notes, names, task and lead
+  titles, car names — `Auto`, on the element that carries `truncate` where there is one.
+- **Numbers** — phone numbers, identities, money, scores, percentages — `Ltr`.
+- **Two things side by side** get a `gap-*` on their parent, never `ms-*` on one of them: an
+  element with its own direction has its own idea of which side is the start.
+- **Arrows that mean a direction** — the back link — carry `rtl:-scale-x-100`. The timeline's
+  in-and-out arrows become ↙ and ↗, which mean the same in both directions.
+
+- [ ] **Step 4: Run the checks, and look**
+
+Run: `npm run check --workspace web`, then re-run the audit's screenshots for the inbox, a French
+thread, the customers list, the customer page, the tasks and the quick replies.
+Expected: PASS; each of the six rows of the audit table above reads right.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git commit -m "fix(web): what a person wrote keeps its direction, and a number stays a number"
+```
+
+---
+
+## Task C3: Words instead of codes, and counts that read right
+
+**Files:**
+- Create: `apps/web/lib/words.ts`, `apps/web/lib/words.test.ts`
+- Modify: `apps/web/messages/{en,ar}.ts`, `components/settings/{ChannelSettings,TeamSettings,KnowledgeSettings}.tsx`,
+  `components/crm/{LeadDrawer,LeadCard,ProfileField,ScoreReasons}.tsx`,
+  `components/inbox/DraftPanel.tsx`, `app/[tenant]/today/page.tsx`
+
+- [ ] **Step 1: Write the failing tests**
+
+`lib/words.test.ts`:
+
+- "says a stored code in the reader's language" — `word(t, "channel.status", "connected")` is the
+  catalogue's `channel.status.connected`.
+- "shows a code nobody has a word for, rather than nothing" — an unknown value comes back as it is.
+- "counts the Arabic way" — `counted("ar", 1, "people")` is `"شخص واحد"`, 2 `"شخصان"`, 3
+  `"3 أشخاص"`, 11 `"11 شخصًا"`, 100 `"100 شخص"`; English is `"1 person"`, `"3 people"`.
+
+Component tests: Channels shows "متصل" and "معتمد" in Arabic; the lead drawer's source is
+"واتساب"; a profile's `local` is "محلي"; a score reason with a known `signal` is said from the
+catalogue and an unknown one falls back to the API's label.
+
+- [ ] **Step 2: Run them and see them fail**
+
+Run: `npm run test --workspace web -- lib/words.test.ts components`
+Expected: FAIL.
+
+- [ ] **Step 3: `lib/words.ts`**
+
+```ts
+import { ar } from "@/messages/ar";
+import { en } from "@/messages/en";
+import type { Locale, MessageKey } from "@/lib/i18n";
+
+/**
+ * A value the API stores as a code — a status, a source, a category — as a
+ * word. One that has no word yet is shown as it is: a new status from Meta
+ * must not become a blank.
+ */
+export function word(t: (key: MessageKey) => string, group: string, value: string): string {
+  const key = `${group}.${value.toLowerCase()}`;
+  return key in en ? t(key as MessageKey) : value;
+}
+
+const NOUNS = {
+  people: { en: ["person", "people"], ar: ["شخص واحد", "شخصان", "أشخاص", "شخصًا", "شخص"] },
+  days: { en: ["day", "days"], ar: ["يوم واحد", "يومان", "أيام", "يومًا", "يوم"] },
+  passages: { en: ["passage", "passages"], ar: ["مقطع واحد", "مقطعان", "مقاطع", "مقطعًا", "مقطع"] },
+} as const;
+
+/** A count with its noun. Arabic has a form for one, for two, for three to ten,
+ *  for eleven to ninety-nine, and for the hundreds; `Intl.PluralRules` knows which. */
+export function counted(locale: Locale, n: number, noun: keyof typeof NOUNS): string {
+  if (locale === "en") return `${n} ${NOUNS[noun].en[n === 1 ? 0 : 1]}`;
+  const [one, two, few, many, other] = NOUNS[noun].ar;
+  const form = new Intl.PluralRules("ar").select(n);
+  if (form === "one") return one;
+  if (form === "two") return two;
+  return `${n} ${form === "few" ? few : form === "many" ? many : other}`;
+}
+```
+
+The catalogue gains `channel.status.*`, `template.status.*`, `template.category.*`,
+`lead.source.*`, `profile.purchase_type.*`, `profile.payment.*`, `score.<signal>` for each signal
+in `sales/scoring.py`, and `draft.blocked.<guard>` for each guard; `today.hello` takes the comma
+into the string, so Arabic has its own.
+
+- [ ] **Step 4: Run the checks**
+
+Run: `npm run check --workspace web`
+Expected: PASS.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git commit -m "feat(web): a stored code is said as a word, and Arabic counts take their forms"
+```
+
+---
+
+## Task C4: The server learns the reader's language
+
+**Files:**
+- Create: `supabase/migrations/0015_sales_reader_language.sql`
+- Modify: `apps/api/src/dealerai/routes/me.py`, `apps/web/lib/api/{client,hooks}.ts`,
+  `apps/web/lib/api.ts`, `apps/web/app/[tenant]/providers.tsx`
+- Test: `apps/api/tests/test_reader_language.py`, `apps/web/lib/api/client.test.ts`
+
+- [ ] **Step 1: Write the failing tests**
+
+`tests/test_reader_language.py`:
+
+- `test_a_person_reads_english_until_they_say_otherwise` — `/v1/me` has `locale: "en"`.
+- `test_a_person_says_what_they_read` — `PUT /v1/me/locale {"locale": "ar"}` → 204; `/v1/me` has
+  `"ar"`; nobody else's changed.
+- `test_only_a_language_the_app_speaks` — `"fr"` → 400.
+- `test_somebody_with_no_profile_yet_gets_one` — a user with no `profiles` row: the PUT creates it.
+
+`lib/api/client.test.ts`: "every request says what language its reader is using" — the client
+sends `Accept-Language` from the document's language.
+
+- [ ] **Step 2: Run them and see them fail**
+
+Run: `uv run pytest tests/test_reader_language.py -q` (scratch database)
+Expected: FAIL — `locale` is not a column, and the route does not exist.
+
+- [ ] **Step 3: The migration, the route, the header**
+
+`0015_sales_reader_language.sql`:
+
+```sql
+-- =============================================================================
+-- 0015_sales_reader_language — S7 Part C.
+-- What language a person reads the app in. The browser has always known; the
+-- server needs it for what it writes when nobody is there to ask: a
+-- notification, and the push that follows it.
+-- =============================================================================
+
+alter table profiles
+  add column locale text not null default 'en' check (locale in ('en', 'ar'));
+
+-- A person sets their own, and only their own. Definer, because profiles are
+-- written through functions (0013) and somebody new may not have a row yet.
+create or replace function app.set_locale(p_user uuid, p_locale text)
+returns void
+language sql
+security definer
+set search_path = public, pg_temp
+as $$
+    insert into profiles (id, locale) values (p_user, p_locale)
+    on conflict (id) do update set locale = excluded.locale;
+$$;
+
+revoke all on function app.set_locale(uuid, text) from public;
+grant execute on function app.set_locale(uuid, text) to dealerai_app;
+```
+
+`routes/me.py`: `locale` joins `MeOut`; `PUT /v1/me/locale` takes `{"locale": "en" | "ar"}` and
+calls `app.set_locale` with the caller's own id.
+
+The web: `createApiClient()` and the server-side `api()` add `Accept-Language`; `Providers` holds
+one effect — when `/v1/me` says a different language from the one on screen, it tells the server.
+That covers the toggle, a second device, and everybody who chose Arabic before today.
+
+- [ ] **Step 4: Run them and see them pass**, then `npm run api-types`.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git commit -m "feat(sales): the server learns what language its reader reads"
+```
+
+---
+
+## Task C5: A refusal in the reader's language
+
+**Files:**
+- Modify: `apps/api/src/dealerai/core/errors.py`, and the routes whose refusals a screen can cause:
+  `inbox.py`, `tasks.py`, `leads.py`, `pipelines.py`, `quick_replies.py`, `team.py`, `tenants.py`,
+  `settings.py`, `documents.py`, `suggestions.py`, `customers.py`, `push.py`
+- Modify: `apps/web/components/auth/{LoginForm,SignupForm}.tsx`, `apps/web/messages/{en,ar}.ts`
+- Test: `apps/api/tests/test_refusals_in_arabic.py`, `apps/web/components/auth/LoginForm.test.tsx`
+
+- [ ] **Step 1: Write the failing tests**
+
+`tests/test_refusals_in_arabic.py`:
+
+- `test_a_refusal_is_said_in_the_readers_language` — deleting a stage that holds a lead with
+  `Accept-Language: ar` → 409 whose `detail` is Arabic and names the stage and the count; without
+  the header, the English sentence, unchanged.
+- `test_a_refusal_with_no_arabic_yet_is_still_said` — an `AppError` raised without `ar=` answers
+  an Arabic reader in English rather than with nothing.
+- `test_every_refusal_a_screen_can_cause_has_arabic` — the contract: in the route modules named
+  above, every `raise` of a refusal a person can cause passes `ar=`. A scan of the source, as
+  `test_import_contracts.py` scans for `emit(`; cursors, internal lookups and `NotFound` are
+  developer-facing and exempt, each exemption on a list in the test with its reason.
+- `test_an_invalid_form_is_refused_in_arabic_too` — a 400 from validation carries an Arabic detail.
+
+- [ ] **Step 2: Run them and see them fail**
+
+Expected: FAIL — the detail is English either way.
+
+- [ ] **Step 3: The error, the handler, the sentences**
+
+`core/errors.py`:
+
+```python
+class AppError(Exception):
+    ...
+    def __init__(
+        self,
+        detail: str | None = None,
+        *,
+        errors: list[dict[str, Any]] | None = None,
+        ar: str | None = None,
+    ) -> None:
+        super().__init__(detail or self.title)
+        self.detail = detail
+        self.errors = errors or []
+        #: The same sentence for somebody reading the app in Arabic. Beside the
+        #: English one, where whoever changes the one sees the other.
+        self.ar = ar
+
+
+def reads_arabic(request: Request) -> bool:
+    """What the browser says its reader is using (apps/web sends the UI's language)."""
+    return request.headers.get("Accept-Language", "").strip().lower().startswith("ar")
+```
+
+`_app_error` answers `exc.ar if exc.ar and reads_arabic(request) else exc.detail`; `_validation`
+has one Arabic sentence of its own. Then each refusal a screen can cause gains its `ar=`, written
+by the same f-string rules as its English, so a count or a name is in both:
+
+```python
+raise StageInUse(
+    f"{name} still holds {held} {'lead' if held == 1 else 'leads'}. Move them first.",
+    ar=f"ما زالت مرحلة «{name}» تضم {held} من الفرص. انقلها أولًا.",
+)
+```
+
+Sign-in: `LoginForm` and `SignupForm` say `auth.failed` — one sentence of ours, in both languages
+— in place of Supabase's. It was never meant to say more than that
+([08](../08-screens.md) §14).
+
+- [ ] **Step 4: Run them and see them pass**
+
+- [ ] **Step 5: Commit**
+
+```bash
+git commit -m "feat(sales): a refusal is said in the language of whoever it refuses"
+```
+
+---
+
+## Task C6: Notifications in the reader's language
+
+**Files:**
+- Modify: `apps/api/src/dealerai/events/handlers/{notify,inbox,crm,copilot,manager}.py`
+- Test: `apps/api/tests/test_notifications_in_arabic.py`
+
+- [ ] **Step 1: Write the failing tests**
+
+- `test_an_arabic_reader_is_told_in_arabic` — SALES_1's `profiles.locale` is `ar`: an assignment
+  writes an Arabic title; SALES_2, reading English, gets the English one from the same code.
+- `test_the_push_carries_the_same_words` — the pushed title, opened with the phone's key, is the
+  Arabic one.
+- `test_a_name_stays_a_name` — "{customer} is yours now" in Arabic still holds the customer's name
+  as written.
+- `test_the_brief_arrives_with_its_arabic_headline` — `brief_ready` for an Arabic reader carries
+  `headline["ar"]`.
+- `test_every_notification_has_both` — the contract: every `notify(` call site passes words in both
+  languages, or a value that is data in either (a customer's name, a task's title).
+
+- [ ] **Step 2: Run them and see them fail**
+
+- [ ] **Step 3: Both languages at the call site, the reader's chosen on insert**
+
+`events/handlers/notify.py`:
+
+```python
+class Words(NamedTuple):
+    """One thing to tell somebody, in each language the app speaks."""
+
+    en: str
+    ar: str
+
+
+def same(text: str | None) -> Words | None:
+    """What is data in either language: a customer's name, a task's title."""
+    return Words(text, text) if text else None
+```
+
+`notify()` takes `title: Words` and `body: Words | None`, and the insert chooses with the row it
+is already writing for — no second query:
+
+```sql
+insert into notifications (tenant_id, user_id, kind, title, body, href, entity, dedupe_key)
+select $1, $2, $3,
+       case when p.locale = 'ar' then $5 else $4 end,
+       case when p.locale = 'ar' then $7 else $6 end,
+       $8, $9, $10
+  from (select 1) one left join profiles p on p.id = $2
+on conflict do nothing
+returning id
+```
+
+Every call site then says both: `Words("A customer is waiting for you", "عميل بانتظارك")`,
+`Words(f"{customer} is yours now", f"{customer} أصبح من عملائك")`, and the table of fixed
+sentences in `handlers/inbox.py` becomes a table of `Words`.
+
+- [ ] **Step 4: Run them and see them pass**, with everything that notifies.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git commit -m "feat(sales): a notification is written in the language its reader reads"
+```
+
+---
+
+## Task C7: Dialogs that behave like dialogs
+
+**Files:**
+- Create: `apps/web/components/Modal.tsx`, `apps/web/components/Modal.test.tsx`
+- Modify: `components/crm/{EraseDialog,MergeDialog,ReassignDialog,LostReasonDialog,CustomerPanel,LeadDrawer}.tsx`,
+  `components/NotificationsBell.tsx`
+
+- [ ] **Step 1: Write the failing tests**
+
+`components/Modal.test.tsx`:
+
+- "opens as a modal and is named by its title" — `showModal()` is called; the dialog is labelled
+  by its heading.
+- "closes on Escape, and says so" — the dialog's `cancel` reaches `onClose`.
+- "closes when its backdrop is pressed, not when its content is".
+- "leaves the page when it is closed" — unmounting closes the dialog.
+
+`NotificationsBell.test.tsx`: "closes on Escape and gives focus back to the bell".
+
+- [ ] **Step 2: Run them and see them fail**
+
+- [ ] **Step 3: `components/Modal.tsx`**
+
+```tsx
+"use client";
+
+import { useEffect, useId, useRef, type ReactNode } from "react";
+
+/**
+ * A modal, on the platform's own: `<dialog>` and `showModal()` move focus in,
+ * keep Tab inside, close on Escape and give focus back to whatever opened it
+ * ([07] § 10) — none of which a `div` with `role="dialog"` does.
+ */
+export function Modal({
+  title,
+  onClose,
+  children,
+  className = "",
+}: {
+  title: ReactNode;
+  onClose: () => void;
+  children: ReactNode;
+  className?: string;
+}) {
+  const ref = useRef<HTMLDialogElement>(null);
+  const heading = useId();
+
+  useEffect(() => {
+    const dialog = ref.current;
+    if (!dialog || dialog.open) return;
+    dialog.showModal();
+    return () => dialog.close();
+  }, []);
+
+  return (
+    <dialog
+      ref={ref}
+      aria-labelledby={heading}
+      onCancel={(event) => {
+        event.preventDefault(); // React owns whether it is open
+        onClose();
+      }}
+      onClick={(event) => {
+        if (event.target === ref.current) onClose(); // the backdrop, not the content
+      }}
+      className={`bg-surface text-foreground border-border m-auto w-[min(32rem,calc(100vw-2rem))] rounded-lg border p-4 backdrop:bg-black/40 ${className}`}
+    >
+      <h2 id={heading} className="text-base font-semibold">
+        {title}
+      </h2>
+      {children}
+    </dialog>
+  );
+}
+```
+
+The four dialogs lose their own overlay, `role` and positioning and render inside `Modal`. The
+customer panel and the lead drawer use it too below `md`, where they cover the screen; from `md`
+up the panel stays a column beside the thread, as it is. The bell is a menu, not a modal: it gains
+Escape and returns focus to its button.
+
+- [ ] **Step 4: Run the checks, and walk it with a keyboard**
+
+Run: `npm run check --workspace web`; then in a browser: open Erase, Tab round it, Escape.
+Expected: PASS; focus never leaves the dialog, and returns to the button that opened it.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git commit -m "fix(web): dialogs take focus, keep it, and give it back"
+```
+
+---
+
+## Task C8: A page a screen reader can make sense of
+
+**Files:**
+- Modify: `components/inbox/{ConversationList,Thread,QuickReplyMenu}.tsx`,
+  `app/[tenant]/settings/layout.tsx`, `components/auth/JoinInvitation.tsx`,
+  `components/settings/ChannelSettings.tsx`, `components/Shell.tsx`, `public/offline.html`,
+  `apps/web/messages/{en,ar}.ts`
+
+- [ ] **Step 1: Write the failing tests**
+
+- `ConversationList` — the inbox has an `h1` (visually hidden: the tabs already say where one is).
+- `Thread` — the messages are a `log`, polite, named.
+- `QuickReplyMenu` — an option holds no button; pressing the option picks it.
+- settings layout — the "not part of your role" message is under an `h1`.
+- `Shell` — the two navigations have different names ("Main", "Sections").
+- `lib/sw.test.ts`'s neighbour: the offline page has a `main`.
+
+- [ ] **Step 2: Run them and see them fail**
+
+- [ ] **Step 3: The structure**
+
+One `h1` per page; `h2` before `h3` on Channels; `aria-label` on each `nav`; the thread's list
+`role="log" aria-live="polite" aria-relevant="additions"`; the quick-reply option is the control
+itself — `role="option"`, `aria-selected`, `onMouseDown` — with no button inside it.
+
+- [ ] **Step 4: Run the checks; run `axe` over the audit's pages again**
+
+Expected: PASS; no violation of any impact on any audited state.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git commit -m "fix(web): a heading on every page, a thread that announces itself, one name per landmark"
+```
+
+---
+
+## Task C9: Seeing it and touching it
+
+**Files:**
+- Modify: `apps/web/app/globals.css`, `apps/web/scripts/check-logical-css.mjs`,
+  `components/inbox/{MessageBubble,Thread,DraftPanel}.tsx`, `components/LocaleToggle.tsx`,
+  `components/manager/WaitingList.tsx`, `app/[tenant]/settings/layout.tsx`
+
+- [ ] **Step 1: Write the failing tests**
+
+- `scripts/check-logical-css.test.mjs` (or the script's own self-check): `space-x-4` is refused.
+- `MessageBubble` — the time and the ticks do not use `text-muted` on a sent message.
+- `WaitingList` — the name's element cannot shrink below a readable width.
+
+- [ ] **Step 2: Run them and see them fail**
+
+- [ ] **Step 3: The rules**
+
+`globals.css`:
+
+```css
+/* One focus ring, the brand's, wherever the keyboard is. */
+:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+/* Arabic letters join; spacing them pulls words apart ([07] § 6). */
+[dir="rtl"] [class*="tracking-"] {
+  letter-spacing: normal;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+```
+
+The back link and the source chips become 44 px targets; a sent message's time and ticks take the
+bubble's own text colour at reduced opacity that still passes 4.5:1; the settings sections wrap
+below `md` instead of scrolling, each on one line; a waiting customer's name keeps `min-w-24` and
+the hand-over menu drops to its own line; and Knowledge's file chooser becomes a button of ours
+over the browser's input, which still does the choosing.
+
+- [ ] **Step 4: Run the checks; `axe` again; look at 375 px**
+
+- [ ] **Step 5: Commit**
+
+```bash
+git commit -m "fix(web): contrast on a sent message, targets a thumb can hit, focus and motion"
+```
+
+---
+
+## Task C10: A template when the window is closed
+
+**Files:**
+- Create: `apps/web/components/inbox/TemplatePicker.tsx`, `TemplatePicker.test.tsx`
+- Modify: `apps/web/components/inbox/{Composer,Thread}.tsx`, `apps/web/messages/{en,ar}.ts`
+
+- [ ] **Step 1: Write the failing tests**
+
+- "offers the approved templates in the customer's language first" — French for a French customer;
+  the others after; none that Meta has not approved.
+- "shows what will be sent, with what was typed" — `{{1}}` and `{{2}}` filled as they are typed,
+  the customer's first name already in the first.
+- "does not send with a blank left in it".
+- "sends the template and its variables" — `useSendMessage().mutate({ templateId, variables })`.
+- "says a marketing template is a paid message".
+- `Composer`: "offers a template in place of the text box when the window is closed" — and still
+  offers an internal note.
+
+- [ ] **Step 2: Run them and see them fail**
+
+- [ ] **Step 3: The picker**
+
+`useTemplates(channelId)` already reads them and `useSendMessage` already sends one; the picker is
+a `select`, an input per variable, the preview in a bubble with `dir="auto"`, and Send. `Thread`
+passes the conversation's `channel_id`, the customer's language and name.
+
+- [ ] **Step 4: Run the checks, and send one**
+
+In a browser, as Salem, to Karim, whose window is closed: pick `price_update` in French, fill it,
+send; the message appears in the thread and in `psql` as a `template`.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git commit -m "feat(web): a template can be sent when the 24-hour window has closed"
+```
+
+---
+
+## Task C11: The whole check, then every screen again
+
+**Files:**
+- Modify: `docs/sales/plans/s7-pilot-readiness.md` (a Part C review), `docs/sales/README.md`,
+  `docs/sales/07-frontend.md` (§6 and §10, where the build now differs)
+
+- [ ] **Step 1: The whole check** — on the scratch database.
+
+Run: `npm run check && npm run check:openapi`
+Expected: every suite green, the guards at 100%, no drift.
+
+- [ ] **Step 2: The audit, again, and by hand**
+
+1. The audit's 40 states in Arabic at 375 px: no sideways scroll, and `axe` reports nothing.
+2. Each row of the audit table, looked at: a duration, an age, a date; a phone number; a French
+   thread; a Latin name cut at its end; the quick replies; the back arrow; `+10`; the statuses on
+   Channels; the lead's source; a count of people and of days.
+3. In English, the same screens are unchanged.
+4. A refusal, caused from a screen in Arabic, is Arabic — a stage that holds a lead; a shortcut
+   that is taken.
+5. An Arabic reader's notification is Arabic in the bell and in the push; an English reader's is
+   English, from the same event.
+6. With a keyboard only: sign in, open a conversation, send a quick reply, open and close the
+   customer panel, erase a customer through the dialog, move a lead — and Escape leaves every
+   dialog with focus back where it was.
+7. With reduced motion asked for, nothing animates.
+8. Salem sends Karim a template with the window closed.
+
+- [ ] **Step 3: The review, and commit**
+
+Append `## Part C review — <date>` in the shape of Part B's, with the audit's numbers before and
+after.
+
+```bash
+git commit -m "docs(sales): S7 Part C, the Arabic and accessibility pass, with the run recorded"
+```
+
+---
+
+## Spec coverage (Part C)
+
+| Requirement | Task |
+|---|---|
+| [07](../07-frontend.md) §6 — customer content `dir="auto"` per message | C2 |
+| §6 — prices, phone numbers, times in `dir="ltr"` with tabular figures | C1, C2 |
+| §6 — Arabic never letter-spaced; long strings wrap rather than clip | C9 |
+| §6 — `check:rtl` catches `space-x-*` | C9 |
+| §10 — labels on icon-only buttons in both languages | Held already: `axe` found none unlabelled |
+| §10 — visible focus; focus trapped and restored in dialogs | C9, C7 |
+| §10 — the thread is a `log`, polite | C8 |
+| §10 — colour never the only signal; reduced motion respected | Held already (response state and band carry text); C9 |
+| §10 — the keyboard map | Not built: see above |
+| [08](../08-screens.md) §4 — closed window: a template picker with a live preview and a paid-message hint | C10 |
+| [08](../08-screens.md) §15.9 — accessibility and Arabic pass, §1–§13 revisited | C11 |
+| S2 review — notification text in the reader's language | C4, C6 |
+| S6 review — API refusals in Arabic; statuses as words; Arabic counts | C5, C3 |
+| S4 review — `needs_human` and guard reasons in Arabic | Guard reasons: C3. What the model writes: not built, see above |
+
+## Execution (Part C)
+
+Inline in this session, as Parts A and B were — no subagents unless asked. Checkpoints after C3
+(what the browser can fix alone), C6 (what needed the server), C10, and C11.
