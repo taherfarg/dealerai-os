@@ -1982,9 +1982,12 @@ HEADER = (
     "DGv6ra1nlYgDCS1FRnbzlwAAEABBBP4z9KsN6nGRTbVYI_c7VJSPQTBtkgcy27ml"
     "mlMoZIIgDll6e3vCYLocInmYWAmS6TlzAC8wEqKK6PBru3jl7A8"
 )
-CIPHERTEXT = (
-    "8pfeW0KbunFT06SuDKoJH9Ql87S1QUrdiKrN6GcG7sFz1y1sqLgVi1VhjVkHsUoEs"
-    "bI_0LpXMuGvnzQ"
+CIPHERTEXT = "8pfeW0KbunFT06SuDKoJH9Ql87S1QUrdirN6GcG7sFz1y1sqLgVi1VhjVkHsUoEsbI_0LpXMuGvnzQ"
+# RFC 8291, Section 5 — the whole message as it goes on the wire.
+MESSAGE = (
+    "DGv6ra1nlYgDCS1FRnbzlwAAEABBBP4z9KsN6nGRTbVYI_c7VJSPQTBtkgcy27ml"
+    "mlMoZIIgDll6e3vCYLocInmYWAmS6TlzAC8wEqKK6PBru3jl7A_yl95bQpu6cVPT"
+    "pK4Mqgkf1CXztLVBSt2Ks3oZwbuwXPXLWyouBWLVWGNWQexSgSxsj_Qulcy4a-fN"
 )
 
 
@@ -1997,6 +2000,7 @@ def test_the_rfcs_own_example_comes_out_byte_for_byte() -> None:
         server_key=push.private_key(AS_PRIVATE),
     )
     assert body == push.unb64(HEADER) + push.unb64(CIPHERTEXT)
+    assert push.b64(body) == MESSAGE
 
 
 def test_two_messages_to_one_device_share_nothing() -> None:
