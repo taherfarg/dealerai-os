@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import re
+from pathlib import Path
+
 import jwt
 import pytest
 from cryptography.hazmat.primitives.asymmetric import ec
 
 from dealerai.notifications import push
+from dealerai.scripts import vapid
 
 # RFC 8291, Appendix A — every value as printed there.
 PLAINTEXT = b"When I grow up, I want to be a watermelon"
@@ -96,3 +100,38 @@ def test_the_push_services_browsers_use_are_accepted(endpoint: str) -> None:
 )
 def test_nobody_aims_the_worker_at_a_host_of_their_choosing(endpoint: str) -> None:
     assert not push.is_push_service(endpoint)
+
+
+# --------------------------------------------------------------------------
+# the key for this machine (`npm run vapid:keys`)
+# --------------------------------------------------------------------------
+
+
+def _key_in(path: Path) -> str | None:
+    found = re.search(r"^VAPID_PRIVATE_KEY=(.*)$", path.read_text("utf-8"), re.M)
+    return found.group(1) if found else None
+
+
+@pytest.mark.parametrize("before", ["ENV=local\nVAPID_PRIVATE_KEY=\nLAST=1\n", "ENV=local\n", None])
+def test_a_key_is_written_once_and_never_printed(
+    before: str | None,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(vapid, "repo_root", lambda: tmp_path)
+    env = tmp_path / ".env"
+    if before is not None:
+        env.write_text(before, "utf-8")
+
+    assert vapid.main() == 0
+
+    key = _key_in(env)
+    assert key and len(push.unb64(key)) == 32, "a P-256 scalar"
+    assert key not in capsys.readouterr().out
+    for line in (before or "").splitlines():
+        assert line in env.read_text("utf-8") or line == "VAPID_PRIVATE_KEY=", "nothing else lost"
+
+    # Changing the key would orphan every subscription made with it.
+    assert vapid.main() == 0
+    assert _key_in(env) == key
