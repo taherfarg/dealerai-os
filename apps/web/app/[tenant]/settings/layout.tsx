@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { use, type ReactNode } from "react";
 import { NavLinks } from "@/components/NavLinks";
+import { SignOutButton } from "@/components/SignOutButton";
 import { SECTIONS, firstSection, mayOpen } from "@/components/settings/sections";
 import { useMe } from "@/lib/api/hooks";
 import { useT } from "@/lib/i18n-client";
@@ -28,6 +29,7 @@ export default function SettingsLayout({
         className="flex shrink-0 gap-1 overflow-x-auto md:w-56 md:flex-col"
       >
         <NavLinks slug={tenant} items={SECTIONS} />
+        <SignOutButton />
       </nav>
       <div className="min-w-0 flex-1 pb-24">
         {allowed

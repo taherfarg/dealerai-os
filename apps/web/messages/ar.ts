@@ -26,6 +26,7 @@ export const ar = {
   "auth.email": "البريد الإلكتروني",
   "auth.password": "كلمة المرور",
   "auth.working": "جارٍ تسجيل الدخول…",
+  "auth.signOut": "تسجيل الخروج",
   "workspace.switch": "مساحة العمل",
   "workspace.none": "لا توجد مساحة عمل",
   "inbox.tabs.mine": "لي",

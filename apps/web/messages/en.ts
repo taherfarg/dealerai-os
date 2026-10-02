@@ -23,6 +23,7 @@ export const en = {
   "auth.email": "Email",
   "auth.password": "Password",
   "auth.working": "Signing in…",
+  "auth.signOut": "Sign out",
   "workspace.switch": "Workspace",
   "workspace.none": "No workspace yet",
   "inbox.tabs.mine": "Mine",

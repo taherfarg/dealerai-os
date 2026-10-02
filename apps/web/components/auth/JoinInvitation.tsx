@@ -5,22 +5,15 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { ApiError } from "@/lib/api/client";
 import { acceptInvitation } from "@/lib/api/joining";
+import { signOut } from "@/lib/auth/sign-out";
 import { signedInEmail } from "@/lib/auth/token";
 import { DEV_AUTH } from "@/lib/dev-auth";
 import type { MessageKey } from "@/lib/i18n";
 import { useT } from "@/lib/i18n-client";
 import { readInvitation } from "@/lib/invitation";
-import { createClient } from "@/lib/supabase/client";
 
 const BUTTON = "bg-brand min-h-11 rounded-md px-3 text-sm font-medium text-white disabled:opacity-60";
 const LINK = "border-border flex min-h-11 items-center justify-center rounded-md border px-3 text-sm";
-
-/** Signing out to accept with the right address, wherever the session lives. */
-async function signOut() {
-  if (DEV_AUTH) document.cookie = "dev_token=; path=/; max-age=0; samesite=lax";
-  else await createClient().auth.signOut();
-  window.location.reload();
-}
 
 /**
  * Joining a workspace from an invitation link ([08] § 14). The link says who
@@ -110,7 +103,12 @@ export function JoinInvitation({ token }: { token: string }) {
           <p className="text-muted">
             {t("accept.signedInAs")} <span dir="ltr">{current}</span>
           </p>
-          <button type="button" onClick={signOut} className={BUTTON}>
+          {/* Back to this invitation, to accept it with the right address. */}
+          <button
+            type="button"
+            onClick={() => void signOut().then(() => window.location.reload())}
+            className={BUTTON}
+          >
             {t("accept.signOut")}
           </button>
         </div>
