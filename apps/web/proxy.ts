@@ -81,6 +81,12 @@ export async function proxy(request: NextRequest) {
   return response;
 }
 
+// What a signed-out browser must be able to fetch for the app to be installable
+// ([07] § 8) passes too: the manifest, its icons, the service worker and the page
+// it shows offline — each anchored, so no page whose address merely starts the
+// same way slips through (proxy.test.ts).
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest$|sw.js$|offline.html$|icon/\\d+$|apple-icon$|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+  ],
 };

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
+import { ServiceWorker } from "@/components/ServiceWorker";
 import { dirFor, type Locale } from "@/lib/i18n";
 import "./globals.css";
 
@@ -17,7 +18,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   return (
     <html lang={locale} dir={dirFor(locale)}>
-      <body className="antialiased">{children}</body>
+      <body className="antialiased">
+        {children}
+        <ServiceWorker />
+      </body>
     </html>
   );
 }

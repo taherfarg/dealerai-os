@@ -23,6 +23,13 @@ AutonomyMode = Literal["copilot", "assisted", "autopilot"]
 
 INVITE_TTL_DAYS = 7
 
+#: Addresses the web app itself answers at its root (apps/web/app). A workspace
+#: with one of these as its slug could never be opened: the app's own page
+#: would answer instead.
+RESERVED_SLUGS = frozenset(
+    {"login", "signup", "auth", "onboarding", "accept-invite", "dev-login", "icon", "apple-icon"}
+)
+
 
 # --------------------------------------------------------------------------
 # schemas
@@ -137,6 +144,8 @@ async def create_tenant(body: TenantCreate, user: CurrentUser) -> Any:
     no owner would also be unreachable, so the two writes are never allowed to
     diverge into separate application statements.
     """
+    if body.slug in RESERVED_SLUGS:
+        raise Conflict(f"the slug {body.slug!r} is taken")
     async with system_session() as conn:
         try:
             tenant_id = await conn.fetchval(

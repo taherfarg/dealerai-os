@@ -234,6 +234,17 @@ def test_duplicate_slug_is_409(client: TestClient) -> None:
     assert r.status_code == 409
 
 
+@pytest.mark.parametrize("slug", ["login", "auth", "onboarding", "accept-invite", "icon"])
+def test_a_workspace_cannot_take_an_address_the_app_answers_at(
+    client: TestClient, slug: str
+) -> None:
+    """The app's own page would answer there, and the workspace could never be
+    opened. The same answer as a slug somebody has: it is taken."""
+    r = client.post("/v1/tenants", json={"name": "Icon Motors", "slug": slug}, headers=auth(USER_A))
+    assert r.status_code == 409, r.text
+    assert slug in r.json()["detail"]
+
+
 def test_invalid_slug_is_rejected(client: TestClient) -> None:
     r = client.post(
         "/v1/tenants", json={"name": "Bad Slug", "slug": "Not A Slug!"}, headers=auth(USER_A)
