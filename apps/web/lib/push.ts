@@ -49,17 +49,28 @@ export function deviceName(userAgent: string | null | undefined): string {
   return browser && system ? `${browser} · ${system}` : "";
 }
 
+/** How long to wait on the browser. One with no push service behind it — a
+ *  Chromium without Google's — never answers subscribe() at all, and nobody
+ *  should be left looking at a button that does nothing. */
+const PATIENCE_MS = 20_000;
+
 /** Ask, subscribe, and hand back what the API stores. Throws "denied" when the
  *  person — or their browser's settings — said no. */
 export async function subscribeThisDevice(publicKey: string) {
   if ((await Notification.requestPermission()) !== "granted") throw new Error("denied");
-  const registration = await navigator.serviceWorker.ready;
-  const options = { userVisibleOnly: true, applicationServerKey: keyBytes(publicKey) };
-  const subscription = await registration.pushManager.subscribe(options).catch(async () => {
-    // Subscribed once with another server's key: drop that and ask again.
-    await (await registration.pushManager.getSubscription())?.unsubscribe();
-    return registration.pushManager.subscribe(options);
-  });
+  const subscribing = (async () => {
+    const registration = await navigator.serviceWorker.ready;
+    const options = { userVisibleOnly: true, applicationServerKey: keyBytes(publicKey) };
+    return registration.pushManager.subscribe(options).catch(async () => {
+      // Subscribed once with another server's key: drop that and ask again.
+      await (await registration.pushManager.getSubscription())?.unsubscribe();
+      return registration.pushManager.subscribe(options);
+    });
+  })();
+  const subscription = await Promise.race([
+    subscribing,
+    new Promise<never>((_, reject) => setTimeout(() => reject(new Error("no answer")), PATIENCE_MS)),
+  ]);
   const { endpoint, keys } = subscription.toJSON();
   if (!endpoint || !keys?.p256dh || !keys.auth) throw new Error("incomplete");
   return { endpoint, p256dh: keys.p256dh, auth: keys.auth, user_agent: navigator.userAgent };

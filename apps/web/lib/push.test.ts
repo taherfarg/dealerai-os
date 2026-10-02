@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { deviceName, keyBytes, needsHomeScreen } from "./push";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { deviceName, keyBytes, needsHomeScreen, subscribeThisDevice } from "./push";
 
 const IPHONE_SAFARI =
   "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1";
@@ -54,5 +54,66 @@ describe("deviceName", () => {
   it("says nothing rather than guess", () => {
     expect(deviceName(null)).toBe("");
     expect(deviceName("curl/8.4.0")).toBe("");
+  });
+});
+
+describe("subscribeThisDevice", () => {
+  const KEY = "BP4z9KsN6nGRTbVYI_c7VJSPQTBtkgcy27mlmlMoZIIgDll6e3vCYLocInmYWAmS6TlzAC8wEqKK6PBru3jl7A8";
+  const granted = { toJSON: () => ({ endpoint: "https://fcm.googleapis.com/x", keys: { p256dh: "p", auth: "a" } }) };
+
+  /** A browser, as far as subscribing goes: what it answers to being asked, and to subscribe(). */
+  function browser(permission: string, subscribe: () => Promise<unknown>) {
+    const unsubscribe = vi.fn(async () => true);
+    vi.stubGlobal("Notification", { requestPermission: async () => permission });
+    vi.stubGlobal("navigator", {
+      userAgent: "a browser",
+      serviceWorker: {
+        ready: Promise.resolve({
+          pushManager: { subscribe, getSubscription: async () => ({ unsubscribe }) },
+        }),
+      },
+    });
+    return { unsubscribe };
+  }
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+
+  it("hands back what the API stores", async () => {
+    browser("granted", async () => granted);
+    expect(await subscribeThisDevice(KEY)).toEqual({
+      endpoint: "https://fcm.googleapis.com/x",
+      p256dh: "p",
+      auth: "a",
+      user_agent: "a browser",
+    });
+  });
+
+  it("says denied when the person, or their browser, said no", async () => {
+    const subscribe = vi.fn(async () => granted);
+    browser("denied", subscribe);
+    await expect(subscribeThisDevice(KEY)).rejects.toThrow("denied");
+    expect(subscribe).not.toHaveBeenCalled();
+  });
+
+  it("drops a subscription made with another server's key and asks again", async () => {
+    const subscribe = vi
+      .fn<() => Promise<unknown>>()
+      .mockRejectedValueOnce(new Error("InvalidStateError"))
+      .mockResolvedValueOnce(granted);
+    const { unsubscribe } = browser("granted", subscribe);
+    expect((await subscribeThisDevice(KEY)).endpoint).toBe("https://fcm.googleapis.com/x");
+    expect(unsubscribe).toHaveBeenCalled();
+  });
+
+  it("gives up on a browser with no push service behind it", async () => {
+    // Chromium without Google's services never answers subscribe() at all.
+    vi.useFakeTimers();
+    browser("granted", () => new Promise(() => {}));
+    const waiting = expect(subscribeThisDevice(KEY)).rejects.toThrow("no answer");
+    await vi.advanceTimersByTimeAsync(20_000);
+    await waiting;
   });
 });
