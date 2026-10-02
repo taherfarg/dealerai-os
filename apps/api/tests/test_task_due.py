@@ -10,6 +10,7 @@ import asyncpg
 
 from conftest import SALES_1, TENANT_A, reseed_with_people
 from dealerai.events.bus import Event
+from dealerai.events.handlers import crm
 
 
 async def _task(
@@ -95,3 +96,74 @@ async def test_a_task_falling_due_is_a_kind_of_notification(
         TENANT_A,
         SALES_1,
     )
+
+
+# --------------------------------------------------------------------------
+# the check, when its time comes — each handed the event the trigger really
+# booked, so the payload's shape is the database's and not the test's
+# --------------------------------------------------------------------------
+
+
+async def _told(su: asyncpg.Connection) -> list[asyncpg.Record]:
+    return await su.fetch(  # type: ignore[no-any-return]
+        "select user_id, kind, title, body, href from notifications where kind = 'task_due'"
+    )
+
+
+async def test_the_assignee_is_told_once(db: None, su: asyncpg.Connection) -> None:
+    await reseed_with_people()
+    task = await _task(su)
+    contact = await su.fetchval(
+        "insert into contacts (tenant_id, full_name) values ($1, 'Omar Haddad') returning id",
+        TENANT_A,
+    )
+    await su.execute("update tasks set contact_id = $2 where id = $1", task, contact)
+    [event] = await _booked(su, task)
+
+    await crm.on_task_due(event)
+    await crm.on_task_due(event)  # the queue retries
+
+    [told] = await _told(su)
+    assert told["user_id"] == SALES_1
+    assert (told["title"], told["body"], told["href"]) == (
+        "Due now: Call Omar",
+        "Omar Haddad",
+        "/tasks",
+    )
+
+
+async def test_a_task_done_by_then_tells_nobody(db: None, su: asyncpg.Connection) -> None:
+    await reseed_with_people()
+    task = await _task(su)
+    [event] = await _booked(su, task)
+    await su.execute("update tasks set status = 'done' where id = $1", task)
+
+    await crm.on_task_due(event)
+
+    assert await _told(su) == []
+
+
+async def test_a_task_moved_by_then_waits_for_its_new_time(
+    db: None, su: asyncpg.Connection
+) -> None:
+    await reseed_with_people()
+    task = await _task(su)
+    await su.execute("update tasks set due_at = due_at + interval '1 day' where id = $1", task)
+    old, new = await _booked(su, task)
+
+    await crm.on_task_due(old)
+    assert await _told(su) == []
+
+    await crm.on_task_due(new)
+    assert len(await _told(su)) == 1
+
+
+async def test_a_task_deleted_by_then_is_not_an_error(db: None, su: asyncpg.Connection) -> None:
+    await reseed_with_people()
+    task = await _task(su)
+    [event] = await _booked(su, task)
+    await su.execute("delete from tasks where id = $1", task)
+
+    await crm.on_task_due(event)
+
+    assert await _told(su) == []
