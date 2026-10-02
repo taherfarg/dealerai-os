@@ -426,6 +426,67 @@ export function useMarkNotificationsRead() {
 }
 
 // --------------------------------------------------------------------------
+// push: the caller's own devices ([07] § 8)
+// --------------------------------------------------------------------------
+
+export type PushDevice = components["schemas"]["PushDevice"];
+
+/** The key a browser subscribes with. Not retried: a 503 is an answer — push
+ *  is not set up on this server — and the screen says so. */
+export function usePushKey() {
+  const { api, tenantId, header } = useTenantApi();
+  return useQuery({
+    queryKey: keys.pushKey(tenantId),
+    queryFn: async () => unwrap(await api.GET("/v1/push/key", { params: { header } })),
+    retry: false,
+    staleTime: Infinity,
+  });
+}
+
+export function usePushDevices() {
+  const { api, tenantId, header } = useTenantApi();
+  return useQuery({
+    queryKey: keys.pushDevices(tenantId),
+    queryFn: async () => unwrap(await api.GET("/v1/push-subscriptions", { params: { header } })),
+  });
+}
+
+export function useSubscribeDevice() {
+  const { api, tenantId, header } = useTenantApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: components["schemas"]["PushSubscriptionIn"]) =>
+      unwrap(await api.POST("/v1/push-subscriptions", { params: { header }, body })),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: keys.pushDevices(tenantId) }),
+  });
+}
+
+export function useRemoveDevice() {
+  const { api, tenantId, header } = useTenantApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (deviceId: string) =>
+      unwrap(
+        await api.DELETE("/v1/push-subscriptions/{device_id}", {
+          params: { header, path: { device_id: deviceId } },
+        }),
+      ),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: keys.pushDevices(tenantId) }),
+  });
+}
+
+/** A push to my own devices, now. It can forget one that is gone, so the list is re-read. */
+export function useTestPush() {
+  const { api, tenantId, header } = useTenantApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () =>
+      unwrap(await api.POST("/v1/push-subscriptions/test", { params: { header } })),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: keys.pushDevices(tenantId) }),
+  });
+}
+
+// --------------------------------------------------------------------------
 // customers
 // --------------------------------------------------------------------------
 

@@ -2,8 +2,9 @@ import type { NavItem } from "@/components/NavLinks";
 
 /**
  * The settings sections, hidden when the role lacks their permission
- * (08-screens § 13). Quick replies has none: a salesperson reads them.
- * Notifications arrive with push in S7.
+ * (08-screens § 13). Quick replies has none: a salesperson reads them. Nor has
+ * Notifications: everybody has a phone. It comes last, so firstSection's
+ * fallback below is still Quick replies.
  */
 export const SECTIONS: readonly NavItem[] = [
   { href: "/settings/channels", key: "settings.channels", permission: "settings.channels" },
@@ -13,6 +14,7 @@ export const SECTIONS: readonly NavItem[] = [
   { href: "/settings/quick-replies", key: "settings.quickReplies" },
   { href: "/settings/knowledge", key: "settings.knowledge", permission: "settings.knowledge" },
   { href: "/settings/ai", key: "settings.ai", permission: "settings.ai" },
+  { href: "/settings/notifications", key: "notifications.title" },
 ];
 
 /**

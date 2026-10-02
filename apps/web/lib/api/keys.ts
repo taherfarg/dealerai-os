@@ -15,6 +15,8 @@ export const keys = {
     ["suggestion", tenantId, conversationId] as const,
   documents: (tenantId: string) => ["documents", tenantId] as const,
   notifications: (tenantId: string) => ["notifications", tenantId] as const,
+  pushKey: (tenantId: string) => ["push-key", tenantId] as const,
+  pushDevices: (tenantId: string) => ["push-devices", tenantId] as const,
   /** One filtered list; `customerList` is its prefix, so one invalidation
    *  reaches every filter somebody has open. Same shape for leads and tasks. */
   customers: (tenantId: string, filters: string) => ["customers", tenantId, filters] as const,
