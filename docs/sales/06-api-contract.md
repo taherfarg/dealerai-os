@@ -191,8 +191,11 @@ URL, `transcript`, `location`, `template`, `vehicle`, `reply_to`, `reactions`, `
 | GET | `/v1/brief/today` | `dashboard.manager` |
 | GET | `/v1/notifications?unread_only&cursor` | — · always the caller's own |
 | POST | `/v1/notifications/read` | — · `{ids}` or `{all: true}` |
-| POST | `/v1/push-subscriptions` | — · `{endpoint, p256dh, auth, user_agent}` |
+| GET | `/v1/push/key` | — · the public key a browser subscribes with; 503 when the server has none |
+| GET | `/v1/push-subscriptions` | — · the caller's own devices, never their addresses or keys |
+| POST | `/v1/push-subscriptions` | — · `{endpoint, p256dh, auth, user_agent}`; the endpoint must be a push service browsers use (422 otherwise), and the device becomes the caller's, whoever had it |
 | DELETE | `/v1/push-subscriptions/{id}` | — |
+| POST | `/v1/push-subscriptions/test` | — · a push to the caller's own devices, now: `{sent, failed}` |
 
 The manager dashboard returns tiles, a row per salesperson, the oldest waiting conversations,
 pipeline totals, lead sources, the inbox-versus-phone share and the brief — one request, because it

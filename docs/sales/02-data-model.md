@@ -144,7 +144,12 @@ conversation, not a flag per message.
 | Table | Columns |
 |---|---|
 | `notifications` | `id, tenant_id, user_id, kind, title, body, href, entity jsonb {type, id}, read_at, created_at`; index `(tenant_id, user_id, created_at desc)`, partial `where read_at is null` |
-| `push_subscriptions` | `id, tenant_id, user_id, endpoint (unique), p256dh, auth, user_agent, failure_count, last_success_at, created_at` — deleted when the push service answers 404 or 410 |
+| `push_subscriptions` | `id, tenant_id, user_id, endpoint (unique), p256dh, auth, user_agent, failure_count, last_success_at, created_at` — deleted when the push service answers 404 or 410. Written through `app.remember_push_subscription()`: a device belongs to whoever subscribed it last |
+
+A notification of a kind worth a push (assigned, waiting, task due, hot lead) queues
+`notification.push_requested` in the transaction that writes it. A task books its own
+`task.due_check` at its due time, through the `tasks_book_due` trigger, because tasks are written
+from several places and all of them pass through the table.
 
 ---
 

@@ -1,4 +1,4 @@
-"""A person's devices, for Web Push (docs/sales/06-api-contract.md § 8).
+"""A person's devices, for Web Push (docs/sales/06-api-contract.md § 7).
 
 Everybody may subscribe their own device: there is no permission to hold,
 because the rows are the caller's own (migration 0014) and a push carries only

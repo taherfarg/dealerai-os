@@ -3466,7 +3466,7 @@ git commit -m "docs(sales): S7 Part B, installable app and push, with the run re
 | §8 — install prompts: `beforeinstallprompt`, and the explanation on iOS Safari | B6 (kept), B7 (shown) |
 | §8 — Web Push with VAPID; subscribe in Settings → Notifications; `POST /v1/push-subscriptions`; the worker sends | B3, B4, B5, B7 |
 | §8 — Phase 1 sends assignment, waiting-too-long, task-due and hot-lead | B4 (`PUSHED`); B1–B2 (task-due did not exist) |
-| [06](../06-api-contract.md) §8 — `POST` and `DELETE /v1/push-subscriptions` | B5, with the list, the key and the test the screen needs |
+| [06](../06-api-contract.md) §7 — `POST` and `DELETE /v1/push-subscriptions` | B5, with the list, the key and the test the screen needs |
 | [02](../02-data-model.md) §4 — `push_subscriptions`, a row deleted on 404 or 410; own rows | B1, B4 |
 | [05](../05-workflows.md) §1 — `notification.push_requested`, priority 8 | B4 |
 | [08](../08-screens.md) §13 — Notifications (everyone): enable push, per-device list, a test notification, the iOS note | B7 |
@@ -3475,3 +3475,87 @@ git commit -m "docs(sales): S7 Part B, installable app and push, with the run re
 
 Inline in this session with `superpowers:executing-plans`, as Part A was — no subagents unless
 asked. Checkpoints after Task B5 (the backend), Task B8 (the app), and Task B9.
+
+---
+
+## Part B review — 2026-10-02
+
+Nine tasks, then the path in a browser against a freshly seeded workspace with the API, the worker
+and the web app running. The findings the plan fixed are in its table above; these are what
+building it and running it found besides.
+
+| Found | Why it mattered | Fixed in |
+|---|---|---|
+| The RFC's example in this plan had gained a character on the way here | The code matched the RFC the first time and failed the test. The test now holds the RFC's raw text, and the whole message of its Section 5 as well | `7c0867f` |
+| A `p256dh` of the right length that is no point on the curve was accepted | The worker would have raised on every push to it, for ever. It is refused when it is offered | `9344863` |
+| A browser with no push service behind it never answers `subscribe()` | Playwright's Chromium grants the permission and then says nothing: the button stayed disabled for good. It gives up after twenty seconds and says so | `f668919` |
+| httpx writes every request's whole URL into the log | The worker's log held each device's push endpoint — the address of somebody's phone. HTTP clients log warnings only; our own events already say what was sent | `4decf23` |
+| A date formatted for Arabic was wrapped in `dir="ltr"` | "Last reached" came out with its day behind the time — and so did the invitation's "valid until" from Part A. Only a screenshot showed it: the text was right. Dates flow with their sentence now | `1637d73` |
+| Every setting must be in `.env.example`, and a test says so | The VAPID settings moved from B5 into B4, with the setting | `4ff5692` |
+
+Different from the plan, on purpose: the screen's strings are `push.*`, because the bell already
+owns `notifications.*`, and the section reuses the bell's title; what the browser can do is read
+with `useSyncExternalStore` rather than set from an effect, so the first paint matches the server's;
+and `is_push_service` also refuses a string that is no URL at all.
+
+Sound as built, and left alone: the trigger — the seed's three overdue tasks announced themselves
+the moment a worker started, with no code in the seed; one notification, one push, however often
+the queue retried; a device removed elsewhere reading *off* here rather than claiming a push it
+would not get; and the gate, which opened for six addresses and nothing that merely starts like one.
+
+Known and deliberately not changed in Part B:
+
+- **No browser on this machine could subscribe.** The Browser pane refuses notifications and
+  Playwright's Chromium has no push service. Steps 4–8 below therefore ran against a stand-in on
+  `127.0.0.1` that plays the push service and the phone — it checks the VAPID signature against the
+  server's published key and opens the body with a device key of its own — with the device rows put
+  in by hand. A subscription made by a real browser, a push accepted by Google's, Apple's or
+  Mozilla's service, and a notification on a lock screen are Part D's, on staging, with real phones.
+  `VAPID_SUBJECT` must be a real address there.
+- Notification titles are English whatever the reader's language (Part C).
+- An iPad calls itself a Mac, so in a tab it reads "cannot receive notifications" rather than the
+  Home Screen note.
+- In a private window the browser cannot remember which listed device it is; everything else works.
+- A new customer went to the manager: routing takes the team member with the fewest open chats, and
+  a manager in the team is one while her switch is on. Not Part B's to change.
+- The suite deletes every tenant in the database the app is using. During this run it took the
+  workspace from under somebody who was looking at the app, so the final check ran against a second
+  database on the same server. Making that the default is a small change worth its own task.
+
+**Checks, final:** `npm run check` — 1,527 backend tests, the guards at 100% branch coverage, 235
+web tests, types, lint and logical CSS; `npm run check:openapi` — no drift.
+
+**Verified end to end on 2026-10-02:**
+
+1. Signed out, the browser was served `/manifest.webmanifest`, `/icon/192` and `/icon/512` (PNGs of
+   the size they claim), `/apple-icon`, `/sw.js` and `/offline.html`; `/pollux-motors/inbox` and
+   `/icon-motors/inbox` were still sent to sign-in. Chromium, asked through its DevTools protocol,
+   parsed the manifest with no errors and gave one reason not to install: the test window was
+   incognito.
+2. The service worker registered, took the page, and its cache held exactly `/offline.html` and
+   `/icon/192`.
+3. With the web server stopped, loading `/pollux-motors/inbox` showed the offline page — both
+   languages, no script, the address unchanged; with it back, the app.
+4. **Ahmed**, a salesperson, saw three things under Settings: Quick replies, Notifications, Sign
+   out. Turning notifications on in the pane said "Notifications are blocked for this site", which
+   is true of the pane. With his device in place the screen read "Notifications are on for this
+   device" and listed "Chrome · Android · This device" — his, and nobody else's of the four.
+5. *Send a test notification*: "Sent to this many devices: 1". The stand-in verified the signature
+   (ES256, for its own origin, twelve hours), saw `aes128gcm`, `TTL: 3600` and `Urgency: high`, and
+   opened 237 bytes into "DealerAI — Notifications are on for this device." and the address of this
+   screen. The row then read "last reached 2 Oct 2026, 10:44".
+6. With the worker started: the three overdue tasks went to Salem's and Mohamed's devices at
+   once; "Mona Fathy is waiting" to Ahmed and to Sara; "James Whitfield is waiting", unassigned,
+   to Sara. A new customer through `npm run wa:simulate` was assigned to Sara, whose device got "A
+   customer is waiting for you" six seconds later, with the conversation's address. The morning
+   brief and the customer's own message were written to the bell and pushed to nobody. Opened as
+   Ahmed, the address pushed to him showed Mona's conversation.
+7. A task added on the Tasks screen for 10:50, a minute ahead, reached Ahmed's device at 10:50:06:
+   "Due now: Send Mona the Land Cruiser price".
+8. With the stand-in answering 410, the test read "Sent to this many devices: 0 · Could not reach
+   this many: 1", the device left the list, and *This device* offered the button again.
+9. *Sign out* forgot the device, left no subscription and no session, and the gate sent the browser
+   to sign-in.
+10. Arabic at 375 px, as an iPhone and as an Android phone: right to left, no sideways scroll. The
+    iPhone got the Home Screen note in place of the button; the Android read "الإشعارات مفعّلة على
+    هذا الجهاز". The first screenshot is what showed the scrambled date.

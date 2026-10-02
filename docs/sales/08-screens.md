@@ -238,7 +238,10 @@ response targets, new assignments and newly hot leads, with a Do-not-disturb swi
 | **Quick replies** (`settings.quick_replies`) | Shortcut, title and one body per language, with a `{name}` hint |
 | **Knowledge** (`settings.knowledge`) | Upload PDF, DOCX or TXT; processing status and chunk count; the line "Prices and stock always come from Inventory, never from documents" |
 | **AI assistant** (`settings.ai`) | Drafts on or off, the Arabic register, follow-up timing, the read-only list of what the AI never does, and last month's draft acceptance |
-| **Notifications** (everyone) | Enable push, per-device list, a test notification, and the iOS Home Screen note |
+| **Notifications** (everyone) | Enable push, per-device list, a test notification, and the iOS Home Screen note; Install the app where the browser offers it |
+
+**Sign out** sits at the end of the sections, on a phone and on a desk. It stops this device's
+notifications before it ends the session.
 
 **Done when:** every save shows its effect (routing changes where the next conversation lands, the
 target changes when timers turn amber); a salesperson sees only Quick replies, read-only, and
