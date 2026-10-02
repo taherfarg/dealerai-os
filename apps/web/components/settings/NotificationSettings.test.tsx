@@ -167,6 +167,16 @@ describe("NotificationSettings", () => {
     expect(rows[1]).toContain("not reached yet");
   });
 
+  it("lets a date flow with its sentence", () => {
+    // Formatted for the reader's language, it carries its own direction marks:
+    // forced left to right, an Arabic date comes out with its day at the wrong end.
+    state.devices = [PHONE];
+    show();
+    const reached = screen.getByText(/last reached/);
+    expect(reached.textContent).toMatch(/last reached 2 Oct 2026, \d\d:30/);
+    expect(reached.querySelector("[dir]")).toBeNull();
+  });
+
   it("removes a device, and silences this browser when it is the one", () => {
     state.devices = [PHONE, LAPTOP];
     state.mine = "phone";

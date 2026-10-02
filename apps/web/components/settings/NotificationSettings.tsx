@@ -32,6 +32,13 @@ const QUIET = "border-border min-h-11 rounded-md border px-3 text-sm";
 /** What this browser can do never changes while the page is open. */
 const never = () => () => {};
 
+/** "Chrome · Android" is Latin whatever the page's language; our own word for
+ *  a device we cannot name is not. */
+function DeviceName({ userAgent, fallback }: { userAgent: string | null; fallback: string }) {
+  const name = deviceName(userAgent);
+  return name ? <span dir="ltr">{name}</span> : fallback;
+}
+
 /**
  * Notifications on a phone ([08] § 13): turning them on for this device,
  * the devices they reach, a test, and — where the browser offers — installing
@@ -135,20 +142,15 @@ export function NotificationSettings() {
             >
               <span className="flex flex-col">
                 <span>
-                  <span dir="ltr">{deviceName(device.user_agent) || t("push.someDevice")}</span>
+                  <DeviceName userAgent={device.user_agent} fallback={t("push.someDevice")} />
                   {device.id === mine && <span className="text-muted"> · {t("push.thisDevice")}</span>}
                 </span>
+                {/* The date is formatted for the reader's language and carries its own
+                    direction marks: it flows with the sentence, never forced left to right. */}
                 <span className="text-muted text-xs">
-                  {device.last_success_at ? (
-                    <>
-                      {t("push.lastReached")}{" "}
-                      <span dir="ltr">
-                        {formatDateTime(device.last_success_at, timezone, locale)}
-                      </span>
-                    </>
-                  ) : (
-                    t("push.neverReached")
-                  )}
+                  {device.last_success_at
+                    ? `${t("push.lastReached")} ${formatDateTime(device.last_success_at, timezone, locale)}`
+                    : t("push.neverReached")}
                 </span>
               </span>
               <button type="button" onClick={() => forget(device.id)} className={QUIET}>

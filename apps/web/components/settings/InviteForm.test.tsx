@@ -77,6 +77,14 @@ describe("InviteForm", () => {
     expect(screen.getByRole("button", { name: "Copy link" })).toBeTruthy();
   });
 
+  it("lets the date it lasts until flow with its sentence", () => {
+    // See NotificationSettings: a date formatted for Arabic must not be forced left to right.
+    show();
+    invite();
+    const ready = screen.getByText(/7 Oct 2026/);
+    expect(ready.closest("[dir]")).toBeNull();
+  });
+
   it("sends it on WhatsApp", () => {
     show();
     invite();

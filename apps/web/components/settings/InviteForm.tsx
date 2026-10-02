@@ -111,11 +111,11 @@ export function InviteForm() {
 
       {invitation && link && whatsapp && (
         <div className="flex flex-col gap-2 text-sm">
+          {/* The date flows with its sentence: formatted for Arabic, it carries its
+              own direction marks, and forcing it left to right scrambles it. */}
           <p id={ready} className="text-muted text-xs">
             {t("invite.ready")}{" "}
-            <span dir="ltr">
-              {formatDateTime(invitation.expires_at, me.data?.tenant.timezone ?? "Asia/Dubai", locale)}
-            </span>
+            {formatDateTime(invitation.expires_at, me.data?.tenant.timezone ?? "Asia/Dubai", locale)}
           </p>
           <input
             readOnly
