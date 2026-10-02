@@ -12,14 +12,14 @@ week S5 connects the real number, two reps start the pilot and the eight success
 [00](../00-prd.md) §7 are measured on Pollux.
 
 **How this plan is split.** S7 is five pieces of work that can each be shipped and demonstrated on
-their own, so it is five parts. Part A is planned in full below. The rest follow this project's
-convention from [09](../09-implementation-plan.md): each is written at pickup, appended to this file
-under its own heading, with its own exit run.
+their own, so it is five parts. Parts A and B are planned in full below. The rest follow this
+project's convention from [09](../09-implementation-plan.md): each is written at pickup, appended to
+this file under its own heading, with its own exit run.
 
 | Part | What | Exit | Needs |
 |---|---|---|---|
 | **A** | Sign-in and joining ([08](../08-screens.md) §14) | An owner creates the workspace and invites a salesperson by a link; the salesperson joins with the invited email and lands in the inbox with the invited role and teams — in both languages, locally | — |
-| **B** | Installable app and push ([07](../07-frontend.md) §8) | Installed on a phone; a customer who writes wakes the assigned salesperson's phone | A |
+| **B** | Installable app and push ([07](../07-frontend.md) §8) | Installed on a phone; a customer assigned to a salesperson, or kept waiting, wakes that salesperson's phone | A |
 | **C** | Arabic and accessibility pass ([08](../08-screens.md) §15.9) | Every screen reviewed in Arabic at 375 px and with a keyboard and a screen reader; the English-in-Arabic items the S4 and S6 reviews left are gone | — |
 | **D** | Playwright suite and staging | The exit paths run on every pull request; staging runs the API, the worker and the web app against the hosted project, and a real sign-in completes there | A, the region decision (Q1) |
 | **E** | The pilot | Two reps on Pollux's real number for four weeks; the eight criteria measured | S5, B, D |
@@ -1432,3 +1432,2042 @@ workspace:
    Part D's.
 8. Arabic at 375 px: the local sign-in, the invitation, the first workspace, sign-in, sign-up and the
    Team screen are right to left with no sideways scroll.
+
+---
+
+# Part B — Installable app and push
+
+**Goal:** Ahmed adds DealerAI to his phone's Home Screen, turns notifications on once, and from then
+on his phone tells him — with the app closed — that a customer was assigned to him, that one has
+waited too long, that a task fell due, or that a lead turned hot; tapping it opens the right page.
+With no network the app says so instead of showing a browser error. Nothing a customer said is ever
+kept on the device by the service worker, and signing out silences the device.
+
+**Architecture:** no push library and no new dependency. A notification row is still the one thing
+that says "somebody should know": `notify()` queues `notification.push_requested` for the kinds that
+earn a push, in the same transaction, and a worker handler sends it to every device its reader
+subscribed. Sending is two RFCs over two libraries already installed — the payload encrypted per RFC
+8291 (`aes128gcm`) with `cryptography`, the request signed per RFC 8292 (VAPID) with PyJWT — tested
+byte for byte against RFC 8291's own worked example. A device belongs to whoever subscribed it
+last. The one notification the product never wrote, a task falling due, is booked by a trigger on
+`tasks`, the single place every way of writing a task passes through. In the browser, a small
+service worker keeps one offline page and an icon — never an API response — shows what is pushed,
+and opens the right page when it is tapped; the icons are code (`next/og`), not binaries.
+
+**Tech stack:** Postgres 17 · FastAPI · `cryptography` · PyJWT · httpx · Next.js 16 (`app/manifest.ts`,
+`next/og`) · the Push, Notifications and Service Worker APIs · Vitest · pytest.
+
+**Before you start:**
+
+- Docker Desktop running; `npm run db:up`. Stop the worker before running the suite; re-seed after.
+- Read [07](../07-frontend.md) §8, [08](../08-screens.md) §13 (Notifications),
+  [05](../05-workflows.md) §1 (`notification.push_requested`), [02](../02-data-model.md) §4.
+- A service worker and push need a secure context. `localhost` is one; a phone on the LAN over plain
+  HTTP is not — a push reaching a real phone is Part D's, on staging.
+
+**Found while reading the code for this plan** — fixed in the tasks named:
+
+| Found | Why it matters | Task |
+|---|---|---|
+| Nothing tells anybody a task fell due: there is no such notification | [07](../07-frontend.md) §8 pushes it; today a task goes red on a page nobody has open | B1, B2 |
+| Tasks are written by the tasks API, the follow-up agent, the hand-over function and the seed | A due-time hook in one of them misses the others. A trigger on `tasks` is the one place they all pass | B1 |
+| `notify()` cannot say whether it wrote a row | A push for a notification that was deduplicated away would be a second ping for one event | B4 |
+| The worker will POST to whatever address a subscription names | A signed-in person could aim it at a host of their choosing. Only the push services browsers use are accepted | B5 |
+| The gate's matcher covers `/manifest.webmanifest`, the icons, `/sw.js` and the offline page | A signed-out browser fetching the manifest is redirected to sign-in, and the app is not installable | B6 |
+| Nothing stops a workspace being called `login`, `auth` — or now `icon` | The app's own page answers at that address, so the workspace can never be opened | B6 |
+| The shell has no way to sign out | With push, a phone that changes hands keeps showing the last person's customers on its lock screen | B8 |
+
+## What Part B does not build
+
+| Item | Arrives with |
+|---|---|
+| Per-type preferences ("only waiting-too-long") | Phase 2, as [07](../07-frontend.md) §8 says |
+| A push reaching a real phone | Part D: it needs HTTPS |
+| Push for a customer's every message | Not among Phase 1's four: a busy rep's phone would never stop. It stays in the bell |
+| Push for AI follow-ups and bulk hand-overs | They arrive in batches; the bell holds them |
+| Notification text in the reader's language | Part C: every notification title is written in English by the backend today, pushed or not |
+| A person in two workspaces hearing from both on one device | Later: a device's subscription belongs to one workspace, the one it was turned on in last |
+| Caching pages or data for offline use | Never: the service worker holds no customer data, by design |
+
+## File structure
+
+| File | Responsibility |
+|---|---|
+| `supabase/migrations/0014_sales_push.sql` | **Create.** `push_subscriptions`, `app.remember_push_subscription()`, the `task_due` kind, the trigger that books a task's due time |
+| `apps/api/src/dealerai/notifications/push.py` | **Create.** Encrypt (RFC 8291), sign (RFC 8292), send, and what an answer means for the device |
+| `apps/api/src/dealerai/events/handlers/notify.py`, `handlers/__init__.py` | **Modify.** `PUSHED`; `notify()` queues the push; `notification.push_requested` |
+| `apps/api/src/dealerai/events/handlers/crm.py` | **Modify.** `task.due_check` |
+| `apps/api/src/dealerai/routes/push.py`, `main.py` | **Create / Modify.** The key, a device's subscription, the list, a test push |
+| `apps/api/src/dealerai/routes/tenants.py` | **Modify.** Slugs the app itself answers at are taken |
+| `apps/api/src/dealerai/config.py`, `.env.example` | **Modify.** `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` |
+| `apps/api/src/dealerai/scripts/vapid.py`, `package.json` | **Create / Modify.** `npm run vapid:keys` writes a key to `.env` without printing it |
+| `apps/api/tests/conftest.py` | **Modify.** A push service that keeps what it was sent, and a phone that can open it |
+| `apps/web/app/manifest.ts`, `app/icon.tsx`, `app/apple-icon.tsx` | **Create.** Installable, with icons drawn in code |
+| `apps/web/public/sw.js`, `public/offline.html` | **Create.** The service worker and its one page |
+| `apps/web/proxy.ts` | **Modify.** The manifest, icons, worker and offline page pass the gate |
+| `apps/web/components/ServiceWorker.tsx`, `app/layout.tsx` | **Create / Modify.** Registering the worker; keeping the browser's offer to install |
+| `apps/web/lib/push.ts` | **Create.** What this browser can do, subscribing it, naming a device |
+| `apps/web/components/settings/NotificationSettings.tsx`, `sections.ts`, `app/[tenant]/settings/notifications/page.tsx`, `lib/api/{hooks,keys}.ts` | **Create / Modify.** Settings → Notifications |
+| `apps/web/lib/auth/sign-out.ts`, `components/SignOutButton.tsx`, `components/Shell.tsx`, `components/auth/JoinInvitation.tsx` | **Create / Modify.** Signing out, which silences the device first |
+| `apps/web/messages/{en,ar}.ts` | **Modify.** Every string Part B shows |
+
+---
+
+## Task B1: Where a push goes, and a task that books its own due time
+
+**Files:**
+- Create: `supabase/migrations/0014_sales_push.sql`
+- Test: `apps/api/tests/test_push_schema.py`, `apps/api/tests/test_task_due.py`
+
+- [ ] **Step 1: Write the failing tests**
+
+`tests/test_push_schema.py`:
+
+```python
+"""Where a push goes: a device somebody subscribed, theirs and nobody else's."""
+
+from __future__ import annotations
+
+import uuid
+
+from conftest import SALES_1, SALES_2, TENANT_A, reseed_with_people
+from dealerai.db.session import tenant_session
+
+ENDPOINT = "https://fcm.googleapis.com/fcm/send/abc"
+
+
+async def _subscribe(user: uuid.UUID, endpoint: str = ENDPOINT) -> uuid.UUID:
+    async with tenant_session(TENANT_A, user_id=user, scope="own") as conn:
+        return await conn.fetchval(  # type: ignore[no-any-return]
+            "select app.remember_push_subscription($1, $2, $3, 'p256dh', 'auth', 'Chrome')",
+            TENANT_A,
+            user,
+            endpoint,
+        )
+
+
+async def _count(user: uuid.UUID | None) -> int:
+    async with tenant_session(TENANT_A, user_id=user, scope="own") as conn:
+        return await conn.fetchval("select count(*) from push_subscriptions")  # type: ignore[no-any-return]
+
+
+async def test_a_device_is_its_owners_and_nobody_elses(db: None) -> None:
+    await reseed_with_people()
+    await _subscribe(SALES_1)
+    assert await _count(SALES_1) == 1
+    assert await _count(SALES_2) == 0
+    # The worker has no user in its session: it reads everybody's, to send.
+    assert await _count(None) == 1
+
+
+async def test_a_device_belongs_to_whoever_subscribed_it_last(db: None) -> None:
+    """A shared phone that changes hands must not keep telling the last person."""
+    await reseed_with_people()
+    await _subscribe(SALES_1)
+    await _subscribe(SALES_2)
+    async with tenant_session(TENANT_A) as conn:
+        owners = [r["user_id"] for r in await conn.fetch("select user_id from push_subscriptions")]
+    assert owners == [SALES_2]
+
+
+async def test_one_person_may_have_several_devices(db: None) -> None:
+    await reseed_with_people()
+    await _subscribe(SALES_1)
+    await _subscribe(SALES_1, f"{ENDPOINT}-laptop")
+    assert await _count(SALES_1) == 2
+```
+
+`tests/test_task_due.py` — the trigger now; Task B2 adds the handler's tests to the same file:
+
+```python
+"""A task falling due: booked by the task itself, told to its assignee once."""
+
+from __future__ import annotations
+
+import json
+import uuid
+from datetime import timedelta
+
+import asyncpg
+
+from conftest import SALES_1, TENANT_A, reseed_with_people
+from dealerai.events.bus import Event
+
+
+async def _task(
+    su: asyncpg.Connection,
+    *,
+    due_in: timedelta = timedelta(hours=1),
+    status: str = "open",
+    source: str = "human",
+) -> uuid.UUID:
+    return await su.fetchval(  # type: ignore[no-any-return]
+        """insert into tasks (tenant_id, title, due_at, status, source, assignee_id, created_by)
+           values ($1, 'Call Omar', now() + $2::interval, $3, $4, $5, $5) returning id""",
+        TENANT_A,
+        due_in,
+        status,
+        source,
+        SALES_1,
+    )
+
+
+async def _booked(su: asyncpg.Connection, task: uuid.UUID) -> list[Event]:
+    """The checks a task booked for itself, as the worker would claim them."""
+    rows = await su.fetch(
+        """select id, tenant_id, event_type, payload, dedupe_key from events
+            where event_type = 'task.due_check' and payload->>'task_id' = $1 order by id""",
+        str(task),
+    )
+    return [
+        Event(
+            id=r["id"],
+            tenant_id=r["tenant_id"],
+            event_type=r["event_type"],
+            payload=json.loads(r["payload"]),
+            attempts=1,
+            dedupe_key=r["dedupe_key"],
+        )
+        for r in rows
+    ]
+
+
+async def test_a_task_books_a_check_at_its_due_time(db: None, su: asyncpg.Connection) -> None:
+    await reseed_with_people()
+    task = await _task(su)
+    assert len(await _booked(su, task)) == 1
+    assert await su.fetchval(
+        """select e.run_after = t.due_at and e.status = 'pending' and e.tenant_id = t.tenant_id
+             from events e join tasks t on t.id = $1
+            where e.event_type = 'task.due_check'""",
+        task,
+    )
+
+
+async def test_moving_a_task_books_the_new_time(db: None, su: asyncpg.Connection) -> None:
+    await reseed_with_people()
+    task = await _task(su)
+    await su.execute("update tasks set due_at = due_at + interval '1 day' where id = $1", task)
+    assert len(await _booked(su, task)) == 2
+
+
+async def test_renaming_a_task_books_nothing_new(db: None, su: asyncpg.Connection) -> None:
+    await reseed_with_people()
+    task = await _task(su)
+    await su.execute("update tasks set title = 'Call Omar today' where id = $1", task)
+    assert len(await _booked(su, task)) == 1
+
+
+async def test_a_task_that_is_done_or_the_ais_books_nothing(
+    db: None, su: asyncpg.Connection
+) -> None:
+    await reseed_with_people()
+    assert await _booked(su, await _task(su, status="done")) == []
+    # An AI follow-up is due at once and already announces itself (followup_ready).
+    assert await _booked(su, await _task(su, source="ai")) == []
+
+
+async def test_a_task_falling_due_is_a_kind_of_notification(
+    db: None, su: asyncpg.Connection
+) -> None:
+    await reseed_with_people()
+    await su.execute(
+        """insert into notifications (tenant_id, user_id, kind, title)
+           values ($1, $2, 'task_due', 'Call Omar')""",
+        TENANT_A,
+        SALES_1,
+    )
+```
+
+- [ ] **Step 2: Run them and see them fail**
+
+Run: `cd apps/api && uv run pytest tests/test_push_schema.py tests/test_task_due.py -q`
+Expected: FAIL — `function app.remember_push_subscription … does not exist`, no `task.due_check`
+events, and the `task_due` kind violates `notifications_kind_check`.
+
+- [ ] **Step 3: The migration**
+
+`supabase/migrations/0014_sales_push.sql`:
+
+```sql
+-- =============================================================================
+-- 0014_sales_push — S7 Part B: a notification that reaches a phone.
+-- Where a push goes (a device somebody subscribed), and the one notification
+-- the product never wrote: a task falling due. See docs/sales/07-frontend.md
+-- § 8 and docs/sales/02-data-model.md § 4.
+-- =============================================================================
+
+create table push_subscriptions (
+  id              uuid primary key default gen_random_uuid(),
+  tenant_id       uuid not null references tenants(id) on delete cascade,
+  user_id         uuid not null references auth.users(id) on delete cascade,
+  -- The push service's address for one browser on one device.
+  -- ponytail: unique across workspaces, so somebody in two of them hears from
+  -- the one this device was turned on in last. Make it (tenant_id, endpoint)
+  -- when a second tenant shares people with the first.
+  endpoint        text not null unique,
+  p256dh          text not null,
+  auth            text not null,
+  user_agent      text,
+  failure_count   int not null default 0,
+  last_success_at timestamptz,
+  created_at      timestamptz not null default now()
+);
+create index on push_subscriptions (tenant_id, user_id);
+
+-- The caller's own devices, never a colleague's. The worker has no user in its
+-- session and reads everybody's, to send — as with notifications (0008).
+alter table push_subscriptions enable row level security;
+alter table push_subscriptions force row level security;
+create policy own_rows on push_subscriptions
+  using (app.has_tenant_access(tenant_id)
+         and (user_id = (select app.current_user_id())
+              or (select app.current_user_id()) is null))
+  with check (app.has_tenant_access(tenant_id));
+revoke all on push_subscriptions from anon, authenticated;
+
+-- A device belongs to whoever subscribed it last: a shared phone that changes
+-- hands must not keep telling the last person. The row it replaces may be
+-- somebody else's, which the caller cannot see — hence definer.
+create or replace function app.remember_push_subscription(
+    p_tenant     uuid,
+    p_user       uuid,
+    p_endpoint   text,
+    p_p256dh     text,
+    p_auth       text,
+    p_user_agent text
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+    subscription uuid;
+begin
+    delete from push_subscriptions where endpoint = p_endpoint;
+    insert into push_subscriptions (tenant_id, user_id, endpoint, p256dh, auth, user_agent)
+    values (p_tenant, p_user, p_endpoint, p_p256dh, p_auth, p_user_agent)
+    returning id into subscription;
+    return subscription;
+end;
+$$;
+
+revoke all on function app.remember_push_subscription(uuid, uuid, text, text, text, text)
+    from public;
+grant execute on function app.remember_push_subscription(uuid, uuid, text, text, text, text)
+    to dealerai_app;
+
+-- A task falling due tells its assignee: one more kind for the bell, and the
+-- push that follows it.
+alter table notifications drop constraint notifications_kind_check;
+alter table notifications add constraint notifications_kind_check check (kind in
+  ('message_received', 'assigned', 'waiting_due_soon', 'waiting_missed',
+   'unassigned_waiting', 'template_rejected', 'channel_disconnected',
+   'channel_quality', 'contact_assigned', 'lead_hot', 'followup_ready',
+   'ai_budget_exhausted', 'brief_ready', 'task_due'));
+
+-- Every way a task is written — the tasks API, a hand-over, the seed — passes
+-- here, so here is where its due time is booked: a check at that moment, which
+-- does nothing if the task was done, cancelled or moved by then
+-- (events/handlers/crm.py). An AI follow-up is due at once and already
+-- announces itself (followup_ready). A task changing hands books nothing: the
+-- check reads whose it is when it runs.
+create or replace function app.book_task_due()
+returns trigger
+language plpgsql
+set search_path = public, pg_temp
+as $$
+begin
+    if new.status = 'open' and new.source <> 'ai' then
+        insert into events (tenant_id, event_type, payload, dedupe_key, priority, run_after)
+        values (new.tenant_id, 'task.due_check',
+                jsonb_build_object('task_id', new.id, 'due_at', new.due_at),
+                'task-due:' || new.id || ':' || extract(epoch from new.due_at)::bigint,
+                5, new.due_at)
+        on conflict do nothing;
+    end if;
+    return null;
+end;
+$$;
+
+revoke all on function app.book_task_due() from public;
+
+create trigger tasks_book_due after insert or update of due_at, status on tasks
+  for each row execute function app.book_task_due();
+```
+
+- [ ] **Step 4: Run them and see them pass**
+
+Run: `cd apps/api && uv run pytest tests/test_push_schema.py tests/test_task_due.py tests/test_visibility.py tests/test_tasks_api.py tests/test_followups.py tests/test_seed_sales.py -q`
+Expected: PASS. A test that counted *every* event after writing a task now sees one more
+(`task.due_check`): narrow its query to the type it is about rather than loosening the count.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add supabase/migrations/0014_sales_push.sql apps/api/tests/test_push_schema.py apps/api/tests/test_task_due.py
+git commit -m "feat(sales): where a push goes, and a task that books its own due time"
+```
+
+---
+
+## Task B2: A task falls due, and its assignee hears
+
+**Files:**
+- Modify: `apps/api/src/dealerai/events/handlers/crm.py`, `docs/sales/05-workflows.md` (the catalogue)
+- Test: `apps/api/tests/test_task_due.py`
+
+- [ ] **Step 1: Write the failing tests**
+
+Appended to `tests/test_task_due.py` (`from dealerai.events.handlers import crm` joins the imports).
+Each hands the handler the event the trigger really booked, so the payload's shape is the
+database's, not the test's:
+
+```python
+async def _told(su: asyncpg.Connection) -> list[asyncpg.Record]:
+    return await su.fetch(  # type: ignore[no-any-return]
+        "select user_id, kind, title, body, href from notifications where kind = 'task_due'"
+    )
+
+
+async def test_the_assignee_is_told_once(db: None, su: asyncpg.Connection) -> None:
+    await reseed_with_people()
+    task = await _task(su)
+    contact = await su.fetchval(
+        "insert into contacts (tenant_id, full_name) values ($1, 'Omar Haddad') returning id",
+        TENANT_A,
+    )
+    await su.execute("update tasks set contact_id = $2 where id = $1", task, contact)
+    [event] = await _booked(su, task)
+
+    await crm.on_task_due(event)
+    await crm.on_task_due(event)  # the queue retries
+
+    [told] = await _told(su)
+    assert told["user_id"] == SALES_1
+    assert (told["title"], told["body"], told["href"]) == ("Due now: Call Omar", "Omar Haddad", "/tasks")
+
+
+async def test_a_task_done_by_then_tells_nobody(db: None, su: asyncpg.Connection) -> None:
+    await reseed_with_people()
+    task = await _task(su)
+    [event] = await _booked(su, task)
+    await su.execute("update tasks set status = 'done' where id = $1", task)
+
+    await crm.on_task_due(event)
+
+    assert await _told(su) == []
+
+
+async def test_a_task_moved_by_then_waits_for_its_new_time(
+    db: None, su: asyncpg.Connection
+) -> None:
+    await reseed_with_people()
+    task = await _task(su)
+    await su.execute("update tasks set due_at = due_at + interval '1 day' where id = $1", task)
+    old, new = await _booked(su, task)
+
+    await crm.on_task_due(old)
+    assert await _told(su) == []
+
+    await crm.on_task_due(new)
+    assert len(await _told(su)) == 1
+
+
+async def test_a_task_deleted_by_then_is_not_an_error(db: None, su: asyncpg.Connection) -> None:
+    await reseed_with_people()
+    task = await _task(su)
+    [event] = await _booked(su, task)
+    await su.execute("delete from tasks where id = $1", task)
+
+    await crm.on_task_due(event)
+
+    assert await _told(su) == []
+```
+
+- [ ] **Step 2: Run them and see them fail**
+
+Run: `cd apps/api && uv run pytest tests/test_task_due.py -q`
+Expected: FAIL — `module 'dealerai.events.handlers.crm' has no attribute 'on_task_due'`.
+
+- [ ] **Step 3: The handler**
+
+In `events/handlers/crm.py` — the module's first line becomes `"""The CRM's side of the queue:
+telling somebody a customer is theirs now, or that a task of theirs fell due."""`, and
+`from datetime import datetime` joins the imports:
+
+```python
+@handler("task.due_check")
+async def on_task_due(event: Event) -> None:
+    """A task's due time came: tell its assignee — unless it was done,
+    cancelled or moved since the trigger booked this (migration 0014)."""
+    if event.tenant_id is None:
+        raise ValueError("task.due_check requires a tenant")
+    task_id = UUID(str(event.payload["task_id"]))
+    booked = datetime.fromisoformat(str(event.payload["due_at"]))
+
+    async with tenant_session(event.tenant_id) as conn:
+        task = await conn.fetchrow(
+            """select t.title, t.assignee_id, t.due_at, t.status, c.full_name
+                 from tasks t left join contacts c on c.id = t.contact_id
+                where t.id = $1""",
+            task_id,
+        )
+        if task is None or task["status"] != "open" or task["due_at"] != booked:
+            return
+        await notify(
+            conn,
+            tenant_id=event.tenant_id,
+            user_id=task["assignee_id"],
+            kind="task_due",
+            title=f"Due now: {task['title']}",
+            body=task["full_name"],
+            entity={"type": "task", "id": str(task_id)},
+            # Re-opening a task after its time re-books the check; it is still
+            # one piece of news.
+            dedupe_key=f"task-due:{task_id}:{booked.isoformat()}",
+        )
+```
+
+`docs/sales/05-workflows.md` §1 gains a row for `task.due_check` — emitted by the `tasks_book_due`
+trigger at the task's due time, priority 5, handled by `crm.on_task_due`.
+
+- [ ] **Step 4: Run them and see them pass**
+
+Run: `cd apps/api && uv run pytest tests/test_task_due.py tests/test_crm_events.py tests/test_import_contracts.py -q`
+Expected: PASS.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add apps/api/src/dealerai/events/handlers/crm.py apps/api/tests/test_task_due.py docs/sales/05-workflows.md
+git commit -m "feat(sales): a task falls due, and its assignee hears"
+```
+
+---
+
+## Task B3: A push, encrypted and signed
+
+**Files:**
+- Create: `apps/api/src/dealerai/notifications/__init__.py` (empty),
+  `apps/api/src/dealerai/notifications/push.py`
+- Test: `apps/api/tests/test_push_crypto.py`
+
+- [ ] **Step 1: Write the failing tests** — RFC 8291 Appendix A, whole
+
+`tests/test_push_crypto.py`:
+
+```python
+"""Web Push, checked against the standards rather than against itself."""
+
+from __future__ import annotations
+
+import jwt
+import pytest
+from cryptography.hazmat.primitives.asymmetric import ec
+
+from dealerai.notifications import push
+
+# RFC 8291, Appendix A — every value as printed there.
+PLAINTEXT = b"When I grow up, I want to be a watermelon"
+AS_PRIVATE = "yfWPiYE-n46HLnH0KqZOF1fJJU3MYrct3AELtAQ-oRw"
+UA_PUBLIC = (
+    "BCVxsr7N_eNgVRqvHtD0zTZsEc6-VV-JvLexhqUzORcx"
+    "aOzi6-AYWXvTBHm4bjyPjs7Vd8pZGH6SRpkNtoIAiw4"
+)
+AUTH_SECRET = "BTBZMqHH6r4Tts7J_aSIgg"
+SALT = "DGv6ra1nlYgDCS1FRnbzlw"
+HEADER = (
+    "DGv6ra1nlYgDCS1FRnbzlwAAEABBBP4z9KsN6nGRTbVYI_c7VJSPQTBtkgcy27ml"
+    "mlMoZIIgDll6e3vCYLocInmYWAmS6TlzAC8wEqKK6PBru3jl7A8"
+)
+CIPHERTEXT = (
+    "8pfeW0KbunFT06SuDKoJH9Ql87S1QUrdiKrN6GcG7sFz1y1sqLgVi1VhjVkHsUoEs"
+    "bI_0LpXMuGvnzQ"
+)
+
+
+def test_the_rfcs_own_example_comes_out_byte_for_byte() -> None:
+    body = push.encrypt(
+        PLAINTEXT,
+        p256dh=UA_PUBLIC,
+        auth=AUTH_SECRET,
+        salt=push.unb64(SALT),
+        server_key=push.private_key(AS_PRIVATE),
+    )
+    assert body == push.unb64(HEADER) + push.unb64(CIPHERTEXT)
+
+
+def test_two_messages_to_one_device_share_nothing() -> None:
+    """A fresh key and salt each time: the same words never look the same twice."""
+    first = push.encrypt(PLAINTEXT, p256dh=UA_PUBLIC, auth=AUTH_SECRET)
+    second = push.encrypt(PLAINTEXT, p256dh=UA_PUBLIC, auth=AUTH_SECRET)
+    assert first[:16] != second[:16] and first[21:86] != second[21:86]
+
+
+def test_the_request_is_signed_for_the_push_service_it_goes_to() -> None:
+    key = ec.generate_private_key(ec.SECP256R1())
+    scalar = push.b64(key.private_numbers().private_value.to_bytes(32, "big"))
+    header = push.vapid(
+        "https://fcm.googleapis.com/fcm/send/abc", private=scalar, subject="mailto:ops@pollux.test"
+    )
+    scheme, _, rest = header.partition(" ")
+    fields = dict(part.strip().split("=", 1) for part in rest.split(","))
+    assert scheme == "vapid" and fields["k"] == push.public_key(scalar)
+    claims = jwt.decode(
+        fields["t"], key.public_key(), algorithms=["ES256"], audience="https://fcm.googleapis.com"
+    )
+    assert claims["sub"] == "mailto:ops@pollux.test"
+    assert 0 < claims["exp"] - claims["iat"] <= 24 * 3600, "push services refuse a longer one"
+
+
+def test_a_long_notification_still_fits_the_one_record() -> None:
+    payload = push.message("ع" * 500, "ب" * 5000, href="/pollux-motors/inbox/x", tag="assigned")
+    assert len(push.encrypt(payload, p256dh=UA_PUBLIC, auth=AUTH_SECRET)) <= push.RECORD_SIZE
+
+
+@pytest.mark.parametrize(
+    "endpoint",
+    [
+        "https://fcm.googleapis.com/fcm/send/abc",
+        "https://updates.push.services.mozilla.com/wpush/v2/abc",
+        "https://web.push.apple.com/abc",
+        "https://wns2-par02p.notify.windows.com/w/?token=abc",
+    ],
+)
+def test_the_push_services_browsers_use_are_accepted(endpoint: str) -> None:
+    assert push.is_push_service(endpoint)
+
+
+@pytest.mark.parametrize(
+    "endpoint",
+    [
+        "https://localhost:8000/v1/tenants",
+        "https://10.0.0.5/internal",
+        "http://fcm.googleapis.com/fcm/send/abc",
+        "https://fcm.googleapis.com.evil.example/abc",
+        "https://evilfcm.googleapis.com.example/abc",
+        "not a url",
+    ],
+)
+def test_nobody_aims_the_worker_at_a_host_of_their_choosing(endpoint: str) -> None:
+    assert not push.is_push_service(endpoint)
+```
+
+- [ ] **Step 2: Run them and see them fail**
+
+Run: `cd apps/api && uv run pytest tests/test_push_crypto.py -q`
+Expected: FAIL — `No module named 'dealerai.notifications'`.
+
+- [ ] **Step 3: The module**
+
+`src/dealerai/notifications/push.py`:
+
+```python
+"""Web Push, from the worker (docs/sales/07-frontend.md § 8).
+
+Two standards over two libraries the API already has, rather than a push
+library: the payload is encrypted per RFC 8291 (aes128gcm) with `cryptography`,
+and the request is signed per RFC 8292 (VAPID) with PyJWT.
+tests/test_push_crypto.py checks the first against the RFC's own worked
+example, byte for byte.
+"""
+
+from __future__ import annotations
+
+import base64
+import json
+import os
+import time
+from urllib.parse import urlsplit
+
+import jwt
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
+
+#: A push service must take 4096 octets and need not take more. Everything sent
+#: here is one record, well inside it — message() sees to that.
+RECORD_SIZE = 4096
+#: A VAPID token's life. Push services refuse more than a day.
+VAPID_SECONDS = 12 * 3600
+
+#: The push services browsers use. The worker POSTs to a subscription's
+#: endpoint, so an address that is none of these is refused when it is offered:
+#: nobody gets to aim the worker at a host of their choosing.
+PUSH_SERVICES = (
+    "fcm.googleapis.com",  # Chrome, and every browser on Android
+    "updates.push.services.mozilla.com",  # Firefox
+    "web.push.apple.com",  # Safari, and every browser on an iPhone
+    "notify.windows.com",  # Edge on Windows
+)
+
+
+def b64(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).rstrip(b"=").decode()
+
+
+def unb64(value: str) -> bytes:
+    return base64.urlsafe_b64decode(value + "=" * (-len(value) % 4))
+
+
+def is_push_service(endpoint: str) -> bool:
+    target = urlsplit(endpoint)
+    host = target.hostname or ""
+    return target.scheme == "https" and any(
+        host == known or host.endswith(f".{known}") for known in PUSH_SERVICES
+    )
+
+
+def private_key(scalar: str) -> ec.EllipticCurvePrivateKey:
+    """A P-256 key from its base64url scalar — the form VAPID_PRIVATE_KEY takes."""
+    return ec.derive_private_key(int.from_bytes(unb64(scalar), "big"), ec.SECP256R1())
+
+
+def _point(key: ec.EllipticCurvePrivateKey) -> bytes:
+    return key.public_key().public_bytes(Encoding.X962, PublicFormat.UncompressedPoint)
+
+
+def public_key(scalar: str) -> str:
+    """What the browser subscribes with: the uncompressed point, base64url."""
+    return b64(_point(private_key(scalar)))
+
+
+def hkdf(*, salt: bytes, ikm: bytes, info: bytes, length: int) -> bytes:
+    return HKDF(algorithm=hashes.SHA256(), length=length, salt=salt, info=info).derive(ikm)
+
+
+def encrypt(
+    plaintext: bytes,
+    *,
+    p256dh: str,
+    auth: str,
+    salt: bytes | None = None,
+    server_key: ec.EllipticCurvePrivateKey | None = None,
+) -> bytes:
+    """RFC 8291: one aes128gcm record only this subscription can open.
+
+    `salt` and `server_key` are fresh for every message; they are parameters so
+    the RFC's example, which fixes both, can be reproduced.
+    """
+    ua_public = unb64(p256dh)
+    salt = salt or os.urandom(16)
+    server_key = server_key or ec.generate_private_key(ec.SECP256R1())
+    as_public = _point(server_key)
+
+    shared = server_key.exchange(
+        ec.ECDH(), ec.EllipticCurvePublicKey.from_encoded_point(ec.SECP256R1(), ua_public)
+    )
+    ikm = hkdf(
+        salt=unb64(auth),
+        ikm=shared,
+        info=b"WebPush: info\x00" + ua_public + as_public,
+        length=32,
+    )
+    key = hkdf(salt=salt, ikm=ikm, info=b"Content-Encoding: aes128gcm\x00", length=16)
+    nonce = hkdf(salt=salt, ikm=ikm, info=b"Content-Encoding: nonce\x00", length=12)
+    # 0x02 ends the last — here the only — record.
+    ciphertext = AESGCM(key).encrypt(nonce, plaintext + b"\x02", None)
+    header = salt + RECORD_SIZE.to_bytes(4, "big") + bytes([len(as_public)]) + as_public
+    return header + ciphertext
+
+
+def vapid(endpoint: str, *, private: str, subject: str) -> str:
+    """RFC 8292: who is sending, signed for the push service it is sent to."""
+    target = urlsplit(endpoint)
+    now = int(time.time())
+    token = jwt.encode(
+        {
+            "aud": f"{target.scheme}://{target.netloc}",
+            "iat": now,
+            "exp": now + VAPID_SECONDS,
+            "sub": subject,
+        },
+        private_key(private),
+        algorithm="ES256",
+    )
+    return f"vapid t={token}, k={public_key(private)}"
+
+
+def message(title: str, body: str | None, *, href: str, tag: str) -> bytes:
+    """What the service worker shows (apps/web/public/sw.js reads these names).
+
+    Cut to what a lock screen shows anyway, which also keeps every message
+    inside the one record encrypt() writes.
+    """
+    return json.dumps(
+        {"title": title[:120], "body": (body or "")[:300], "href": href, "tag": tag},
+        ensure_ascii=False,
+    ).encode()
+```
+
+- [ ] **Step 4: Run them and see them pass**
+
+Run: `cd apps/api && uv run pytest tests/test_push_crypto.py -q && uv run mypy src/dealerai/notifications`
+Expected: PASS. If the first test fails, compare against the RFC's intermediate values in order —
+`ecdh_secret` `kyrL1jIIOHEzg3sM2ZWRHDRB62YACZhhSlknJ672kSs`, IKM
+`S4lYMb_L0FxCeq0WhDx813KgSYqU26kOyzWUdsXYyrg`, CEK `oIhVW04MRdy2XN9CiKLxTg`, NONCE
+`4h_95klXJ5E_qnoN` — to find the step that differs.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add apps/api/src/dealerai/notifications apps/api/tests/test_push_crypto.py
+git commit -m "feat(sales): a push, encrypted and signed, to the letter of two RFCs"
+```
+
+---
+
+## Task B4: The notification, on every device its reader subscribed
+
+**Files:**
+- Modify: `apps/api/src/dealerai/config.py`, `apps/api/src/dealerai/notifications/push.py`,
+  `apps/api/src/dealerai/events/handlers/notify.py`, `apps/api/src/dealerai/events/handlers/__init__.py`,
+  `apps/api/tests/conftest.py`
+- Test: `apps/api/tests/test_push_delivery.py`
+
+- [ ] **Step 1: Settings**
+
+`config.py`, after the WhatsApp settings:
+
+```python
+    #: Web Push (docs/sales/07-frontend.md § 8). The private key is a base64url
+    #: P-256 scalar — `npm run vapid:keys` writes one locally. Unset, nothing is
+    #: pushed and the bell works as before. The subject is who a push service
+    #: writes to about this sender: a real mailto: or https: address in
+    #: production, where Apple refuses a made-up one.
+    vapid_private_key: str | None = None
+    vapid_subject: str = "mailto:push@dealerai.local"
+```
+
+- [ ] **Step 2: A push service for the tests, and a phone that can open what it gets**
+
+`tests/conftest.py` gains (imports: `httpx`, `ec` and `AESGCM` from `cryptography`,
+`dealerai.notifications.push`):
+
+```python
+# --------------------------------------------------------------------------
+# web push: a push service that keeps what it was sent, and a phone to open it
+# --------------------------------------------------------------------------
+
+#: RFC 8291 Appendix A's user agent — a device whose private key is known, so a
+#: test can open what was sent to it, as a browser would.
+PHONE = {
+    "endpoint": "https://fcm.googleapis.com/fcm/send/the-phone",
+    "p256dh": (
+        "BCVxsr7N_eNgVRqvHtD0zTZsEc6-VV-JvLexhqUzORcx"
+        "aOzi6-AYWXvTBHm4bjyPjs7Vd8pZGH6SRpkNtoIAiw4"
+    ),
+    "auth": "BTBZMqHH6r4Tts7J_aSIgg",
+}
+PHONE_PRIVATE = "q1dXpw3UpT5VOmu_cf_v6ih07Aems3njxI-JWgLcM94"
+
+
+def open_push(body: bytes) -> dict[str, str]:
+    """What the browser does with a push (RFC 8291 § 4), with the phone's key."""
+    salt, as_public, ciphertext = body[:16], body[21:86], body[86:]
+    shared = push.private_key(PHONE_PRIVATE).exchange(
+        ec.ECDH(), ec.EllipticCurvePublicKey.from_encoded_point(ec.SECP256R1(), as_public)
+    )
+    ikm = push.hkdf(
+        salt=push.unb64(PHONE["auth"]),
+        ikm=shared,
+        info=b"WebPush: info\x00" + push.unb64(PHONE["p256dh"]) + as_public,
+        length=32,
+    )
+    key = push.hkdf(salt=salt, ikm=ikm, info=b"Content-Encoding: aes128gcm\x00", length=16)
+    nonce = push.hkdf(salt=salt, ikm=ikm, info=b"Content-Encoding: nonce\x00", length=12)
+    opened = AESGCM(key).decrypt(nonce, ciphertext, None)
+    assert opened.endswith(b"\x02"), "the last record ends with 0x02"
+    return json.loads(opened[:-1])  # type: ignore[no-any-return]
+
+
+class PushService:
+    """Answers as a push service would, and keeps what it was sent."""
+
+    def __init__(self) -> None:
+        self.status = 201
+        self.requests: list[httpx.Request] = []
+
+    def client(self) -> httpx.AsyncClient:
+        def answer(request: httpx.Request) -> httpx.Response:
+            self.requests.append(request)
+            return httpx.Response(self.status)
+
+        return httpx.AsyncClient(transport=httpx.MockTransport(answer))
+
+
+@pytest.fixture
+def push_service(monkeypatch: pytest.MonkeyPatch) -> PushService:
+    """Push configured with a key made for this test, and nothing leaving the machine."""
+    key = ec.generate_private_key(ec.SECP256R1())
+    scalar = push.b64(key.private_numbers().private_value.to_bytes(32, "big"))
+    monkeypatch.setattr(get_settings(), "vapid_private_key", scalar)
+    service = PushService()
+    monkeypatch.setattr(push, "client", service.client)
+    return service
+```
+
+- [ ] **Step 3: Write the failing tests**
+
+`tests/test_push_delivery.py`. Helpers: `_device(su, user=SALES_1, endpoint=PHONE["endpoint"])`
+inserts a `push_subscriptions` row with the phone's keys; `_tell(kind="assigned", dedupe="a")` calls
+`notify()` in a worker session for SALES_1 — title "A customer is waiting for you", body "Omar
+Haddad", a conversation entity; `_requested(su)` returns the queued `notification.push_requested`
+events as `Event`s.
+
+- `test_a_notification_worth_a_push_asks_for_one_once` — `_tell()` twice with one dedupe key: one
+  notification, one event, priority 8, its payload the notification's id.
+- `test_the_rest_stay_in_the_bell` — `_tell(kind="brief_ready")` and `_tell(kind="message_received")`:
+  two notifications, no push event.
+- `test_the_device_gets_what_was_said_sealed_for_it` — a device, `_tell()`, the handler: one request
+  to the phone's endpoint; `open_push(request.content)` is `{"title": "A customer is waiting for
+  you", "body": "Omar Haddad", "href": "/alpha/inbox/<id>", "tag": "assigned"}`; the headers carry
+  `Content-Encoding: aes128gcm`, `TTL`, `Urgency: high` and an `Authorization` starting `vapid t=`;
+  `last_success_at` is set.
+- `test_a_device_that_is_gone_is_forgotten` — parametrised 404 and 410: the row is deleted.
+- `test_a_push_service_having_a_bad_day_is_counted_not_forgotten` — 500: the row stays,
+  `failure_count` 1; a 201 afterwards puts it back to 0.
+- `test_a_push_service_that_cannot_be_reached_fails_nothing` — the transport raises
+  `httpx.ConnectError`: the handler returns, `failure_count` 1.
+- `test_with_no_key_nothing_is_sent_and_nothing_fails` — `vapid_private_key` None: no request.
+- `test_only_its_readers_devices_hear` — a device of SALES_2 beside SALES_1's: one request.
+- `test_a_notification_read_away_by_then_is_not_an_error` — the notification row deleted before the
+  handler runs: it returns.
+
+- [ ] **Step 4: Run them and see them fail**
+
+Run: `cd apps/api && uv run pytest tests/test_push_delivery.py -q`
+Expected: FAIL — no push event is queued; `notify.on_push_requested` does not exist.
+
+- [ ] **Step 5: Sending, and what an answer means**
+
+`notifications/push.py` gains (imports: `Sequence` and `Mapping` from `collections.abc`, `Any`,
+`UUID`, `asyncpg`, `httpx`, `structlog`; `log = structlog.get_logger()`):
+
+```python
+#: How long a push service keeps trying a phone that is off. An hour: "a
+#: customer is waiting" from this morning is not news this afternoon.
+TTL_SECONDS = 3600
+
+
+def client() -> httpx.AsyncClient:
+    """Its own function so a test can hand the sender a push service of its own."""
+    return httpx.AsyncClient(timeout=10)
+
+
+async def send(
+    http: httpx.AsyncClient, device: Mapping[str, Any], payload: bytes, *, private: str, subject: str
+) -> int:
+    """One push to one device: the push service's status, or 0 when it could
+    not be reached."""
+    try:
+        response = await http.post(
+            device["endpoint"],
+            content=encrypt(payload, p256dh=device["p256dh"], auth=device["auth"]),
+            headers={
+                "Authorization": vapid(device["endpoint"], private=private, subject=subject),
+                "Content-Encoding": "aes128gcm",
+                "Content-Type": "application/octet-stream",
+                "TTL": str(TTL_SECONDS),
+                "Urgency": "high",
+            },
+        )
+    except httpx.HTTPError as exc:
+        log.warning("push_unreachable", because=type(exc).__name__)
+        return 0
+    return response.status_code
+
+
+async def deliver(
+    devices: Sequence[Mapping[str, Any]], payload: bytes, *, private: str, subject: str
+) -> dict[UUID, int]:
+    """The payload to each device, and what each push service answered. No
+    database connection is held while this waits on the network."""
+    async with client() as http:
+        return {
+            device["id"]: await send(http, device, payload, private=private, subject=subject)
+            for device in devices
+        }
+
+
+def delivered(status: int) -> bool:
+    return 200 <= status < 300
+
+
+async def record(conn: asyncpg.Connection, answers: Mapping[UUID, int]) -> None:
+    """What an answer means for the device (docs/sales/02-data-model.md § 4):
+    one that is gone is forgotten, one that was reached is remembered, and
+    anything else is only counted — a push service has bad days too."""
+    for device_id, status in answers.items():
+        if status in (404, 410):
+            await conn.execute("delete from push_subscriptions where id = $1", device_id)
+        elif delivered(status):
+            await conn.execute(
+                """update push_subscriptions
+                      set last_success_at = now(), failure_count = 0 where id = $1""",
+                device_id,
+            )
+        else:
+            await conn.execute(
+                "update push_subscriptions set failure_count = failure_count + 1 where id = $1",
+                device_id,
+            )
+```
+
+- [ ] **Step 6: `notify()` asks for the push, and the handler sends it**
+
+`events/handlers/notify.py` — its docstring's "from S7" becomes true. Imports gain `structlog`,
+`get_settings`, `tenant_session`, `push`, and `Event, emit, handler` from `..bus`;
+`log = structlog.get_logger()`.
+
+```python
+#: What reaches a phone (docs/sales/07-frontend.md § 8): somebody is waiting on
+#: you, a task fell due, a lead turned hot. The rest stays in the bell — a
+#: customer's every message, and whatever arrives in batches.
+PUSHED = frozenset(
+    {"assigned", "waiting_due_soon", "waiting_missed", "unassigned_waiting", "task_due", "lead_hot"}
+)
+```
+
+`notify()` learns whether it wrote the row, and asks for the push in the same transaction:
+
+```python
+    """One row, once — and, for the kinds worth interrupting somebody for, one
+    push. `dedupe_key` is what makes "once" true across retries: a row that was
+    already there asks for nothing."""
+    entity = entity or {}
+    notification_id = await conn.fetchval(
+        """insert into notifications (tenant_id, user_id, kind, title, body, href, entity,
+                                      dedupe_key)
+           values ($1, $2, $3, $4, $5, $6, $7, $8)
+           on conflict do nothing
+           returning id""",
+        tenant_id,
+        user_id,
+        kind,
+        title,
+        body,
+        href_for(entity),
+        entity,
+        dedupe_key,
+    )
+    if notification_id is not None and kind in PUSHED:
+        await emit(
+            conn,
+            "notification.push_requested",
+            {"notification_id": str(notification_id)},
+            tenant_id=tenant_id,
+            dedupe_key=f"push:{notification_id}",
+            priority=8,
+        )
+```
+
+The handler, in the same module:
+
+```python
+@handler("notification.push_requested")
+async def on_push_requested(event: Event) -> None:
+    """The notification, on every device its reader subscribed.
+
+    Sent once: the push service does the retrying, for an hour (TTL), and a
+    push later than that is worse than the bell it duplicates.
+    """
+    if event.tenant_id is None:
+        raise ValueError("notification.push_requested requires a tenant")
+    settings = get_settings()
+    if not settings.vapid_private_key:
+        log.info("push_skipped", because="VAPID_PRIVATE_KEY is not set")
+        return
+    notification_id = UUID(str(event.payload["notification_id"]))
+
+    async with tenant_session(event.tenant_id) as conn:
+        note = await conn.fetchrow(
+            """select n.user_id, n.kind, n.title, n.body, n.href, t.slug
+                 from notifications n join tenants t on t.id = n.tenant_id
+                where n.id = $1""",
+            notification_id,
+        )
+        if note is None:
+            return
+        devices = await conn.fetch(
+            "select id, endpoint, p256dh, auth from push_subscriptions where user_id = $1",
+            note["user_id"],
+        )
+    if not devices:
+        return
+
+    answers = await push.deliver(
+        devices,
+        push.message(
+            note["title"],
+            note["body"],
+            href=f"/{note['slug']}{note['href'] or ''}",
+            tag=note["kind"],
+        ),
+        private=settings.vapid_private_key,
+        subject=settings.vapid_subject,
+    )
+    async with tenant_session(event.tenant_id) as conn:
+        await push.record(conn, answers)
+    log.info("pushed", kind=note["kind"], devices=len(devices))
+```
+
+`events/handlers/__init__.py` imports `notify` by name and lists it in `__all__` — its handler must
+not depend on some other module happening to import it.
+
+- [ ] **Step 7: Run them and see them pass**, then everything that notifies:
+
+Run: `cd apps/api && uv run pytest tests/test_push_delivery.py tests/test_assignment.py tests/test_notifications.py tests/test_response_targets.py tests/test_task_due.py tests/test_crm_events.py tests/test_import_contracts.py -q`
+Expected: PASS — `test_every_emitted_event_has_a_handler` now covers
+`notification.push_requested`. A test that counted every event after a notification narrows to its
+own type, as in B1.
+
+- [ ] **Step 8: Commit**
+
+```bash
+git add apps/api/src/dealerai/config.py apps/api/src/dealerai/notifications/push.py apps/api/src/dealerai/events/handlers/notify.py apps/api/src/dealerai/events/handlers/__init__.py apps/api/tests/conftest.py apps/api/tests/test_push_delivery.py
+git commit -m "feat(sales): the notification, on every device its reader subscribed"
+```
+
+---
+
+## Task B5: A device subscribes, is listed, and can be tested — over HTTP
+
+**Files:**
+- Create: `apps/api/src/dealerai/routes/push.py`, `apps/api/src/dealerai/scripts/vapid.py`
+- Modify: `apps/api/src/dealerai/main.py`, `.env.example`, `package.json`,
+  `apps/web/lib/api/openapi.json`, `apps/web/lib/api/schema.ts` (generated)
+- Test: `apps/api/tests/test_push_api.py`
+
+- [ ] **Step 1: Write the failing tests**
+
+`tests/test_push_api.py` — `TestClient`, `reseed_with_people`, `_auth(user)` as in
+`test_notifications.py`, and Task B4's `push_service` and `PHONE`. `SUBSCRIPTION` is `PHONE` plus
+`"user_agent": "Mozilla/5.0 (Linux; Android 14) Chrome/130.0 Mobile"`.
+
+- `test_the_key_a_browser_subscribes_with` — `GET /v1/push/key` is the public half of the configured
+  key, 65 bytes; with no key configured, 503 `push-unavailable`.
+- `test_a_device_subscribes_and_is_listed_to_its_owner_only` — `POST /v1/push-subscriptions` as
+  SALES_1 → 201; `GET` lists it for SALES_1 with its `user_agent` — and no `endpoint`, `p256dh` or
+  `auth` — and lists nothing for SALES_2.
+- `test_subscribing_again_replaces_rather_than_adds` — the same body twice: one row.
+- `test_keys_that_are_not_keys_are_refused` — a `p256dh` that is not a 65-byte uncompressed point,
+  or an `auth` that is not 16 bytes: 400 naming the field.
+- `test_an_address_that_is_no_push_service_is_refused` — `https://localhost:8000/v1/tenants`: 422,
+  and no row.
+- `test_removing_a_device` — `DELETE` → 204 and gone; somebody else's id → 404, still there.
+- `test_a_test_push_goes_to_my_devices_now` — `POST /v1/push-subscriptions/test` → `{"sent": 1,
+  "failed": 0}`; the request opens to a title of "DealerAI" and an `href` ending
+  `/settings/notifications`; `last_success_at` is set.
+- `test_a_test_push_forgets_a_device_that_is_gone` — the service answers 410: `{"sent": 0,
+  "failed": 1}` and the list is empty.
+
+- [ ] **Step 2: Run them and see them fail**
+
+Run: `cd apps/api && uv run pytest tests/test_push_api.py -q`
+Expected: FAIL — 404 on every route.
+
+- [ ] **Step 3: The routes**
+
+`routes/push.py`:
+
+```python
+"""A person's devices, for Web Push (docs/sales/06-api-contract.md § 8).
+
+Everybody may subscribe their own device: there is no permission to hold,
+because the rows are the caller's own (migration 0014) and a push carries only
+what their bell already shows them.
+"""
+
+from __future__ import annotations
+
+from datetime import datetime
+from typing import Any
+from uuid import UUID
+
+from fastapi import APIRouter, status
+from pydantic import BaseModel, Field, field_validator
+
+from ..config import get_settings
+from ..core.errors import AppError, NotFound, Unusable
+from ..db.session import tenant_session
+from ..deps import Ctx
+from ..notifications import push
+
+router = APIRouter(prefix="/v1", tags=["push"])
+
+
+class PushUnavailable(AppError):
+    status = 503
+    slug = "push-unavailable"
+    title = "Push is not configured"
+
+
+class PushKey(BaseModel):
+    public_key: str
+
+
+def _decodes_to(value: str, length: int) -> bytes:
+    try:
+        raw = push.unb64(value)
+    except ValueError as exc:
+        raise ValueError("not base64url") from exc
+    if len(raw) != length:
+        raise ValueError(f"not {length} bytes")
+    return raw
+
+
+class PushSubscriptionIn(BaseModel):
+    """What the browser's PushSubscription holds."""
+
+    endpoint: str = Field(max_length=2048)
+    p256dh: str = Field(max_length=200)
+    auth: str = Field(max_length=64)
+    user_agent: str | None = Field(default=None, max_length=512)
+
+    @field_validator("p256dh")
+    @classmethod
+    def _a_p256_point(cls, value: str) -> str:
+        if _decodes_to(value, 65)[0] != 4:
+            raise ValueError("not an uncompressed point")
+        return value
+
+    @field_validator("auth")
+    @classmethod
+    def _a_secret(cls, value: str) -> str:
+        _decodes_to(value, 16)
+        return value
+
+
+class PushDevice(BaseModel):
+    """A device as its owner sees it — never the address or the keys."""
+
+    id: UUID
+    user_agent: str | None
+    created_at: datetime
+    last_success_at: datetime | None
+
+
+class PushTest(BaseModel):
+    sent: int
+    failed: int
+
+
+_DEVICE = "id, user_agent, created_at, last_success_at"
+
+
+def _key() -> str:
+    key = get_settings().vapid_private_key
+    if not key:
+        raise PushUnavailable("VAPID_PRIVATE_KEY is not set")
+    return key
+
+
+@router.get("/push/key", response_model=PushKey)
+async def push_key(ctx: Ctx) -> PushKey:
+    """The public half: what a browser subscribes with."""
+    return PushKey(public_key=push.public_key(_key()))
+
+
+@router.get("/push-subscriptions", response_model=list[PushDevice])
+async def my_devices(ctx: Ctx) -> list[dict[str, Any]]:
+    async with tenant_session(ctx.tenant_id, user_id=ctx.user.id, scope=ctx.scope) as conn:
+        rows = await conn.fetch(
+            f"select {_DEVICE} from push_subscriptions order by created_at desc"  # noqa: S608
+        )
+    return [dict(row) for row in rows]
+
+
+@router.post("/push-subscriptions", response_model=PushDevice, status_code=status.HTTP_201_CREATED)
+async def subscribe(body: PushSubscriptionIn, ctx: Ctx) -> dict[str, Any]:
+    """This device, for this person — whoever had it before (migration 0014)."""
+    _key()
+    if not push.is_push_service(body.endpoint):
+        raise Unusable("that address is not a push service this server sends to")
+    async with tenant_session(ctx.tenant_id, user_id=ctx.user.id, scope=ctx.scope) as conn:
+        device_id = await conn.fetchval(
+            "select app.remember_push_subscription($1, $2, $3, $4, $5, $6)",
+            ctx.tenant_id,
+            ctx.user.id,
+            body.endpoint,
+            body.p256dh,
+            body.auth,
+            body.user_agent,
+        )
+        row = await conn.fetchrow(
+            f"select {_DEVICE} from push_subscriptions where id = $1",  # noqa: S608
+            device_id,
+        )
+    return dict(row)
+
+
+@router.delete("/push-subscriptions/{device_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def unsubscribe(device_id: UUID, ctx: Ctx) -> None:
+    async with tenant_session(ctx.tenant_id, user_id=ctx.user.id, scope=ctx.scope) as conn:
+        gone = await conn.fetchval(
+            "delete from push_subscriptions where id = $1 returning id", device_id
+        )
+    if gone is None:
+        raise NotFound("no such device")
+
+
+@router.post("/push-subscriptions/test", response_model=PushTest)
+async def test_push(ctx: Ctx) -> PushTest:
+    """A push to the caller's own devices, now — how somebody finds out whether
+    their phone will tell them, before a customer is what finds out."""
+    settings = get_settings()
+    key = _key()
+    async with tenant_session(ctx.tenant_id, user_id=ctx.user.id, scope=ctx.scope) as conn:
+        devices = await conn.fetch("select id, endpoint, p256dh, auth from push_subscriptions")
+        slug = await conn.fetchval("select slug from tenants where id = $1", ctx.tenant_id)
+    answers = await push.deliver(
+        devices,
+        push.message(
+            "DealerAI",
+            "Notifications are on for this device.",
+            href=f"/{slug}/settings/notifications",
+            tag="test",
+        ),
+        private=key,
+        subject=settings.vapid_subject,
+    )
+    async with tenant_session(ctx.tenant_id, user_id=ctx.user.id, scope=ctx.scope) as conn:
+        await push.record(conn, answers)
+    sent = sum(1 for answer in answers.values() if push.delivered(answer))
+    return PushTest(sent=sent, failed=len(answers) - sent)
+```
+
+`main.py` imports `push` among the routes and includes `push.router` after `notifications.router`.
+
+- [ ] **Step 4: A key for this machine, written and never printed**
+
+`scripts/vapid.py`:
+
+```python
+"""A VAPID key for this machine's .env (`npm run vapid:keys`).
+
+Written to the file, never to the terminal: a secret printed is a secret in a
+scrollback, a log and a chat. The public half is not secret and is served at
+GET /v1/push/key. Changing the key orphans every subscription made with the
+old one, so a key that is already there is left alone.
+"""
+
+from __future__ import annotations
+
+import re
+
+from cryptography.hazmat.primitives.asymmetric import ec
+
+from ..config import repo_root
+from ..notifications.push import b64
+
+LINE = re.compile(r"^VAPID_PRIVATE_KEY=.*$", re.M)
+
+
+def main() -> int:
+    path = repo_root() / ".env"
+    text = path.read_text("utf-8") if path.exists() else ""
+    existing = LINE.search(text)
+    if existing and existing.group().partition("=")[2].strip():
+        print("VAPID_PRIVATE_KEY is already set in .env; left alone.")
+        return 0
+    scalar = ec.generate_private_key(ec.SECP256R1()).private_numbers().private_value
+    line = f"VAPID_PRIVATE_KEY={b64(scalar.to_bytes(32, 'big'))}"
+    text = LINE.sub(line, text) if existing else f"{text.rstrip()}\n\n{line}\n"
+    path.write_text(text, "utf-8")
+    print("VAPID_PRIVATE_KEY written to .env. Restart the API and the worker.")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+```
+
+`package.json`: `"vapid:keys": "cd apps/api && uv run python -m dealerai.scripts.vapid"`.
+`.env.example` gains, after the WhatsApp settings:
+
+```
+# Web Push (docs/sales/07-frontend.md § 8). `npm run vapid:keys` writes a private key
+# here without printing it; without one nothing is pushed and the bell works as before.
+# The subject is who a push service writes to about this sender: a real mailto: or
+# https: address in production.
+VAPID_PRIVATE_KEY=
+VAPID_SUBJECT=mailto:push@dealerai.local
+```
+
+- [ ] **Step 5: Run them, then the contract**
+
+Run: `cd apps/api && uv run pytest tests/test_push_api.py -q && uv run mypy src && uv run ruff check . && uv run ruff format --check .`, then `npm run api-types`.
+Expected: PASS; `openapi.json` and `schema.ts` gain the five routes.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add apps/api/src/dealerai/routes/push.py apps/api/src/dealerai/scripts/vapid.py apps/api/src/dealerai/main.py apps/api/tests/test_push_api.py .env.example package.json apps/web/lib/api/openapi.json apps/web/lib/api/schema.ts
+git commit -m "feat(sales): a device subscribes, is listed, and can be tested"
+```
+
+---
+
+## Task B6: Installable — the manifest, the icons, the worker, and a page for no network
+
+**Files:**
+- Create: `apps/web/app/manifest.ts`, `apps/web/app/icon.tsx`, `apps/web/app/apple-icon.tsx`,
+  `apps/web/public/sw.js`, `apps/web/public/offline.html`, `apps/web/components/ServiceWorker.tsx`
+- Modify: `apps/web/proxy.ts`, `apps/web/app/layout.tsx`, `apps/api/src/dealerai/routes/tenants.py`
+- Test: `apps/web/app/manifest.test.ts`, `apps/web/lib/sw.test.ts`, `apps/web/proxy.test.ts`,
+  `apps/api/tests/test_tenants.py`
+
+- [ ] **Step 1: Write the failing tests**
+
+`app/manifest.test.ts`:
+
+- "is installable" — `manifest()` has a `name`, `start_url` `/`, `display` `standalone`, and PNG
+  icons at 192 and 512, one of them `maskable`.
+
+`lib/sw.test.ts` runs `public/sw.js` against a pretend worker scope — it is not a module, so the
+test reads the file and hands it a `self` that collects its listeners, a `caches` and a `fetch`:
+
+- "keeps the offline page and an icon, and nothing a customer said" — the install listener caches
+  exactly `/offline.html` and `/icon/192`.
+- "answers a page load with the offline page when there is no network" — a `navigate` request whose
+  `fetch` rejects is answered with the cached page.
+- "leaves everything else alone" — a request to `http://localhost:8000/v1/conversations` (mode
+  `cors`) is not answered: `respondWith` is never called.
+- "shows what was pushed" — a push whose `data.json()` is `{title, body, href, tag}` calls
+  `showNotification(title, { body, tag, data: { href }, … })`.
+- "opens what was tapped" — `notificationclick` closes the notification and focuses a window
+  already on that address, or opens one.
+
+`proxy.test.ts` — the matcher is a regular expression in a string; a too-greedy exclusion would
+open pages, so it is pinned:
+
+- "lets a browser fetch what makes the app installable" — `/manifest.webmanifest`, `/sw.js`,
+  `/offline.html`, `/icon/192`, `/icon/512` and `/apple-icon` do not match.
+- "still gates every page" — `/pollux-motors/inbox`, `/icon-motors/inbox`, `/icons`,
+  `/apple-icon-cars/settings` and `/pollux-motors/settings/notifications` match.
+
+`tests/test_tenants.py`:
+
+- `test_a_workspace_cannot_take_an_address_the_app_answers_at` — `POST /v1/tenants` with slug
+  `login`, `auth`, `icon`: 409, the same answer as a slug somebody has.
+
+- [ ] **Step 2: Run them and see them fail**
+
+Run: `npm run test --workspace web -- app/manifest.test.ts lib/sw.test.ts proxy.test.ts`, and
+`cd apps/api && uv run pytest tests/test_tenants.py -q`
+Expected: FAIL — no manifest, no worker, the matcher gates them all, and the slugs are accepted.
+
+- [ ] **Step 3: The manifest and the icons**
+
+`app/manifest.ts`:
+
+```ts
+import type { MetadataRoute } from "next";
+
+/** What makes the app installable ([07] § 8). The icons are drawn in app/icon.tsx. */
+export default function manifest(): MetadataRoute.Manifest {
+  return {
+    name: "DealerAI",
+    short_name: "DealerAI",
+    description: "The dealership's customers, in one inbox.",
+    start_url: "/",
+    display: "standalone",
+    background_color: "#0a2540",
+    theme_color: "#0a2540",
+    icons: [
+      { src: "/icon/192", sizes: "192x192", type: "image/png" },
+      { src: "/icon/512", sizes: "512x512", type: "image/png" },
+      { src: "/icon/512", sizes: "512x512", type: "image/png", purpose: "maskable" },
+    ],
+  };
+}
+```
+
+`app/icon.tsx` — a white **D** on the brand's navy, the letter inside the middle of the square so a
+maskable crop keeps it:
+
+```tsx
+import { ImageResponse } from "next/og";
+
+export function generateImageMetadata() {
+  return [192, 512].map((size) => ({
+    id: String(size),
+    size: { width: size, height: size },
+    contentType: "image/png",
+  }));
+}
+
+/** The app's icon, as code: nothing binary to keep in step with the brand colour. */
+export default async function Icon({ id }: { id: Promise<string> | string }) {
+  const size = Number(await id);
+  return new ImageResponse(
+    (
+      <div
+        style={{
+          width: "100%",
+          height: "100%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "#0a2540",
+          color: "white",
+          fontSize: size * 0.5,
+          fontWeight: 700,
+        }}
+      >
+        D
+      </div>
+    ),
+    { width: size, height: size },
+  );
+}
+```
+
+`app/apple-icon.tsx` is the same drawing at 180 × 180 (`export const size`, `contentType`).
+
+- [ ] **Step 4: The service worker and its page**
+
+`public/sw.js`:
+
+```js
+// The app's service worker (docs/sales/07-frontend.md § 8). It keeps one page —
+// what to show with no network — and an icon; never an API response, and never
+// anything a customer said. It shows what is pushed and opens what is tapped.
+const CACHE = "dealerai-shell-v1";
+const SHELL = ["/offline.html", "/icon/192"];
+
+self.addEventListener("install", (event) => {
+  event.waitUntil(
+    caches
+      .open(CACHE)
+      .then((cache) => cache.addAll(SHELL))
+      .then(() => self.skipWaiting()),
+  );
+});
+
+self.addEventListener("activate", (event) => {
+  event.waitUntil(
+    caches
+      .keys()
+      .then((names) => Promise.all(names.filter((n) => n !== CACHE).map((n) => caches.delete(n))))
+      .then(() => self.clients.claim()),
+  );
+});
+
+self.addEventListener("fetch", (event) => {
+  // Only a page load that fails for want of a network gets the offline page.
+  // Everything else — the API, the app's own files, images — is not ours to answer.
+  if (event.request.mode !== "navigate") return;
+  event.respondWith(fetch(event.request).catch(() => caches.match("/offline.html")));
+});
+
+self.addEventListener("push", (event) => {
+  const said = event.data ? event.data.json() : {};
+  event.waitUntil(
+    self.registration.showNotification(said.title || "DealerAI", {
+      body: said.body || undefined,
+      tag: said.tag,
+      data: { href: said.href || "/" },
+      icon: "/icon/192",
+      badge: "/icon/192",
+    }),
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const href = new URL(event.notification.data?.href || "/", self.location.origin).href;
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((windows) => {
+      const open = windows.find((w) => w.url === href);
+      return open ? open.focus() : self.clients.openWindow(href);
+    }),
+  );
+});
+```
+
+`public/offline.html` — one static page with no script and its own few lines of CSS, in both
+languages: "You are offline. DealerAI needs a connection to show your customers." / "أنت غير متصل
+بالإنترنت. يحتاج DealerAI إلى اتصال لعرض عملائك.", and a *Try again · حاول مرة أخرى* link to `/`.
+
+- [ ] **Step 5: Through the gate, registered, and no workspace in the way**
+
+`proxy.ts` — a signed-out browser can fetch what makes the app installable, and nothing else new:
+
+```ts
+export const config = {
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest$|sw.js$|offline.html$|icon/\\d+$|apple-icon$|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+  ],
+};
+```
+
+`components/ServiceWorker.tsx`:
+
+```tsx
+"use client";
+
+import { useEffect, useSyncExternalStore } from "react";
+
+/** Chrome's offer to install. Not in lib.dom: only Chromium has it. */
+type InstallOffer = Event & { prompt: () => Promise<unknown> };
+
+let offer: InstallOffer | null = null;
+const watchers = new Set<() => void>();
+
+function keep(next: InstallOffer | null) {
+  offer = next;
+  watchers.forEach((watcher) => watcher());
+}
+
+/** The browser's offer to install the app, until it is taken — null on an
+ *  iPhone, where installing is Share → Add to Home Screen, and once installed. */
+export function useInstallOffer(): InstallOffer | null {
+  return useSyncExternalStore(
+    (watcher) => {
+      watchers.add(watcher);
+      return () => watchers.delete(watcher);
+    },
+    () => offer,
+    () => null,
+  );
+}
+
+/** Registers the service worker ([07] § 8) and keeps the offer to install. Renders nothing. */
+export function ServiceWorker() {
+  useEffect(() => {
+    if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
+    const offered = (event: Event) => {
+      event.preventDefault(); // ours to show, in Settings → Notifications
+      keep(event as InstallOffer);
+    };
+    const installed = () => keep(null);
+    window.addEventListener("beforeinstallprompt", offered);
+    window.addEventListener("appinstalled", installed);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", offered);
+      window.removeEventListener("appinstalled", installed);
+    };
+  }, []);
+  return null;
+}
+```
+
+`app/layout.tsx` renders `<ServiceWorker />` inside `<body>`, after `{children}`.
+
+`routes/tenants.py` — beside `EMAIL`, and checked in `create_tenant` before the insert, with the
+sentence a taken slug already gets:
+
+```python
+#: Addresses the web app itself answers at its root (apps/web/app). A workspace
+#: with one of these as its slug could never be opened: the app's own page
+#: would answer instead.
+RESERVED_SLUGS = frozenset(
+    {"login", "signup", "auth", "onboarding", "accept-invite", "dev-login", "icon", "apple-icon"}
+)
+```
+
+```python
+    if body.slug in RESERVED_SLUGS:
+        raise Conflict(f"the slug {body.slug!r} is taken")
+```
+
+- [ ] **Step 6: Run the checks**
+
+Run: `npm run check --workspace web`, and `cd apps/api && uv run pytest tests/test_tenants.py -q`
+Expected: PASS.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add apps/web/app/manifest.ts apps/web/app/manifest.test.ts apps/web/app/icon.tsx apps/web/app/apple-icon.tsx apps/web/public/sw.js apps/web/public/offline.html apps/web/lib/sw.test.ts apps/web/components/ServiceWorker.tsx apps/web/proxy.ts apps/web/proxy.test.ts apps/web/app/layout.tsx apps/api/src/dealerai/routes/tenants.py apps/api/tests/test_tenants.py
+git commit -m "feat(web): installable, with a service worker that keeps nothing a customer said"
+```
+
+---
+
+## Task B7: Settings → Notifications
+
+**Files:**
+- Create: `apps/web/lib/push.ts`, `apps/web/components/settings/NotificationSettings.tsx`,
+  `apps/web/app/[tenant]/settings/notifications/page.tsx`
+- Modify: `apps/web/components/settings/sections.ts`, `apps/web/lib/api/hooks.ts`,
+  `apps/web/lib/api/keys.ts`, `apps/web/messages/{en,ar}.ts`
+- Test: `apps/web/lib/push.test.ts`, `apps/web/components/settings/NotificationSettings.test.tsx`,
+  `apps/web/components/settings/sections.test.ts`
+
+- [ ] **Step 1: Write the failing tests**
+
+`lib/push.test.ts`:
+
+- "turns the server's key into what subscribe() takes" — `keyBytes` of the RFC's public key is 65
+  bytes starting with 4.
+- "knows an iPhone that has not been added to the Home Screen" — `needsHomeScreen(userAgent,
+  standalone)` is true for an iPhone Safari user agent in a tab, false once standalone, false for
+  Android Chrome.
+- "names a device by its browser and system" — "Chrome · Android", "Safari · iPhone", "Chrome ·
+  iPhone" (CriOS), "Edge · Windows", "Firefox · Linux", and an empty name for nothing at all.
+
+`components/settings/sections.test.ts`:
+
+- "lets anyone open their notifications" — `mayOpen("/pollux-motors/settings/notifications", [])`.
+- "still starts a salesperson on the quick replies" — `firstSection([])` is Quick replies.
+
+`components/settings/NotificationSettings.test.tsx` (`@/lib/api/hooks`, `@/lib/push` and
+`@/components/ServiceWorker` mocked):
+
+- "says so when this browser cannot push" — `supportsPush()` false: `notifications.unsupported`,
+  and no button to turn anything on.
+- "explains the Home Screen first on an iPhone" — `needsHomeScreen` true: the iOS note, no button.
+- "says when the server has no key" — the key query failed: `notifications.unconfigured`.
+- "turns notifications on for this device" — the button calls `subscribeThisDevice(key)`, then
+  `useSubscribeDevice().mutate` with what it returned, and remembers the id the API answered with.
+- "says when the browser has been told no" — `subscribeThisDevice` rejects with "denied":
+  `notifications.blocked`.
+- "lists my devices, marks this one, and removes one" — two devices; the remembered id is marked
+  *This device*; Remove calls `useRemoveDevice().mutate(id)`, and removing this one also silences
+  the browser.
+- "sends a test and says how it went" — `{sent: 2, failed: 0}` reads "Sent to 2 devices".
+- "offers to install when the browser does" — an install offer: the button calls its `prompt()`.
+
+- [ ] **Step 2: Run them and see them fail**
+
+Run: `npm run test --workspace web -- lib/push.test.ts components/settings`
+Expected: FAIL.
+
+- [ ] **Step 3: `lib/push.ts`**
+
+```ts
+/** What the browser side of Web Push needs ([07] § 8). */
+
+export function supportsPush(): boolean {
+  return "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+}
+
+/** The server's base64url key as the bytes subscribe() takes. */
+export function keyBytes(base64url: string) {
+  const base64 = base64url.replace(/-/g, "+").replace(/_/g, "/");
+  return Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+}
+
+/** On an iPhone, notifications only work once the app is on the Home Screen (iOS 16.4+). */
+export function needsHomeScreen(userAgent: string, standalone: boolean): boolean {
+  return /iPhone|iPad|iPod/.test(userAgent) && !standalone;
+}
+
+export function isStandalone(): boolean {
+  return (
+    window.matchMedia("(display-mode: standalone)").matches ||
+    (navigator as { standalone?: boolean }).standalone === true
+  );
+}
+
+// Order matters: Edge and Chrome both say Safari, an iPhone says Mac, Android says Linux.
+const BROWSERS = [
+  ["Edg/", "Edge"],
+  ["Firefox/", "Firefox"],
+  ["CriOS/", "Chrome"],
+  ["Chrome/", "Chrome"],
+  ["Safari/", "Safari"],
+];
+const SYSTEMS = [
+  ["iPhone", "iPhone"],
+  ["iPad", "iPad"],
+  ["Android", "Android"],
+  ["Windows", "Windows"],
+  ["Mac OS X", "Mac"],
+  ["Linux", "Linux"],
+];
+
+/** "Chrome · Android" — enough to tell two of your own devices apart, with no
+ *  word to translate. Empty when the browser said nothing we recognise. */
+export function deviceName(userAgent: string | null | undefined): string {
+  const named = (table: string[][]) => table.find(([mark]) => (userAgent ?? "").includes(mark))?.[1];
+  return [named(BROWSERS), named(SYSTEMS)].filter(Boolean).join(" · ");
+}
+
+/** Ask, subscribe, and hand back what the API stores. Throws "denied" when the
+ *  person — or their browser's settings — said no. */
+export async function subscribeThisDevice(publicKey: string) {
+  if ((await Notification.requestPermission()) !== "granted") throw new Error("denied");
+  const registration = await navigator.serviceWorker.ready;
+  const options = { userVisibleOnly: true, applicationServerKey: keyBytes(publicKey) };
+  const subscription = await registration.pushManager.subscribe(options).catch(async () => {
+    // Subscribed once with another server's key: drop that and ask again.
+    await (await registration.pushManager.getSubscription())?.unsubscribe();
+    return registration.pushManager.subscribe(options);
+  });
+  const { endpoint, keys } = subscription.toJSON();
+  if (!endpoint || !keys?.p256dh || !keys.auth) throw new Error("incomplete");
+  return { endpoint, p256dh: keys.p256dh, auth: keys.auth, user_agent: navigator.userAgent };
+}
+
+/** Stop this browser receiving pushes. The push service then answers "gone"
+ *  for it, and the server forgets the device. Never throws: nothing that
+ *  calls this should fail over a notification. */
+export async function silenceThisDevice(): Promise<void> {
+  try {
+    rememberDevice(null);
+    if (!("serviceWorker" in navigator)) return;
+    const registration = await navigator.serviceWorker.getRegistration();
+    await (await registration?.pushManager?.getSubscription())?.unsubscribe();
+  } catch {
+    // An unsupported or half-supported browser has nothing to silence.
+  }
+}
+
+const DEVICE = "push-device";
+
+/** Which listed device is this browser: the id the API gave it, kept here.
+ *  Storage can be refused (a private window); then no device is marked. */
+export function rememberedDevice(): string | null {
+  try {
+    return localStorage.getItem(DEVICE);
+  } catch {
+    return null;
+  }
+}
+
+export function rememberDevice(id: string | null): void {
+  try {
+    if (id) localStorage.setItem(DEVICE, id);
+    else localStorage.removeItem(DEVICE);
+  } catch {
+    // See rememberedDevice.
+  }
+}
+```
+
+- [ ] **Step 4: The hooks, the section, the screen**
+
+`keys.ts`: `pushKey`, `pushDevices`. `hooks.ts`: `usePushKey()` (`GET /v1/push/key`, `retry: false`
+— a 503 is an answer), `usePushDevices()`, `useSubscribeDevice()` (`POST`, invalidates the devices),
+`useRemoveDevice()` (`DELETE`), `useTestPush()` (`POST …/test`, invalidates the devices: a test can
+forget one).
+
+`sections.ts` appends `{ href: "/settings/notifications", key: "settings.notifications" }` — last,
+with no permission: everybody has a phone, and `firstSection`'s fallback stays Quick replies.
+
+`NotificationSettings.tsx`, in order: what you will be told; this device; installing; my devices; a
+test. The decision-carrying parts:
+
+```tsx
+  // undefined until the browser has been asked: none of this exists on the server.
+  const [device, setDevice] = useState<
+    { can: boolean; homeScreen: boolean; mine: string | null } | undefined
+  >(undefined);
+  useEffect(() => {
+    setDevice({
+      can: supportsPush(),
+      homeScreen: needsHomeScreen(navigator.userAgent, isStandalone()),
+      mine: rememberedDevice(),
+    });
+  }, []);
+
+  const on = Boolean(device?.mine && (devices.data ?? []).some((d) => d.id === device.mine));
+
+  async function turnOn() {
+    setProblem(null);
+    try {
+      const subscription = await subscribeThisDevice(key.data!.public_key);
+      subscribe.mutate(subscription, {
+        onSuccess: (saved) => {
+          rememberDevice(saved.id);
+          setDevice((current) => current && { ...current, mine: saved.id });
+        },
+        onError: () => setProblem(t("notifications.failed")),
+      });
+    } catch (error) {
+      setProblem(
+        (error as Error).message === "denied" ? t("notifications.blocked") : t("notifications.failed"),
+      );
+    }
+  }
+
+  function forget(id: string) {
+    remove.mutate(id);
+    if (id === device?.mine) {
+      // This browser: stop it at the source too, or it would say "on" and hear nothing.
+      void silenceThisDevice();
+      setDevice((current) => current && { ...current, mine: null });
+    }
+  }
+```
+
+This device says, first match wins: the Home Screen note (`homeScreen`) · unsupported (`!can`) ·
+unconfigured (the key query failed) · *on* · the button. A device removed elsewhere is no longer in
+the list, so this browser reads *off* and offers the button again — it never claims a push it would
+not get.
+
+Strings, both languages:
+
+| Key | English | Arabic |
+|---|---|---|
+| `settings.notifications` | Notifications | الإشعارات |
+| `notifications.what` | Your phone tells you when a customer is assigned to you, when one has waited too long, when a task falls due and when a lead turns hot — even with the app closed. | يخبرك هاتفك عند إسناد عميل إليك، وعند تأخر الرد عليه، وعند حلول موعد مهمة، وعندما تصبح فرصة ساخنة — حتى والتطبيق مغلق. |
+| `notifications.thisDevice` | This device | هذا الجهاز |
+| `notifications.turnOn` | Turn on notifications on this device | فعّل الإشعارات على هذا الجهاز |
+| `notifications.on` | Notifications are on for this device. | الإشعارات مفعّلة على هذا الجهاز. |
+| `notifications.unsupported` | This browser cannot receive notifications. | هذا المتصفح لا يستقبل الإشعارات. |
+| `notifications.unconfigured` | Notifications are not set up on this server yet. | الإشعارات غير مهيأة على هذا الخادم بعد. |
+| `notifications.blocked` | Notifications are blocked for this site. Allow them in your browser's settings, then try again. | الإشعارات محظورة لهذا الموقع. اسمح بها من إعدادات المتصفح ثم حاول مرة أخرى. |
+| `notifications.failed` | That did not work. Try again. | لم ينجح ذلك. حاول مرة أخرى. |
+| `notifications.ios` | On an iPhone: tap Share, then Add to Home Screen, and open DealerAI from there to turn notifications on. | على الآيفون: اضغط «مشاركة» ثم «إضافة إلى الشاشة الرئيسية»، وافتح DealerAI من هناك لتفعيل الإشعارات. |
+| `notifications.install` | Install the app | ثبّت التطبيق |
+| `notifications.devices` | My devices | أجهزتي |
+| `notifications.noDevices` | No device is subscribed yet. | لا يوجد جهاز مشترك بعد. |
+| `notifications.someDevice` | A device | جهاز |
+| `notifications.lastReached` | last reached | آخر وصول |
+| `notifications.neverReached` | not reached yet | لم يصله إشعار بعد |
+| `notifications.remove` | Remove | إزالة |
+| `notifications.test` | Send a test notification | أرسل إشعارًا تجريبيًا |
+| `notifications.testSent` | Sent to this many devices: | أُرسل إلى هذا العدد من الأجهزة: |
+| `notifications.testFailed` | Could not reach this many: | تعذّر الوصول إلى هذا العدد: |
+
+- [ ] **Step 5: Run the checks**
+
+Run: `npm run check --workspace web`
+Expected: PASS.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add apps/web/lib/push.ts apps/web/lib/push.test.ts apps/web/components/settings/NotificationSettings.tsx apps/web/components/settings/NotificationSettings.test.tsx "apps/web/app/[tenant]/settings/notifications/page.tsx" apps/web/components/settings/sections.ts apps/web/components/settings/sections.test.ts apps/web/lib/api/hooks.ts apps/web/lib/api/keys.ts apps/web/messages/en.ts apps/web/messages/ar.ts
+git commit -m "feat(web): Settings → Notifications: this device, my devices, a test"
+```
+
+---
+
+## Task B8: Signing out, which silences the device first
+
+**Files:**
+- Create: `apps/web/lib/auth/sign-out.ts`, `apps/web/components/SignOutButton.tsx`
+- Modify: `apps/web/app/[tenant]/settings/layout.tsx`, `apps/web/components/auth/JoinInvitation.tsx`,
+  `apps/web/messages/{en,ar}.ts`
+- Test: `apps/web/components/SignOutButton.test.tsx`
+
+- [ ] **Step 1: Write the failing tests**
+
+`components/SignOutButton.test.tsx` (`@/lib/push`, `@/lib/supabase/client` and `@/lib/dev-auth`
+mocked):
+
+- "silences this device before the session ends" — the order of calls is `silenceThisDevice`, then
+  `auth.signOut`.
+- "then leaves for the front door" — `window.location.assign("/")`, where the gate sends a
+  signed-out visitor to sign-in.
+- "clears the local session in dev mode" — with `DEV_AUTH`, the `dev_token` cookie is gone and
+  Supabase is not called.
+
+- [ ] **Step 2: Run them and see them fail**
+
+Run: `npm run test --workspace web -- components/SignOutButton.test.tsx`
+Expected: FAIL — the component does not exist.
+
+- [ ] **Step 3: One way out**
+
+`lib/auth/sign-out.ts`:
+
+```ts
+import { DEV_AUTH } from "@/lib/dev-auth";
+import { silenceThisDevice } from "@/lib/push";
+import { createClient } from "@/lib/supabase/client";
+
+/** Signing out, wherever the session lives — after silencing this device: a
+ *  phone that changes hands must not keep showing the last person's customers
+ *  on its lock screen. */
+export async function signOut(): Promise<void> {
+  await silenceThisDevice();
+  if (DEV_AUTH) document.cookie = "dev_token=; path=/; max-age=0; samesite=lax";
+  else await createClient().auth.signOut();
+}
+```
+
+`components/SignOutButton.tsx` — a client button, `t("auth.signOut")`, that awaits `signOut()` and
+then `window.location.assign("/")`. `app/[tenant]/settings/layout.tsx` renders it after the
+sections, inside the same `<nav>`: one place that is on screen on a phone and on a desk.
+`JoinInvitation.tsx` drops its own copy for `signOut().then(() => window.location.reload())`.
+
+Strings: `auth.signOut` — Sign out / تسجيل الخروج.
+
+- [ ] **Step 4: Run the checks**
+
+Run: `npm run check --workspace web`
+Expected: PASS.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add apps/web/lib/auth/sign-out.ts apps/web/components/SignOutButton.tsx apps/web/components/SignOutButton.test.tsx "apps/web/app/[tenant]/settings/layout.tsx" apps/web/components/auth/JoinInvitation.tsx apps/web/messages/en.ts apps/web/messages/ar.ts
+git commit -m "feat(web): signing out, which silences the device first"
+```
+
+---
+
+## Task B9: The whole check, then a push in a browser
+
+**Files:**
+- Modify: `docs/sales/plans/s7-pilot-readiness.md` (a Part B review), `docs/sales/README.md`
+
+- [ ] **Step 1: The whole check**
+
+Stop the worker. Run: `npm run check && npm run check:openapi`
+Expected: every suite green, the guards at 100%, no drift.
+
+- [ ] **Step 2: The path, locally, in a browser**
+
+`npm run vapid:keys`, `npm run db:seed`, the API, the worker and the web app. Write down what
+actually happens:
+
+1. Signed out, the browser is served `/manifest.webmanifest` (it parses, and its icons are PNGs of
+   the size they claim), `/sw.js` and `/offline.html`; every page is still gated.
+2. The worker registers; its cache holds exactly the offline page and one icon.
+3. With the network cut, a page load shows the offline page in both languages; back online, the app.
+4. **Ahmed** opens Settings → Notifications — it is there for a salesperson — and turns
+   notifications on: one `push_subscriptions` row, listed and marked as this device.
+5. *Send a test notification*: the count comes back, and the notification arrives.
+6. A simulated customer is assigned to Ahmed: his device is pushed "A customer is waiting for you";
+   tapping it opens the conversation.
+7. A task of his created to fall due in a minute: `task_due` in the bell, and pushed.
+8. A device the push service calls gone disappears from his list.
+9. Signing out silences the device: the browser's subscription is gone.
+10. Arabic at 375 px: the Notifications screen reads right to left with no sideways scroll, and the
+    iOS note shows for an iPhone that has not added the app.
+
+Where this machine's browser has no push service to subscribe with, steps 4–8 are recorded as
+verified against the automated push service of Tasks B4 and B5 — which opens what was sent with the
+device's own key — and a real phone is Part D's.
+
+- [ ] **Step 3: The review, and commit**
+
+Append `## Part B review — <date>` to this plan, in the shape of Part A's, and update the Code row
+in `docs/sales/README.md`.
+
+```bash
+git add docs/sales/plans/s7-pilot-readiness.md docs/sales/README.md
+git commit -m "docs(sales): S7 Part B, installable app and push, with the run recorded"
+```
+
+---
+
+## Spec coverage (Part B)
+
+| Requirement | Task |
+|---|---|
+| [07](../07-frontend.md) §8 — `app/manifest.ts`; a service worker caching only the shell and static assets, never API responses or customer data; an offline page | B6 |
+| §8 — install prompts: `beforeinstallprompt`, and the explanation on iOS Safari | B6 (kept), B7 (shown) |
+| §8 — Web Push with VAPID; subscribe in Settings → Notifications; `POST /v1/push-subscriptions`; the worker sends | B3, B4, B5, B7 |
+| §8 — Phase 1 sends assignment, waiting-too-long, task-due and hot-lead | B4 (`PUSHED`); B1–B2 (task-due did not exist) |
+| [06](../06-api-contract.md) §8 — `POST` and `DELETE /v1/push-subscriptions` | B5, with the list, the key and the test the screen needs |
+| [02](../02-data-model.md) §4 — `push_subscriptions`, a row deleted on 404 or 410; own rows | B1, B4 |
+| [05](../05-workflows.md) §1 — `notification.push_requested`, priority 8 | B4 |
+| [08](../08-screens.md) §13 — Notifications (everyone): enable push, per-device list, a test notification, the iOS note | B7 |
+
+## Execution (Part B)
+
+Inline in this session with `superpowers:executing-plans`, as Part A was — no subagents unless
+asked. Checkpoints after Task B5 (the backend), Task B8 (the app), and Task B9.
