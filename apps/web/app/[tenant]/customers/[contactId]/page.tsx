@@ -17,8 +17,8 @@ import {
   useTasks,
 } from "@/lib/api/hooks";
 import { useFilters } from "@/lib/filters";
-import { countryFlag, formatMoney, formatRelative } from "@/lib/format";
-import { useT } from "@/lib/i18n-client";
+import { countryFlag, formatDue, formatMoney } from "@/lib/format";
+import { useLocale, useT } from "@/lib/i18n-client";
 
 const TABS = ["timeline", "leads", "tasks", "profile"] as const;
 const FIELDS = [
@@ -39,6 +39,7 @@ export default function CustomerPage({
 }) {
   const { tenant, contactId } = use(params);
   const t = useT();
+  const locale = useLocale();
   const router = useRouter();
   const me = useMe();
   const customer = useCustomer(contactId);
@@ -189,7 +190,7 @@ export default function CustomerPage({
                 <li key={task.id} className="flex justify-between gap-2 py-2 text-sm">
                   <span>{task.title}</span>
                   <time className="text-muted text-xs" dateTime={task.due_at}>
-                    {formatRelative(task.due_at)}
+                    {formatDue(task.due_at, locale)}
                   </time>
                 </li>
               ))}

@@ -2,8 +2,8 @@
 
 import type { Lead, Stage } from "@/lib/api/hooks";
 import { useNow } from "@/lib/clock";
-import { countryFlag, formatMoney, formatRelative } from "@/lib/format";
-import { useT } from "@/lib/i18n-client";
+import { countryFlag, formatDue, formatMoney } from "@/lib/format";
+import { useLocale, useT } from "@/lib/i18n-client";
 
 const BAND_TONE: Record<string, string> = {
   hot: "bg-red-500/15 text-red-700 dark:text-red-300",
@@ -33,6 +33,7 @@ export function LeadCard({
   now?: number;
 }) {
   const t = useT();
+  const locale = useLocale();
   const clock = useNow(60_000, now);
   // Never below zero: the ticking clock lags by up to a minute, and a lead
   // moved a second ago would otherwise read "-1 days here".
@@ -74,7 +75,7 @@ export function LeadCard({
           </span>
           {lead.next_action_at && (
             <span>
-              {t("pipeline.nextAction")} {formatRelative(lead.next_action_at, new Date(clock))}
+              {t("pipeline.nextAction")} {formatDue(lead.next_action_at, locale, new Date(clock))}
             </span>
           )}
         </span>

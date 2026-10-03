@@ -3,8 +3,8 @@
 import Link from "next/link";
 import type { Task } from "@/lib/api/hooks";
 import { useNow } from "@/lib/clock";
-import { formatRelative } from "@/lib/format";
-import { useT } from "@/lib/i18n-client";
+import { formatDue } from "@/lib/format";
+import { useLocale, useT } from "@/lib/i18n-client";
 import { FollowUpCard } from "./FollowUpCard";
 
 const KIND_ICON: Record<Task["kind"], string> = {
@@ -58,6 +58,7 @@ export function TaskRow({
   now?: number;
 }) {
   const t = useT();
+  const locale = useLocale();
   const clock = useNow(60_000, now);
   const done = task.status !== "open";
   const overdue = !done && new Date(task.due_at).getTime() < clock;
@@ -107,7 +108,7 @@ export function TaskRow({
         className={`shrink-0 text-xs ${overdue ? "font-medium text-red-600 dark:text-red-400" : "text-muted"}`}
       >
         {overdue && <span className="me-1">{t("tasks.overdue")}</span>}
-        {formatRelative(task.due_at, new Date(clock))}
+        {formatDue(task.due_at, locale, new Date(clock))}
       </time>
 
       {!done && (

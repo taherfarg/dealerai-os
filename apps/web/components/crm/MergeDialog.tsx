@@ -8,7 +8,7 @@ import {
   type CustomerDetail,
 } from "@/lib/api/hooks";
 import { countryFlag, formatRelative } from "@/lib/format";
-import { useT } from "@/lib/i18n-client";
+import { useLocale, useT } from "@/lib/i18n-client";
 
 /**
  * Two records, one customer.
@@ -27,6 +27,7 @@ export function MergeDialog({
   onMerged?: () => void;
 }) {
   const t = useT();
+  const locale = useLocale();
   const [search, setSearch] = useState("");
   const [chosen, setChosen] = useState<Customer | null>(null);
   const found = useCustomers({ q: search });
@@ -90,7 +91,7 @@ export function MergeDialog({
             </section>
           ))}
           <p className="text-muted col-span-2">
-            {t("customers.lastSeen")}: {formatRelative(chosen.last_seen_at)}
+            {t("customers.lastSeen")}: {formatRelative(chosen.last_seen_at, locale)}
           </p>
         </div>
       )}

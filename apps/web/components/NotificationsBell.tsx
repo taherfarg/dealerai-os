@@ -5,7 +5,7 @@ import { useState } from "react";
 import { useTenantApi } from "@/lib/api/context";
 import { useMarkNotificationsRead, useNotifications } from "@/lib/api/hooks";
 import { formatRelative } from "@/lib/format";
-import { useT } from "@/lib/i18n-client";
+import { useLocale, useT } from "@/lib/i18n-client";
 
 /** Older than this and it is history, not news. */
 const SHOWN = 20;
@@ -20,6 +20,7 @@ const SHOWN = 20;
  */
 export function NotificationsBell() {
   const t = useT();
+  const locale = useLocale();
   const { slug } = useTenantApi();
   const [open, setOpen] = useState(false);
   const notifications = useNotifications();
@@ -88,7 +89,7 @@ export function NotificationsBell() {
                     <span className="flex items-baseline justify-between gap-2">
                       <span className="text-sm font-medium">{row.title}</span>
                       <time className="text-muted shrink-0 text-xs" dateTime={row.created_at}>
-                        {formatRelative(row.created_at)}
+                        {formatRelative(row.created_at, locale)}
                       </time>
                     </span>
                     {row.body && <span className="text-muted block text-sm">{row.body}</span>}

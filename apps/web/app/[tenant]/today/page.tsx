@@ -7,7 +7,7 @@ import { TaskRow } from "@/components/crm/TaskRow";
 import { WaitingTimer } from "@/components/inbox/WaitingTimer";
 import { useEditTask, useMe, useMyDay, useSendDraft } from "@/lib/api/hooks";
 import { countryFlag, formatDuration, formatMoney } from "@/lib/format";
-import { useT } from "@/lib/i18n-client";
+import { useLocale, useT } from "@/lib/i18n-client";
 
 /** A number with its name under it, which is all three of these need. */
 function Figure({ label, value }: { label: string; value: string }) {
@@ -22,6 +22,7 @@ function Figure({ label, value }: { label: string; value: string }) {
 export default function TodayPage({ params }: { params: Promise<{ tenant: string }> }) {
   const { tenant } = use(params);
   const t = useT();
+  const locale = useLocale();
   const me = useMe();
   const day = useMyDay();
   const edit = useEditTask();
@@ -41,7 +42,7 @@ export default function TodayPage({ params }: { params: Promise<{ tenant: string
         <Figure label={t("today.repliedToday")} value={String(day.data?.replied_today ?? 0)} />
         <Figure
           label={t("today.median")}
-          value={median ? formatDuration(median) : "—"}
+          value={median ? formatDuration(median, locale) : "—"}
         />
         <div className="bg-surface border-border rounded-lg border p-1">
           <AvailabilitySwitch />

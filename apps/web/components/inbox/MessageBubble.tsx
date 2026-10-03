@@ -3,7 +3,7 @@
 import type { Message } from "@/lib/api/hooks";
 import { API_BASE } from "@/lib/api/client";
 import { formatRelative } from "@/lib/format";
-import { useT } from "@/lib/i18n-client";
+import { useLocale, useT } from "@/lib/i18n-client";
 
 const TICKS: Record<string, string> = {
   queued: "·",
@@ -30,6 +30,7 @@ export function MessageBubble({
   onRetry?: (messageId: string) => void;
 }) {
   const t = useT();
+  const locale = useLocale();
 
   if (message.kind === "event") {
     return (
@@ -98,7 +99,7 @@ export function MessageBubble({
         )}
 
         <div className="text-muted mt-1 flex items-center gap-2 text-[11px]">
-          <time dateTime={message.created_at}>{formatRelative(message.created_at)}</time>
+          <time dateTime={message.created_at}>{formatRelative(message.created_at, locale)}</time>
           {message.origin === "phone_app" && <span>{t("thread.sentFromPhone")}</span>}
           {message.author?.name && ours && !note && <span>{message.author.name}</span>}
           {message.status && message.status !== "failed" && <span>{TICKS[message.status]}</span>}

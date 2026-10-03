@@ -2,7 +2,7 @@
 
 import { useCustomerTimeline, type TimelineEntry } from "@/lib/api/hooks";
 import { formatRelative } from "@/lib/format";
-import { useT } from "@/lib/i18n-client";
+import { useLocale, useT } from "@/lib/i18n-client";
 
 type Entry = TimelineEntry & { data: Record<string, unknown> };
 
@@ -32,6 +32,7 @@ function line(entry: Entry): { who: string; text: string } {
  */
 export function Timeline({ contactId }: { contactId: string }) {
   const t = useT();
+  const locale = useLocale();
   const timeline = useCustomerTimeline(contactId);
   const entries = (timeline.data?.pages ?? []).flatMap((page) => page.data) as Entry[];
 
@@ -56,7 +57,7 @@ export function Timeline({ contactId }: { contactId: string }) {
               </span>
               <p className="min-w-0 flex-1 whitespace-pre-wrap text-sm">{text}</p>
               <time className="text-muted shrink-0 text-xs" dateTime={entry.at}>
-                {formatRelative(entry.at)}
+                {formatRelative(entry.at, locale)}
               </time>
             </li>
           );

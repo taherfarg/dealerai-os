@@ -23,7 +23,7 @@ import {
 } from "@/lib/api/hooks";
 import { useNow } from "@/lib/clock";
 import { countryFlag, formatUntil } from "@/lib/format";
-import { useT } from "@/lib/i18n-client";
+import { useLocale, useT } from "@/lib/i18n-client";
 import { CustomerPanel } from "@/components/crm/CustomerPanel";
 import { Composer } from "./Composer";
 import { DraftPanel } from "./DraftPanel";
@@ -33,6 +33,7 @@ import { WaitingTimer } from "./WaitingTimer";
 /** One conversation: who it is, what was said, and what you can do about it. */
 export function Thread({ tenant, conversationId }: { tenant: string; conversationId: string }) {
   const t = useT();
+  const locale = useLocale();
   const me = useMe();
   const conversation = useConversation(conversationId);
   const messages = useMessages(conversationId);
@@ -198,7 +199,7 @@ export function Thread({ tenant, conversationId }: { tenant: string; conversatio
             : t("inbox.unassigned")}
           {" · "}
           {windowOpen
-            ? `${t("thread.windowOpen")} ${formatUntil(row.window_expires_at ?? "", new Date(now))}`
+            ? `${t("thread.windowOpen")} ${formatUntil(row.window_expires_at ?? "", locale, new Date(now))}`
             : t("thread.windowClosed")}
         </p>
       </header>

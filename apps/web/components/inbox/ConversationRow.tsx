@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { Conversation } from "@/lib/api/hooks";
 import { countryFlag, formatRelative } from "@/lib/format";
-import { useT } from "@/lib/i18n-client";
+import { useLocale, useT } from "@/lib/i18n-client";
 import { WaitingTimer } from "./WaitingTimer";
 
 /** What the preview says came from us, rather than from the customer. */
@@ -28,6 +28,7 @@ export function ConversationRow({
   active: boolean;
 }) {
   const t = useT();
+  const locale = useLocale();
   const { contact, last_message: last } = conversation;
   const unread = conversation.unread_count;
   return (
@@ -45,7 +46,7 @@ export function ConversationRow({
           </span>
           {last && (
             <time className="text-muted shrink-0 text-xs" dateTime={last.at}>
-              {formatRelative(last.at)}
+              {formatRelative(last.at, locale)}
             </time>
           )}
         </div>

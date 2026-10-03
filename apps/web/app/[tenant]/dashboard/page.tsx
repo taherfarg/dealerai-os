@@ -10,7 +10,7 @@ import { useManagerDashboard, useMe, type ManagerDashboard } from "@/lib/api/hoo
 import { useFilters } from "@/lib/filters";
 import { formatDuration } from "@/lib/format";
 import type { MessageKey } from "@/lib/i18n";
-import { useT } from "@/lib/i18n-client";
+import { useLocale, useT } from "@/lib/i18n-client";
 
 type Share = ManagerDashboard["phone_share"]["this_week"];
 
@@ -34,6 +34,7 @@ function sourceLabel(source: string, t: (key: MessageKey) => string): string {
 export default function DashboardPage({ params }: { params: Promise<{ tenant: string }> }) {
   const { tenant } = use(params);
   const t = useT();
+  const locale = useLocale();
   const me = useMe();
   const [filters, setFilters] = useFilters({ date: "" });
   const permissions = me.data?.permissions ?? [];
@@ -93,8 +94,8 @@ export default function DashboardPage({ params }: { params: Promise<{ tenant: st
         <StatTile label={t("tile.waitingNow")} value={String(tiles.waiting_now)} href={inbox} />
         <StatTile
           label={t("tile.median")}
-          value={median == null ? "—" : formatDuration(median)}
-          hint={`${t("tile.target")} ${formatDuration(target)}`}
+          value={median == null ? "—" : formatDuration(median, locale)}
+          hint={`${t("tile.target")} ${formatDuration(target, locale)}`}
           tone={tone(median, target)}
         />
         <StatTile label={t("tile.missed")} value={String(tiles.missed_targets)} />

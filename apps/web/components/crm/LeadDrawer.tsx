@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useLead, type Stage } from "@/lib/api/hooks";
-import { formatDateTime, formatMoney, formatRelative } from "@/lib/format";
-import { useT } from "@/lib/i18n-client";
+import { useLead, useMe, type Stage } from "@/lib/api/hooks";
+import { formatDateTime, formatDue, formatMoney, formatRelative } from "@/lib/format";
+import { useLocale, useT } from "@/lib/i18n-client";
 import { ScoreReasons } from "./ScoreReasons";
 
 /** Everything about one lead, opened from `?lead=` so the URL can be shared. */
@@ -21,6 +21,8 @@ export function LeadDrawer({
   onMove: (leadId: string, stageId: string) => void;
 }) {
   const t = useT();
+  const locale = useLocale();
+  const me = useMe();
   const lead = useLead(leadId);
 
   return (
@@ -71,7 +73,7 @@ export function LeadDrawer({
             <dt className="text-muted">{t("lead.source")}</dt>
             <dd>{lead.data.source ?? "—"}</dd>
             <dt className="text-muted">{t("lead.created")}</dt>
-            <dd>{formatDateTime(lead.data.created_at, "Asia/Dubai")}</dd>
+            <dd>{formatDateTime(lead.data.created_at, me.data?.tenant.timezone ?? "Asia/Dubai", locale)}</dd>
             {lead.data.lost_reason && (
               <>
                 <dt className="text-muted">{t("lead.lostReason")}</dt>
@@ -103,7 +105,7 @@ export function LeadDrawer({
                   <li key={move.at} className="flex justify-between gap-2 py-1 text-xs">
                     <span>{move.text}</span>
                     <span className="text-muted">
-                      {move.by} · {formatRelative(move.at)}
+                      {move.by} · {formatRelative(move.at, locale)}
                     </span>
                   </li>
                 ))}
@@ -124,7 +126,7 @@ export function LeadDrawer({
                     <span className={task.status === "done" ? "line-through" : ""}>
                       {task.title}
                     </span>
-                    <span className="text-muted">{formatRelative(task.due_at)}</span>
+                    <span className="text-muted">{formatDue(task.due_at, locale)}</span>
                   </li>
                 ))}
               </ul>

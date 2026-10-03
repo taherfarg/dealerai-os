@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { Customer } from "@/lib/api/hooks";
 import { countryFlag, formatRelative } from "@/lib/format";
-import { useT } from "@/lib/i18n-client";
+import { useLocale, useT } from "@/lib/i18n-client";
 
 const BAND_TONE: Record<string, string> = {
   hot: "bg-red-500/15 text-red-700 dark:text-red-300",
@@ -27,6 +27,7 @@ export function CustomerRow({
   onSelect?: (selected: boolean) => void;
 }) {
   const t = useT();
+  const locale = useLocale();
   return (
     <li data-band={customer.band ?? "none"} className={onSelect ? "flex items-stretch" : undefined}>
       {onSelect && (
@@ -67,7 +68,7 @@ export function CustomerRow({
           )}
         </span>
         <time className="text-muted text-xs md:text-end" dateTime={customer.last_seen_at}>
-          {formatRelative(customer.last_seen_at)}
+          {formatRelative(customer.last_seen_at, locale)}
         </time>
       </Link>
     </li>

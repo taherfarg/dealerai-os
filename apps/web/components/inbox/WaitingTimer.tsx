@@ -2,7 +2,7 @@
 
 import { useNow } from "@/lib/clock";
 import { formatDuration } from "@/lib/format";
-import { useT } from "@/lib/i18n-client";
+import { useLocale, useT } from "@/lib/i18n-client";
 
 export type SlaState = "ok" | "due_soon" | "breached" | null;
 
@@ -29,6 +29,7 @@ export function WaitingTimer({
   now?: number;
 }) {
   const t = useT();
+  const locale = useLocale();
   const clock = useNow(30_000, now);
   if (!waitingSince || !state) return null;
   const seconds = Math.max(0, (clock - new Date(waitingSince).getTime()) / 1000);
@@ -40,9 +41,9 @@ export function WaitingTimer({
   return (
     <span
       className={`inline-flex items-center gap-1 text-xs font-medium ${TONE[state]}`}
-      aria-label={`${label} ${formatDuration(seconds)}`}
+      aria-label={`${label} ${formatDuration(seconds, locale)}`}
     >
-      {label} {formatDuration(seconds)}
+      {label} {formatDuration(seconds, locale)}
     </span>
   );
 }

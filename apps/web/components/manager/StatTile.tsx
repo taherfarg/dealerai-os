@@ -37,7 +37,9 @@ export function StatTile({
 }) {
   const body = (
     <div className={`bg-surface border-border h-full rounded-lg border p-3 ${tone ? EDGE[tone] : ""}`}>
-      <p className="text-xl font-semibold tabular-nums" dir="ltr">
+      {/* No dir here: a duration's units are the reader's, and a bare count
+          reads the same either way. */}
+      <p className="text-xl font-semibold tabular-nums">
         {value}
       </p>
       <p className="text-muted text-xs">{label}</p>
