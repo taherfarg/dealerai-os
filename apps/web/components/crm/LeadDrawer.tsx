@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useLead, useMe, type Stage } from "@/lib/api/hooks";
 import { formatDateTime, formatDue, formatMoney, formatRelative } from "@/lib/format";
 import { Auto, Ltr } from "@/components/Bidi";
+import { Modal } from "@/components/Modal";
 import { useLocale, useT } from "@/lib/i18n-client";
 import { word } from "@/lib/words";
 import { ScoreReasons } from "./ScoreReasons";
@@ -28,11 +29,9 @@ export function LeadDrawer({
   const lead = useLead(leadId);
 
   return (
-    <aside
-      aria-label={t("customer.details")}
-      className="border-border bg-surface fixed inset-y-0 end-0 z-30 w-full overflow-y-auto border-s p-4 shadow-xl sm:w-96"
-    >
-      <div className="flex items-start justify-between gap-2">
+    // It covers the board, so it is a dialog: focus goes in, Escape comes out.
+    <Modal variant="sheet" label={t("lead.details")} onClose={onClose}>
+      <div className="flex items-start justify-between gap-2 p-4 pb-0">
         <h2 className="text-sm font-medium" dir="auto">
           {lead.data?.contact.name ?? "…"}
         </h2>
@@ -47,7 +46,7 @@ export function LeadDrawer({
       </div>
 
       {lead.data && (
-        <div className="mt-3 flex flex-col gap-4">
+        <div className="mt-3 flex flex-col gap-4 p-4 pt-0">
           <p className="text-sm">{lead.data.vehicle?.label ?? t("pipeline.noCar")}</p>
 
           <label className="block">
@@ -144,6 +143,6 @@ export function LeadDrawer({
           </section>
         </div>
       )}
-    </aside>
+    </Modal>
   );
 }

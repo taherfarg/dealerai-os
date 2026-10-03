@@ -243,6 +243,7 @@ export const ar = {
   "lead.owner": "المسؤول",
   "lead.stage": "المرحلة",
   "lead.close": "إغلاق",
+  "lead.details": "الفرصة",
   "lead.evidence": "افتح الرسالة التي جاء منها هذا",
   "lost.title": "لماذا خسرناها؟",
   "lost.placeholder": "اشترى من مكان آخر، السعر، التوقيت…",

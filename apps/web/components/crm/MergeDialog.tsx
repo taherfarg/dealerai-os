@@ -8,6 +8,7 @@ import {
   type CustomerDetail,
 } from "@/lib/api/hooks";
 import { Auto, CustomerName, Ltr } from "@/components/Bidi";
+import { Modal } from "@/components/Modal";
 import { formatRelative } from "@/lib/format";
 import { useLocale, useT } from "@/lib/i18n-client";
 
@@ -40,12 +41,7 @@ export function MergeDialog({
     .slice(0, 8);
 
   return (
-    <div
-      role="dialog"
-      aria-label={t("customer.merge")}
-      className="bg-surface border-border fixed inset-x-4 top-20 z-40 mx-auto max-w-lg rounded-lg border p-4 shadow-xl"
-    >
-      <h2 className="text-sm font-medium">{t("merge.title")}</h2>
+    <Modal title={t("merge.title")} onClose={onClose}>
 
       <label className="mt-3 block">
         <span className="text-muted text-xs">{t("merge.search")}</span>
@@ -127,6 +123,6 @@ export function MergeDialog({
           {t("merge.confirm")}
         </button>
       </div>
-    </div>
+    </Modal>
   );
 }

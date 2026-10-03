@@ -240,6 +240,7 @@ export const en = {
   "lead.owner": "Owner",
   "lead.stage": "Stage",
   "lead.close": "Close",
+  "lead.details": "Lead",
   "lead.evidence": "Open the message this came from",
   "lost.title": "Why was it lost?",
   "lost.placeholder": "Bought elsewhere, price, timing…",

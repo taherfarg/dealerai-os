@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useTenantApi } from "@/lib/api/context";
 import { useMarkNotificationsRead, useNotifications } from "@/lib/api/hooks";
 import { Sentence } from "@/components/Bidi";
@@ -24,6 +24,7 @@ export function NotificationsBell() {
   const locale = useLocale();
   const { slug } = useTenantApi();
   const [open, setOpen] = useState(false);
+  const button = useRef<HTMLButtonElement>(null);
   const notifications = useNotifications();
   const markRead = useMarkNotificationsRead();
 
@@ -38,8 +39,16 @@ export function NotificationsBell() {
       onBlur={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);
       }}
+      // A menu, not a modal: Escape puts it away and hands focus back to the
+      // bell, so the keyboard is where it was before the list opened.
+      onKeyDown={(event) => {
+        if (event.key !== "Escape" || !open) return;
+        setOpen(false);
+        button.current?.focus();
+      }}
     >
       <button
+        ref={button}
         type="button"
         aria-expanded={open}
         aria-label={unread ? `${t("notifications.title")} (${unread})` : t("notifications.title")}

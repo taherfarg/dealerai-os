@@ -24,7 +24,9 @@ import {
 import { useNow } from "@/lib/clock";
 import { formatUntil } from "@/lib/format";
 import { useLocale, useT } from "@/lib/i18n-client";
+import { useWide } from "@/lib/media";
 import { CustomerName } from "@/components/Bidi";
+import { Modal } from "@/components/Modal";
 import { CustomerPanel } from "@/components/crm/CustomerPanel";
 import { Composer } from "./Composer";
 import { DraftPanel } from "./DraftPanel";
@@ -50,6 +52,7 @@ export function Thread({ tenant, conversationId }: { tenant: string; conversatio
   const createTask = useCreateTask();
   const editCustomer = useEditCustomer(conversation.data?.contact.id ?? "");
   const now = useNow();
+  const wide = useWide();
   const [panel, setPanel] = useState(false);
   const [draftToEdit, setDraftToEdit] = useState<{ id?: string; text: string }>();
   const sentDraft = useRef<string | null>(null);
@@ -123,6 +126,12 @@ export function Thread({ tenant, conversationId }: { tenant: string; conversatio
         sentDraft.current = null;
       },
     });
+  };
+
+  const showEvidence = (messageId: string) => {
+    const bubble = document.getElementById(`message-${messageId}`);
+    bubble?.scrollIntoView({ block: "center" });
+    bubble?.animate([{ opacity: 0.35 }, { opacity: 1 }], { duration: 900 });
   };
 
   const takeAction = async (action: Record<string, unknown>) => {
@@ -230,21 +239,28 @@ export function Thread({ tenant, conversationId }: { tenant: string; conversatio
           </ul>
         </div>
 
-        {panel && (
-          // A column beside the thread on a desktop, a sheet over it on a phone.
-          <aside className="border-border bg-surface fixed inset-y-0 end-0 z-30 w-80 overflow-y-auto border-s lg:static lg:z-auto lg:w-72">
-            <CustomerPanel
-              tenant={tenant}
-              contactId={row.contact.id}
-              onClose={() => setPanel(false)}
-              onEvidence={(messageId) => {
-                const bubble = document.getElementById(`message-${messageId}`);
-                bubble?.scrollIntoView({ block: "center" });
-                bubble?.animate([{ opacity: 0.35 }, { opacity: 1 }], { duration: 900 });
-              }}
-            />
-          </aside>
-        )}
+        {panel &&
+          (wide ? (
+            // A column beside the thread, there while a reply is being typed.
+            <aside className="border-border bg-surface w-72 overflow-y-auto border-s">
+              <CustomerPanel tenant={tenant} contactId={row.contact.id} onEvidence={showEvidence} />
+            </aside>
+          ) : (
+            // On a phone it covers the thread, so it is a dialog: focus goes in,
+            // Escape comes out, and a screen reader is told the page changed.
+            <Modal variant="sheet" label={t("customer.details")} onClose={() => setPanel(false)}>
+              <CustomerPanel
+                tenant={tenant}
+                contactId={row.contact.id}
+                onClose={() => setPanel(false)}
+                onEvidence={(messageId) => {
+                  // The message is underneath: put the sheet away to show it.
+                  setPanel(false);
+                  showEvidence(messageId);
+                }}
+              />
+            </Modal>
+          ))}
       </div>
 
       <DraftPanel
