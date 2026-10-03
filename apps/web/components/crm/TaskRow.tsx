@@ -70,13 +70,16 @@ export function TaskRow({
       data-overdue={overdue}
       className="flex flex-wrap items-center gap-3 border-b border-black/5 py-2 dark:border-white/10"
     >
-      <input
-        type="checkbox"
-        checked={done}
-        aria-label={t("tasks.complete")}
-        onChange={(event) => onComplete(event.target.checked)}
-        className="size-4 shrink-0"
-      />
+      {/* The box is 16 px; the label round it is what a thumb presses. */}
+      <label className="-ms-3 flex min-h-11 min-w-11 shrink-0 items-center justify-center">
+        <input
+          type="checkbox"
+          checked={done}
+          aria-label={t("tasks.complete")}
+          onChange={(event) => onComplete(event.target.checked)}
+          className="size-4"
+        />
+      </label>
 
       <span className="min-w-0 flex-1">
         <span className={`flex items-baseline gap-1 text-sm ${done ? "text-muted" : ""}`}>

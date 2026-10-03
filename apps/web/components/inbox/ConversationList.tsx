@@ -83,7 +83,7 @@ export function ConversationList() {
                 role="tab"
                 aria-selected={candidate === view}
                 onClick={() => setParam("view", candidate === "mine" ? "" : candidate)}
-                className={`min-h-11 rounded-md px-3 text-sm transition-colors ${
+                className={`min-h-11 min-w-11 rounded-md px-3 text-sm transition-colors ${
                   candidate === view ? "bg-background font-medium" : "hover:bg-background"
                 }`}
               >

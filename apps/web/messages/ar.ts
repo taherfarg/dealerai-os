@@ -463,6 +463,7 @@ export const ar = {
   "quick.empty": "لا توجد ردود سريعة بعد.",
   "knowledge.pricesLine": "الأسعار والمخزون تأتي دائمًا من المخزون، ولا تأتي من المستندات أبدًا.",
   "knowledge.file": "المستند",
+  "knowledge.choose": "اختر ملف PDF أو Word أو ملفًا نصيًا",
   "knowledge.kind": "نوع المستند",
   "knowledge.title": "العنوان",
   "knowledge.upload": "رفع",

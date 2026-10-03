@@ -9,6 +9,7 @@ import { WaitingList } from "@/components/manager/WaitingList";
 import { useManagerDashboard, useMe, type ManagerDashboard } from "@/lib/api/hooks";
 import { useFilters } from "@/lib/filters";
 import { formatDuration } from "@/lib/format";
+import { Auto } from "@/components/Bidi";
 import { useLocale, useT } from "@/lib/i18n-client";
 import { word } from "@/lib/words";
 
@@ -120,8 +121,8 @@ export default function DashboardPage({ params }: { params: Promise<{ tenant: st
           <h2 className="text-sm font-semibold">{t("dashboard.pipeline")}</h2>
           {boards.map((stages) => (
             <div key={stages[0].pipeline_id} className="mt-2">
-              <h3 className="text-muted text-xs" dir="auto">
-                {stages[0].pipeline_name}
+              <h3 className="text-muted text-xs">
+                <Auto>{stages[0].pipeline_name}</Auto>
               </h3>
               <ul className="text-sm">
                 {stages.map((stage) => (

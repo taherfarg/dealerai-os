@@ -8,7 +8,8 @@ export type SlaState = "ok" | "due_soon" | "breached" | null;
 
 const TONE: Record<"ok" | "due_soon" | "breached", string> = {
   ok: "text-muted",
-  due_soon: "text-amber-600 dark:text-amber-400",
+  // amber-700, not 600: on white that is 5 to 1, where 600 is 3.2.
+  due_soon: "text-amber-700 dark:text-amber-400",
   breached: "text-red-600 dark:text-red-400",
 };
 

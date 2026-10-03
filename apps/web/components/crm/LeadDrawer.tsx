@@ -39,7 +39,7 @@ export function LeadDrawer({
           type="button"
           onClick={onClose}
           aria-label={t("lead.close")}
-          className="text-muted min-h-11 px-2"
+          className="text-muted min-h-11 min-w-11 px-2"
         >
           ✕
         </button>
@@ -94,7 +94,7 @@ export function LeadDrawer({
           {lead.data.conversation_id && (
             <Link
               href={`/${tenant}/inbox/${lead.data.conversation_id}`}
-              className="text-sm underline"
+              className="inline-flex min-h-11 items-center self-start text-sm underline"
             >
               {t("lead.conversation")}
             </Link>

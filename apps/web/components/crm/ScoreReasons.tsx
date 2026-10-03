@@ -28,9 +28,9 @@ export function ScoreReasons({
         {reasons.map((reason, index) => (
           <li
             key={`${reason.signal}-${index}`}
-            className="flex items-baseline justify-between gap-2 py-1 text-sm"
+            className="flex items-center justify-between gap-2 py-1 text-sm"
           >
-            <span className="flex items-baseline gap-1">
+            <span className="flex items-center gap-1">
               {/* The API sends the signal and its English label: the label is
                   for a signal this build has no words for yet. */}
               <Auto>{word(t, "score", reason.signal, reason.label)}</Auto>
@@ -39,7 +39,7 @@ export function ScoreReasons({
                   type="button"
                   onClick={() => onEvidence?.(reason.evidence_message_id as string)}
                   aria-label={t("lead.evidence")}
-                  className="text-muted text-xs underline"
+                  className="text-muted inline-flex min-h-11 min-w-11 items-center justify-center text-xs underline"
                 >
                   ↗
                 </button>

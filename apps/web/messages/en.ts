@@ -461,6 +461,7 @@ export const en = {
   "quick.empty": "No quick replies yet.",
   "knowledge.pricesLine": "Prices and stock always come from Inventory, never from documents.",
   "knowledge.file": "Document",
+  "knowledge.choose": "Choose a PDF, a Word file or a text file",
   "knowledge.kind": "Kind of document",
   "knowledge.title": "Title",
   "knowledge.upload": "Upload",

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Auto } from "@/components/Bidi";
 import type { AttentionItem, ManagerDashboard } from "@/lib/api/hooks";
 import { useLocale, useT } from "@/lib/i18n-client";
 
@@ -49,9 +50,14 @@ export function BriefCard({
                 href={HREF[item.kind](tenant, item)}
                 className="hover:bg-background flex min-h-11 items-center justify-between gap-2 text-sm"
               >
-                <span className="min-w-0 truncate" dir="auto">
-                  {item.name ?? t("inbox.unknownCustomer")}
-                  <span className="text-muted ms-2 text-xs">
+                {/* Who, then what is wrong, each its own: in one element the
+                    name decided the direction, and an Arabic reader lost the
+                    first word of the reason. */}
+                <span className="flex min-w-0 items-baseline gap-2">
+                  <Auto className="min-w-0 truncate">
+                    {item.name ?? t("inbox.unknownCustomer")}
+                  </Auto>
+                  <span className="text-muted shrink-0 text-xs">
                     {t(`brief.${item.kind}`)}
                     {item.count ? ` · ${item.count}` : ""}
                   </span>

@@ -53,7 +53,7 @@ export function NotificationsBell() {
         aria-expanded={open}
         aria-label={unread ? `${t("notifications.title")} (${unread})` : t("notifications.title")}
         onClick={() => setOpen((was) => !was)}
-        className="hover:bg-background relative min-h-11 rounded-md px-2 text-lg"
+        className="hover:bg-background relative min-h-11 min-w-11 rounded-md px-2 text-lg"
       >
         <span aria-hidden>🔔</span>
         {unread > 0 && (

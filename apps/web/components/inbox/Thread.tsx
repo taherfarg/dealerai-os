@@ -131,6 +131,8 @@ export function Thread({ tenant, conversationId }: { tenant: string; conversatio
   const showEvidence = (messageId: string) => {
     const bubble = document.getElementById(`message-${messageId}`);
     bubble?.scrollIntoView({ block: "center" });
+    // CSS cannot quieten an animation started here, so this asks for itself.
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
     bubble?.animate([{ opacity: 0.35 }, { opacity: 1 }], { duration: 900 });
   };
 
@@ -162,18 +164,18 @@ export function Thread({ tenant, conversationId }: { tenant: string; conversatio
           <Link
             href={`/${tenant}/inbox`}
             aria-label={t("thread.back")}
-            className="text-muted text-sm lg:hidden"
+            // A thumb's width, pulled back into the header's own padding.
+            className="text-muted -ms-2 inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center text-sm lg:hidden"
           >
             {/* An arrow is a character, and a character does not mirror. */}
             <span aria-hidden className="inline-block rtl:-scale-x-100">
               ←
             </span>
           </Link>
-          <h1 className="min-w-0 text-sm font-medium">
+          <h1 className="min-w-0 flex-1 text-sm font-medium">
             <CustomerName country={row.contact.country} name={row.contact.name} />
           </h1>
-          <WaitingTimer waitingSince={row.waiting_since} state={row.sla_state} />
-          <div className="ms-auto flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             {!row.assignee && (
               <button
                 type="button"
@@ -210,7 +212,10 @@ export function Thread({ tenant, conversationId }: { tenant: string; conversatio
             )}
           </div>
         </div>
-        <p className="text-muted mt-1 text-xs">
+        {/* The timer sits here, under the name: beside it, on a phone, it
+            took two lines and left the name three letters. */}
+        <p className="text-muted mt-1 flex flex-wrap items-center gap-x-2 text-xs">
+          <WaitingTimer waitingSince={row.waiting_since} state={row.sla_state} />
           {row.assignee
             ? `${mine ? t("thread.assignedToYou") : row.assignee.name}`
             : t("inbox.unassigned")}

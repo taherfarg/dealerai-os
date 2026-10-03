@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ApiError } from "@/lib/api/client";
 import { useDeleteDocument, useDocuments, useUploadDocument } from "@/lib/api/hooks";
 import type { MessageKey } from "@/lib/i18n";
+import { Auto } from "@/components/Bidi";
 import { useLocale, useT } from "@/lib/i18n-client";
 import { counted } from "@/lib/words";
 
@@ -51,12 +52,19 @@ export function KnowledgeSettings() {
           );
         }}
       >
-        <input
-          type="file"
-          accept=".pdf,.docx,.txt"
-          aria-label={t("knowledge.file")}
-          onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-        />
+        {/* A button of ours over the browser's own, which still does the
+            choosing: its "No file chosen · Choose File" comes in the browser's
+            language, not the reader's. */}
+        <label className="border-border hover:bg-background focus-within:outline-brand inline-flex min-h-11 cursor-pointer items-center gap-2 self-start rounded-md border px-3 focus-within:outline-2 focus-within:outline-offset-2">
+          <input
+            type="file"
+            accept=".pdf,.docx,.txt"
+            aria-label={t("knowledge.file")}
+            onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+            className="sr-only"
+          />
+          <span dir="auto">{file ? file.name : t("knowledge.choose")}</span>
+        </label>
         <div className="flex flex-wrap gap-2">
           <select
             value={kind}
@@ -102,8 +110,12 @@ export function KnowledgeSettings() {
         {(documents.data ?? []).map((document) => (
           <li key={document.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
             <span className="min-w-0 flex-1">
-              <span className="block truncate" dir="auto">
-                {document.title ?? t(`doc.${document.kind}` as MessageKey)}
+              {/* The title keeps its direction and is cut at its own end, on a
+                  line that still starts where the page does. */}
+              <span className="flex">
+                <Auto className="min-w-0 truncate">
+                  {document.title ?? t(`doc.${document.kind}` as MessageKey)}
+                </Auto>
               </span>
               <span className="text-muted text-xs">
                 {t(`doc.${document.kind}` as MessageKey)} ·{" "}

@@ -83,6 +83,22 @@ describe("MessageBubble", () => {
     expect(screen.getByRole("button", { name: /try again/i })).toBeDefined();
   });
 
+  it("writes a sent message's time and ticks so they can be read on the gold", () => {
+    // Grey on the accent colour is 2.3 to 1. The bubble's own black, lightened,
+    // is above 4.5.
+    show({ direction: "out", origin: "inbox", status: "read" });
+    const meta = screen.getByText("✓✓").parentElement as HTMLElement;
+    expect(meta.className).not.toContain("text-muted");
+    expect(meta.className).toContain("text-black/70");
+  });
+
+  it("keeps the quiet grey for a message that arrived, on its white", () => {
+    const { container } = show({});
+    expect((container.querySelector("time")?.parentElement as HTMLElement).className).toContain(
+      "text-muted",
+    );
+  });
+
   it("shows ticks only for messages we sent", () => {
     show({ direction: "out", origin: "inbox", status: "read" });
     expect(screen.getByText("✓✓")).toBeDefined();

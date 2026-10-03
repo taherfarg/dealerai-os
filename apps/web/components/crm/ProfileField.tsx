@@ -80,7 +80,7 @@ export function ProfileField({
 
   return (
     <div
-      className="flex items-baseline justify-between gap-2 py-1.5"
+      className="flex items-center justify-between gap-2"
       data-field={name}
       data-source={field?.source ?? "none"}
     >
@@ -121,7 +121,7 @@ export function ProfileField({
           <button
             type="button"
             onClick={() => setEditing(true)}
-            className={`text-sm ${shown ? "" : "text-muted italic"}`}
+            className={`min-h-11 min-w-11 text-end text-sm ${shown ? "" : "text-muted italic"}`}
           >
             {shown ?? t("profile.unknown")}
           </button>
@@ -132,9 +132,12 @@ export function ProfileField({
               title={t("profile.evidence")}
               aria-label={t("profile.evidence")}
               onClick={() => field.evidence_message_id && onEvidence?.(field.evidence_message_id)}
-              className="rounded bg-blue-500/15 px-1 text-[10px] font-medium uppercase text-blue-700 disabled:opacity-60 dark:text-blue-300"
+              // The mark stays small; what a thumb presses is the height of the row.
+              className="inline-flex min-h-11 items-center disabled:opacity-60"
             >
-              {t("profile.fromAi")}
+              <span className="rounded bg-blue-500/15 px-1 text-[10px] font-medium uppercase text-blue-700 dark:text-blue-300">
+                {t("profile.fromAi")}
+              </span>
             </button>
           )}
         </span>

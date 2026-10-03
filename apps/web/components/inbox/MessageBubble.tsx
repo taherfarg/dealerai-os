@@ -44,6 +44,9 @@ export function MessageBubble({
 
   const note = message.kind === "note";
   const ours = message.direction === "out";
+  // What is said quietly inside a bubble. Grey on the gold of a sent message
+  // is 2.3 to 1; the bubble's own black, lightened, stays above 4.5.
+  const quiet = ours && !note ? "text-black/70" : "text-muted";
 
   return (
     <li
@@ -99,17 +102,17 @@ export function MessageBubble({
           // checkable against what was actually said.
           <Auto
             as="p"
-            className="text-muted mt-1 border-s-2 border-black/10 ps-2 text-xs italic dark:border-white/20"
+            className={`${quiet} mt-1 border-s-2 border-black/10 ps-2 text-xs italic dark:border-white/20`}
           >
             {String(message.transcript.text)}
           </Auto>
         ) : null}
 
         {!message.text && !message.attachment && !message.transcript && (
-          <p className="text-muted italic">{t("thread.openOnPhone")}</p>
+          <p className={`${quiet} italic`}>{t("thread.openOnPhone")}</p>
         )}
 
-        <div className="text-muted mt-1 flex items-center gap-2 text-[11px]">
+        <div className={`${quiet} mt-1 flex items-center gap-2 text-[11px]`}>
           <time dateTime={message.created_at}>{formatRelative(message.created_at, locale)}</time>
           {message.origin === "phone_app" && <span>{t("thread.sentFromPhone")}</span>}
           {message.author?.name && ours && !note && <span>{message.author.name}</span>}

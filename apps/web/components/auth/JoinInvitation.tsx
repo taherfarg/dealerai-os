@@ -9,6 +9,7 @@ import { signOut } from "@/lib/auth/sign-out";
 import { signedInEmail } from "@/lib/auth/token";
 import { DEV_AUTH } from "@/lib/dev-auth";
 import type { MessageKey } from "@/lib/i18n";
+import { Auto } from "@/components/Bidi";
 import { useT } from "@/lib/i18n-client";
 import { readInvitation } from "@/lib/invitation";
 
@@ -69,8 +70,8 @@ export function JoinInvitation({ token }: { token: string }) {
     <div className="flex flex-col gap-4">
       <div>
         <p className="text-muted text-sm">{t("accept.invitedTo")}</p>
-        <h1 className="text-xl font-semibold" dir="auto">
-          {invitation.workspace}
+        <h1 className="text-xl font-semibold">
+          <Auto>{invitation.workspace}</Auto>
         </h1>
         <p className="text-muted mt-1 text-sm">
           {t("accept.role")} {t(`role.${invitation.role}` as MessageKey)}

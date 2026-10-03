@@ -168,10 +168,10 @@ export default function CustomerPage({
           ) : (
             <ul className="divide-y divide-black/5 dark:divide-white/10">
               {record.leads.map((lead) => (
-                <li key={lead.id} className="py-2">
+                <li key={lead.id} className="py-1">
                   <Link
                     href={`/${tenant}/pipeline?lead=${lead.id}`}
-                    className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-sm"
+                    className="flex min-h-11 flex-wrap items-center gap-x-2 gap-y-1 text-sm"
                   >
                     <Auto>{lead.vehicle?.label ?? lead.pipeline_name}</Auto>
                     <Auto className="text-muted text-xs">{lead.stage.name}</Auto>

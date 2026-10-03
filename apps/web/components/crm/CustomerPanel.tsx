@@ -63,7 +63,7 @@ export function CustomerPanel({
             type="button"
             onClick={onClose}
             aria-label={t("customer.close")}
-            className="text-muted min-h-11 px-2 text-sm lg:hidden"
+            className="text-muted min-h-11 min-w-11 px-2 text-sm lg:hidden"
           >
             ✕
           </button>
@@ -141,7 +141,7 @@ export function CustomerPanel({
 
       <Link
         href={`/${tenant}/customers/${contactId}`}
-        className="text-muted mt-auto text-xs underline"
+        className="text-muted mt-auto inline-flex min-h-11 items-center text-xs underline"
       >
         {t("customer.full")}
       </Link>

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { WaitingTimer } from "@/components/inbox/WaitingTimer";
 import { useAssignConversation, useMembers, type Conversation } from "@/lib/api/hooks";
-import { countryFlag } from "@/lib/format";
+import { CustomerName } from "@/components/Bidi";
 import { useT } from "@/lib/i18n-client";
 
 /** Enough to act on from the dashboard; the inbox has the rest. */
@@ -30,10 +30,14 @@ function WaitingRow({
 
   return (
     <li className="flex flex-wrap items-center gap-2 border-b border-black/5 py-2 dark:border-white/10">
-      <span className="min-w-0 flex-1 truncate text-sm" dir="auto">
-        {countryFlag(conversation.contact.country)}{" "}
-        {conversation.contact.name ?? t("inbox.unknownCustomer")}
-      </span>
+      {/* min-w-24: who is waiting is the row's point, and on a phone the rest
+          of the row used to squeeze it to nothing. What does not fit beside
+          the name goes to the next line. */}
+      <CustomerName
+        country={conversation.contact.country}
+        name={conversation.contact.name}
+        className="min-w-24 flex-1 text-sm"
+      />
       <span className="text-muted text-xs" dir="auto">
         {conversation.assignee?.name ?? t("customers.nobody")}
       </span>
