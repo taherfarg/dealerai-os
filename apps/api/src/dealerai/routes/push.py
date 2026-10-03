@@ -111,7 +111,10 @@ async def subscribe(body: PushSubscriptionIn, ctx: Ctx) -> dict[str, Any]:
     """This device, for this person — whoever had it before (migration 0014)."""
     _key()
     if not push.is_push_service(body.endpoint):
-        raise Unusable("that address is not a push service this server sends to")
+        raise Unusable(
+            "that address is not a push service this server sends to",
+            ar="هذا العنوان ليس خدمة إشعارات يرسل إليها هذا الخادم.",
+        )
     async with tenant_session(ctx.tenant_id, user_id=ctx.user.id, scope=ctx.scope) as conn:
         device_id = await conn.fetchval(
             "select app.remember_push_subscription($1, $2, $3, $4, $5, $6)",

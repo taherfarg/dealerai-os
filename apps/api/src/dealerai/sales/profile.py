@@ -55,7 +55,7 @@ def check(key: str, value: Any) -> Any:
         try:
             money = Money(int(value["amount_minor"]), str(value.get("currency") or "AED"))
         except (TypeError, ValueError) as exc:
-            raise Unusable(f"{key}: {exc}") from exc
+            raise Unusable(f"{key}: {exc}", ar="هذا المبلغ غير صالح.") from exc
         return {"amount_minor": money.amount_minor, "currency": money.currency}
     if kind == "local_or_export":
         if value not in _PURCHASE_TYPES:
@@ -68,7 +68,10 @@ def check(key: str, value: Any) -> Any:
     if kind == "country":
         code = str(value).upper()
         if len(code) != 2 or not code.isalpha():
-            raise Unusable("destination is a two-letter country code, like DZ")
+            raise Unusable(
+                "destination is a two-letter country code, like DZ",
+                ar="الوجهة رمز دولة من حرفين، مثل DZ.",
+            )
         return code
     if kind == "bool":
         return bool(value)

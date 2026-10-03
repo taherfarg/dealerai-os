@@ -527,6 +527,8 @@ export const en = {
   "auth.creating": "Creating…",
   "auth.checkEmail": "Check your email: the link in it finishes creating your account.",
   "auth.linkFailed": "That link has expired or was already used. Sign in, or ask for a new one.",
+  "auth.failed": "That did not sign you in. Check the email and the password, and try again.",
+  "auth.signUpFailed": "That account was not created. Check the email and the password, and try again.",
   "onboarding.title": "Create your workspace",
   "onboarding.intro":
     "One workspace per dealership. You will be its owner, and invite your team next.",

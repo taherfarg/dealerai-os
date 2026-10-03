@@ -305,9 +305,15 @@ async def edit_lead(ctx: Ctx, lead_id: UUID, body: LeadPatch) -> dict[str, Any]:
             if stage is None:
                 raise Unusable("that stage belongs to a different pipeline")
             if stage["category"] in ("won", "lost") and not ctx.may("leads.mark_won_lost"):
-                raise Forbidden("marking a lead won or lost needs leads.mark_won_lost")
+                raise Forbidden(
+                    "marking a lead won or lost needs leads.mark_won_lost",
+                    ar="تسجيل الفرصة مكسوبة أو خاسرة يحتاج صلاحية leads.mark_won_lost.",
+                )
             if stage["category"] == "lost" and not (body.lost_reason or "").strip():
-                raise Unusable("a lost lead needs a reason — it is the only way to learn anything")
+                raise Unusable(
+                    "a lost lead needs a reason — it is the only way to learn anything",
+                    ar="الفرصة الخاسرة تحتاج سببًا — به وحده نتعلم شيئًا.",
+                )
 
             await conn.execute(
                 """update leads set stage_id = $2, stage_entered_at = now(),

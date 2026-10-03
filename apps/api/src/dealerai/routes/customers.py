@@ -148,6 +148,7 @@ async def _row_or_404(conn: Any, tenant_id: UUID, customer_id: UUID) -> dict[str
     if keep_id:
         raise AlreadyMerged(
             "This customer was merged into another record.",
+            ar="دُمج هذا العميل في سجل آخر.",
             # The renderer passes `errors` through untouched, which is how the
             # browser learns where to redirect without parsing a sentence.
             errors=[{"keep_id": str(keep_id)}],

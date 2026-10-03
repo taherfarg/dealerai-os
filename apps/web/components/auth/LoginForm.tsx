@@ -27,10 +27,10 @@ export function LoginForm() {
     setError(null);
     const { error } = await createClient().auth.signInWithPassword({ email, password });
     if (error) {
-      // Supabase already returns "Invalid login credentials" without saying
-      // which half was wrong. Do not improve on that — it would turn the form
-      // into an account-enumeration oracle.
-      setError(error.message);
+      // One sentence of ours, in the reader's language, whatever Supabase
+      // said in English. It does not say which half was wrong, and must not:
+      // that would turn the form into an account-enumeration oracle.
+      setError(t("auth.failed"));
       setBusy(false);
       return;
     }

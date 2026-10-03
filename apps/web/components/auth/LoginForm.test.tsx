@@ -45,12 +45,27 @@ describe("LoginForm", () => {
     expect(screen.getByRole("button", { name: "تسجيل الدخول" })).toBeTruthy();
   });
 
-  it("shows Supabase's own sentence, which does not say which half was wrong", async () => {
+  it("says it did not work in its own words, without saying which half was wrong", async () => {
     state.signIn.mockResolvedValue({ error: { message: "Invalid login credentials" } });
     show();
     signIn();
-    expect((await screen.findByRole("alert")).textContent).toBe("Invalid login credentials");
+    expect((await screen.findByRole("alert")).textContent).toBe(
+      "That did not sign you in. Check the email and the password, and try again.",
+    );
     expect(state.push).not.toHaveBeenCalled();
+  });
+
+  it("says so in Arabic to somebody reading Arabic, not in Supabase's English", async () => {
+    state.signIn.mockResolvedValue({ error: { message: "Invalid login credentials" } });
+    show("ar");
+    fireEvent.change(screen.getByLabelText("البريد الإلكتروني"), {
+      target: { value: "sara@pollux.test" },
+    });
+    fireEvent.change(screen.getByLabelText("كلمة المرور"), { target: { value: "wrong" } });
+    fireEvent.click(screen.getByRole("button", { name: "تسجيل الدخول" }));
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toMatch(/^تعذّر تسجيل الدخول/);
+    expect(alert.textContent).not.toMatch(/[A-Za-z]/);
   });
 
   it("goes where it was sent", async () => {

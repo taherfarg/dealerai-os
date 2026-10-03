@@ -78,6 +78,19 @@ describe("SignupForm", () => {
     await waitFor(() => expect(state.push).toHaveBeenCalledWith("/pollux-motors/inbox"));
   });
 
+  it("says in its own words that the account was not made", async () => {
+    state.signUp.mockResolvedValue({
+      data: { session: null, user: null },
+      error: { message: "Password should be at least 6 characters" },
+    });
+    show();
+    signUp();
+    expect((await screen.findByRole("alert")).textContent).toBe(
+      "That account was not created. Check the email and the password, and try again.",
+    );
+    expect(state.push).not.toHaveBeenCalled();
+  });
+
   it("fills in the invited address", () => {
     state.search = "email=layla%40pollux.test";
     show();

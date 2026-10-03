@@ -90,6 +90,13 @@ class JoinedOut(BaseModel):
     role: Role
 
 
+_INVALID_INVITATION = "هذه الدعوة غير صالحة."
+
+
+def _taken(slug: str) -> str:
+    return f"العنوان «{slug}» مستخدم."
+
+
 def _name(user: AuthedUser) -> str | None:
     """What they called themselves on sign-up, or what Google calls them."""
     metadata = user.claims.get("user_metadata") or {}
@@ -145,7 +152,7 @@ async def create_tenant(body: TenantCreate, user: CurrentUser) -> Any:
     diverge into separate application statements.
     """
     if body.slug in RESERVED_SLUGS:
-        raise Conflict(f"the slug {body.slug!r} is taken")
+        raise Conflict(f"the slug {body.slug!r} is taken", ar=_taken(body.slug))
     async with system_session() as conn:
         try:
             tenant_id = await conn.fetchval(
@@ -159,7 +166,7 @@ async def create_tenant(body: TenantCreate, user: CurrentUser) -> Any:
                 user.id,
             )
         except asyncpg.UniqueViolationError as exc:
-            raise Conflict(f"the slug {body.slug!r} is taken") from exc
+            raise Conflict(f"the slug {body.slug!r} is taken", ar=_taken(body.slug)) from exc
         await conn.execute(
             "select app.remember_profile($1, $2, $3)", user.id, user.email, _name(user)
         )
@@ -287,7 +294,8 @@ async def create_invite(
     if ROLES.index(body.role) > ROLES.index(ctx.role):
         raise Forbidden(
             f"cannot grant {body.role!r}: you are {ctx.role!r} and may not "
-            "invite someone above your own role"
+            "invite someone above your own role",
+            ar="لا يمكنك دعوة شخص بدور أعلى من دورك.",
         )
 
     teams = list(dict.fromkeys(body.team_ids))
@@ -297,7 +305,10 @@ async def create_invite(
     if tenant is None:
         raise NotFound("no such tenant")
     if known != len(teams):
-        raise Unusable("an invitation can only name this workspace's teams")
+        raise Unusable(
+            "an invitation can only name this workspace's teams",
+            ar="لا تشمل الدعوة إلا فرق هذه المساحة.",
+        )
 
     expires_at = datetime.now(UTC) + timedelta(days=INVITE_TTL_DAYS)
     token = jwt.encode(
@@ -326,15 +337,18 @@ async def accept_invite(body: InviteAccept, user: CurrentUser) -> JoinedOut:
     try:
         claims = jwt.decode(body.token, _invite_secret(), algorithms=["HS256"])
     except jwt.ExpiredSignatureError as exc:
-        raise Unauthenticated("this invitation has expired") from exc
+        raise Unauthenticated("this invitation has expired", ar="انتهت صلاحية هذه الدعوة.") from exc
     except jwt.InvalidTokenError as exc:
-        raise Unauthenticated("invalid invitation") from exc
+        raise Unauthenticated("invalid invitation", ar=_INVALID_INVITATION) from exc
 
     if claims.get("kind") != "invite":
-        raise Unauthenticated("invalid invitation")
+        raise Unauthenticated("invalid invitation", ar=_INVALID_INVITATION)
     # A link forwarded on WhatsApp is not an invitation for whoever opens it.
     if str(claims.get("email") or "").lower() != (user.email or "").strip().lower():
-        raise Forbidden("this invitation is for another email address")
+        raise Forbidden(
+            "this invitation is for another email address",
+            ar="هذه الدعوة لبريد إلكتروني آخر.",
+        )
 
     tenant_id = UUID(claims["tenant_id"])
     # Idempotent in SQL, not here: replaying a link must not create a second
@@ -379,7 +393,10 @@ async def remove_member(
                 tenant_id,
             )
             if remaining <= 1:
-                raise Conflict("cannot remove the last owner of a workspace")
+                raise Conflict(
+                    "cannot remove the last owner of a workspace",
+                    ar="لا يمكن إزالة آخر مالك للمساحة.",
+                )
         await conn.execute(
             "delete from memberships where tenant_id = $1 and user_id = $2", tenant_id, user_id
         )

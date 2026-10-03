@@ -28,6 +28,13 @@ Added here:
 - **`view` instead of filters for the inbox.** `mine`, `unassigned`, `team`, `all` are server-side
   definitions, so the four tabs cannot drift between clients.
 - **Long work returns 202 with a job or run id**; nothing blocks on a model call.
+- **A refusal is said in its reader's language.** The web sends the language on screen as
+  `Accept-Language` — the page's, not the browser's own list. When that is Arabic and the refusal
+  has an Arabic sentence, `detail` is that sentence; otherwise it is the English one. A 404 answers
+  an Arabic reader with one general sentence, whatever was missing. `type`, `title`, `status` and
+  `errors[]` never change with the language: a client decides on those, and only shows `detail`.
+  In the code the Arabic sits beside the English at the raise site (`ar=`), and
+  `tests/test_refusals_in_arabic.py` fails when a refusal a person can cause has none.
 
 ---
 

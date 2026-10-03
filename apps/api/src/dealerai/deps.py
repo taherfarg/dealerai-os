@@ -87,7 +87,10 @@ def require_role(minimum: str) -> Callable[[TenantContext], Awaitable[TenantCont
 
     async def guard(ctx: Ctx) -> TenantContext:
         if not ctx.at_least(minimum):
-            raise Forbidden(f"this action requires the {minimum} role or higher")
+            raise Forbidden(
+                f"this action requires the {minimum} role or higher",
+                ar=f"هذا الإجراء يحتاج دور {minimum} أو أعلى.",
+            )
         return ctx
 
     return guard
@@ -103,7 +106,10 @@ def require_permission(permission: str) -> Callable[[TenantContext], Awaitable[T
 
     async def guard(ctx: Ctx) -> TenantContext:
         if not ctx.may(permission):
-            raise Forbidden(f"this action requires the {permission} permission")
+            raise Forbidden(
+                f"this action requires the {permission} permission",
+                ar=f"هذا الإجراء يحتاج صلاحية {permission}.",
+            )
         return ctx
 
     return guard

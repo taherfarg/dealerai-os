@@ -80,7 +80,10 @@ async def regenerate(ctx: Sender, conversation_id: UUID) -> dict[str, str]:
     ):
         latest = await conn.fetchval(q.LATEST_INBOUND, conversation_id)
         if latest is None:
-            raise Unusable("There is nothing from the customer to reply to yet.")
+            raise Unusable(
+                "There is nothing from the customer to reply to yet.",
+                ar="لا توجد بعد رسالة من العميل نرد عليها.",
+            )
         await emit(
             conn,
             "copilot.draft_requested",

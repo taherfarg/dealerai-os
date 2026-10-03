@@ -38,7 +38,8 @@ export function SignupForm() {
       },
     });
     if (error) {
-      setError(error.message);
+      // Ours, in the reader's language, in place of Supabase's English.
+      setError(t("auth.signUpFailed"));
       setBusy(false);
       return;
     }
