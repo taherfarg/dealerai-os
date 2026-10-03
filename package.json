@@ -25,6 +25,7 @@
     "worker": "cd apps/api && uv run python -m dealerai.worker",
     "wa:simulate": "cd apps/api && uv run python -m dealerai.scripts.wa_simulate",
     "vapid:keys": "cd apps/api && uv run python -m dealerai.scripts.vapid",
+    "smoke": "cd apps/api && uv run python -m dealerai.scripts.smoke",
     "eval": "cd apps/api && uv run pytest -m eval -v",
     "eval:gateway": "cd apps/api && uv run pytest tests/evals/test_gateway_cache.py -m eval -v",
     "db:migrate:staging": "cd apps/api && uv run python -m dealerai.scripts.migrate --env-file .env.staging",
