@@ -136,3 +136,61 @@ jobs:
 
       - name: Generated API types are current
         run: npm run check:openapi
+
+  # The paths every slice ended on, walked by a browser against the real API,
+  # the worker and a seeded database (docs/sales/07-frontend.md § 11). The
+  # stack's settings are in apps/web/e2e/stack.ts, not here, so a laptop and CI
+  # run the same thing.
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      db:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: dealerai
+        ports:
+          - 54332:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d dealerai"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Install API
+        working-directory: apps/api
+        run: uv sync --all-extras --dev
+
+      - name: Install Chromium
+        working-directory: apps/web
+        run: npx playwright install --with-deps chromium
+
+      - name: End to end
+        run: npm run e2e
+
+      # What the browser saw, step by step, for a failure nobody can reproduce.
+      # The workspace in it is the seed's: no real customer is in a trace.
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright
+          path: |
+            apps/web/playwright-report
+            apps/web/test-results
+          retention-days: 7

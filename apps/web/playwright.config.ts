@@ -18,7 +18,11 @@ export default defineConfig<Options>({
   retries: process.env.CI ? 1 : 0,
   timeout: 60_000,
   expect: { timeout: 10_000 },
-  reporter: process.env.CI ? [["github"], ["html", { open: "never" }]] : [["list"]],
+  // On CI: each test as a line in the log, a failure marked on the pull request,
+  // and the report kept for the artifact.
+  reporter: process.env.CI
+    ? [["list"], ["github"], ["html", { open: "never" }]]
+    : [["list"]],
   use: { baseURL: WEB_URL, trace: "retain-on-failure" },
   projects: [
     // The day's work in every combination (docs/sales/07-frontend.md § 11).
