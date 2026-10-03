@@ -19,16 +19,31 @@ class AppError(Exception):
     status: int = 500
     slug: str = "internal"
     title: str = "Internal server error"
+    #: What somebody reading Arabic is told when a raise site has no sentence of
+    #: its own for them. None means the English one is better than nothing.
+    ar_default: str | None = None
 
     def __init__(
         self,
         detail: str | None = None,
         *,
         errors: list[dict[str, Any]] | None = None,
+        ar: str | None = None,
     ) -> None:
         super().__init__(detail or self.title)
         self.detail = detail
         self.errors = errors or []
+        #: The same sentence for somebody reading the app in Arabic. Beside the
+        #: English one, where whoever changes the one sees the other
+        #: (tests/test_refusals_in_arabic.py keeps it that way).
+        self.ar = ar or self.ar_default
+
+
+def reads_arabic(request: Request) -> bool:
+    """What the page says its reader is using. apps/web sends the language on
+    screen, alone — so a browser that merely lists Arabic somewhere after
+    English is not somebody reading the app in Arabic."""
+    return request.headers.get("Accept-Language", "").strip().lower().startswith("ar")
 
 
 class NotFound(AppError):
@@ -37,6 +52,9 @@ class NotFound(AppError):
     status = 404
     slug = "not-found"
     title = "Not found"
+    # "no such task" is for whoever is debugging. Whatever it was, a person is
+    # told that it is gone.
+    ar_default = "هذا العنصر غير موجود، أو لم يعد متاحًا لك."
 
 
 class Forbidden(AppError):
@@ -160,7 +178,7 @@ def install_error_handlers(app: FastAPI) -> None:
             status=exc.status,
             slug=exc.slug,
             title=exc.title,
-            detail=exc.detail,
+            detail=exc.ar if exc.ar and reads_arabic(request) else exc.detail,
             instance=request.url.path,
             trace_id=trace_id,
             errors=exc.errors,
@@ -189,7 +207,11 @@ def install_error_handlers(app: FastAPI) -> None:
             status=400,
             slug="invalid-request",
             title="Invalid request",
-            detail="One or more fields failed validation.",
+            detail=(
+                "بعض الحقول غير صالحة."
+                if reads_arabic(request)
+                else "One or more fields failed validation."
+            ),
             instance=request.url.path,
             trace_id=getattr(request.state, "trace_id", "-"),
             errors=[

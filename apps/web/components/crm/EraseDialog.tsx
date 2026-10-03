@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { Auto } from "@/components/Bidi";
+import { Modal } from "@/components/Modal";
 import { ApiError } from "@/lib/api/client";
 import { useEraseCustomer, useExportCustomer, type CustomerDetail } from "@/lib/api/hooks";
 import { useT } from "@/lib/i18n-client";
@@ -29,14 +31,9 @@ export function EraseDialog({
   const confirmed = typed.trim().toLowerCase() === expected.toLowerCase();
 
   return (
-    <div
-      role="dialog"
-      aria-label={t("erase.title")}
-      className="bg-surface border-border fixed inset-x-4 top-20 z-40 mx-auto max-w-md rounded-lg border p-4 shadow-xl"
-    >
-      <h2 className="text-sm font-medium">{t("erase.title")}</h2>
-      <p className="text-muted mt-1 text-xs" dir="auto">
-        {customer.name}
+    <Modal title={t("erase.title")} onClose={onClose}>
+      <p className="text-muted mt-1 text-xs">
+        <Auto>{customer.name}</Auto>
       </p>
 
       <section className="mt-3 text-xs">
@@ -95,6 +92,6 @@ export function EraseDialog({
           {t("erase.confirm")}
         </button>
       </div>
-    </div>
+    </Modal>
   );
 }

@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useTenantApi } from "@/lib/api/context";
 import { useMarkNotificationsRead, useNotifications } from "@/lib/api/hooks";
+import { Sentence } from "@/components/Bidi";
 import { formatRelative } from "@/lib/format";
-import { useT } from "@/lib/i18n-client";
+import { useLocale, useT } from "@/lib/i18n-client";
 
 /** Older than this and it is history, not news. */
 const SHOWN = 20;
@@ -20,8 +21,10 @@ const SHOWN = 20;
  */
 export function NotificationsBell() {
   const t = useT();
+  const locale = useLocale();
   const { slug } = useTenantApi();
   const [open, setOpen] = useState(false);
+  const button = useRef<HTMLButtonElement>(null);
   const notifications = useNotifications();
   const markRead = useMarkNotificationsRead();
 
@@ -36,13 +39,21 @@ export function NotificationsBell() {
       onBlur={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);
       }}
+      // A menu, not a modal: Escape puts it away and hands focus back to the
+      // bell, so the keyboard is where it was before the list opened.
+      onKeyDown={(event) => {
+        if (event.key !== "Escape" || !open) return;
+        setOpen(false);
+        button.current?.focus();
+      }}
     >
       <button
+        ref={button}
         type="button"
         aria-expanded={open}
         aria-label={unread ? `${t("notifications.title")} (${unread})` : t("notifications.title")}
         onClick={() => setOpen((was) => !was)}
-        className="hover:bg-background relative min-h-11 rounded-md px-2 text-lg"
+        className="hover:bg-background relative min-h-11 min-w-11 rounded-md px-2 text-lg"
       >
         <span aria-hidden>🔔</span>
         {unread > 0 && (
@@ -86,12 +97,16 @@ export function NotificationsBell() {
                 const inside = (
                   <>
                     <span className="flex items-baseline justify-between gap-2">
-                      <span className="text-sm font-medium">{row.title}</span>
+                      <Sentence className="text-sm font-medium">{row.title}</Sentence>
                       <time className="text-muted shrink-0 text-xs" dateTime={row.created_at}>
-                        {formatRelative(row.created_at)}
+                        {formatRelative(row.created_at, locale)}
                       </time>
                     </span>
-                    {row.body && <span className="text-muted block text-sm">{row.body}</span>}
+                    {row.body && (
+                      <span className="text-muted block text-sm">
+                        <Sentence>{row.body}</Sentence>
+                      </span>
+                    )}
                   </>
                 );
                 return (

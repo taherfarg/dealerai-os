@@ -7,10 +7,14 @@ from collections.abc import AsyncIterator
 from pathlib import Path
 
 import asyncpg
+import httpx
 import pytest
+from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from dealerai.config import get_settings
 from dealerai.db import session
+from dealerai.notifications import push
 from dealerai.scripts.migrate import run as run_migrations
 
 TENANT_A = uuid.UUID("aaaaaaaa-0000-4000-8000-000000000001")
@@ -420,3 +424,67 @@ async def reseed_with_people() -> None:
         await _seed_people(conn)
     finally:
         await conn.close()
+
+
+# --------------------------------------------------------------------------
+# web push: a push service that keeps what it was sent, and a phone to open it
+# --------------------------------------------------------------------------
+
+#: RFC 8291 Appendix A's user agent — a device whose private key is known, so a
+#: test can open what was sent to it, as a browser would.
+PHONE = {
+    "endpoint": "https://fcm.googleapis.com/fcm/send/the-phone",
+    "p256dh": (
+        "BCVxsr7N_eNgVRqvHtD0zTZsEc6-VV-JvLexhqUzORcxaOzi6-AYWXvTBHm4bjyPjs7Vd8pZGH6SRpkNtoIAiw4"
+    ),
+    "auth": "BTBZMqHH6r4Tts7J_aSIgg",
+}
+PHONE_PRIVATE = "q1dXpw3UpT5VOmu_cf_v6ih07Aems3njxI-JWgLcM94"
+
+
+def open_push(body: bytes) -> dict[str, str]:
+    """What the browser does with a push (RFC 8291 § 4), with the phone's key."""
+    salt, as_public, ciphertext = body[:16], body[21:86], body[86:]
+    shared = push.private_key(PHONE_PRIVATE).exchange(
+        ec.ECDH(), ec.EllipticCurvePublicKey.from_encoded_point(ec.SECP256R1(), as_public)
+    )
+    ikm = push.hkdf(
+        salt=push.unb64(PHONE["auth"]),
+        ikm=shared,
+        info=b"WebPush: info\x00" + push.unb64(PHONE["p256dh"]) + as_public,
+        length=32,
+    )
+    key = push.hkdf(salt=salt, ikm=ikm, info=b"Content-Encoding: aes128gcm\x00", length=16)
+    nonce = push.hkdf(salt=salt, ikm=ikm, info=b"Content-Encoding: nonce\x00", length=12)
+    opened = AESGCM(key).decrypt(nonce, ciphertext, None)
+    assert opened.endswith(b"\x02"), "the last record ends with 0x02"
+    return json.loads(opened[:-1])  # type: ignore[no-any-return]
+
+
+class PushService:
+    """Answers as a push service would, and keeps what it was sent."""
+
+    def __init__(self) -> None:
+        self.status = 201
+        self.unreachable = False
+        self.requests: list[httpx.Request] = []
+
+    def client(self) -> httpx.AsyncClient:
+        def answer(request: httpx.Request) -> httpx.Response:
+            if self.unreachable:
+                raise httpx.ConnectError("no route to the push service", request=request)
+            self.requests.append(request)
+            return httpx.Response(self.status)
+
+        return httpx.AsyncClient(transport=httpx.MockTransport(answer))
+
+
+@pytest.fixture
+def push_service(monkeypatch: pytest.MonkeyPatch) -> PushService:
+    """Push configured with a key made for this test, and nothing leaving the machine."""
+    key = ec.generate_private_key(ec.SECP256R1())
+    scalar = push.b64(key.private_numbers().private_value.to_bytes(32, "big"))
+    monkeypatch.setattr(get_settings(), "vapid_private_key", scalar)
+    service = PushService()
+    monkeypatch.setattr(push, "client", service.client)
+    return service

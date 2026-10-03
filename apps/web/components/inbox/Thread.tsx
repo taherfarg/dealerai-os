@@ -22,8 +22,11 @@ import {
   type Suggestion,
 } from "@/lib/api/hooks";
 import { useNow } from "@/lib/clock";
-import { countryFlag, formatUntil } from "@/lib/format";
-import { useT } from "@/lib/i18n-client";
+import { formatUntil } from "@/lib/format";
+import { useLocale, useT } from "@/lib/i18n-client";
+import { useWide } from "@/lib/media";
+import { CustomerName } from "@/components/Bidi";
+import { Modal } from "@/components/Modal";
 import { CustomerPanel } from "@/components/crm/CustomerPanel";
 import { Composer } from "./Composer";
 import { DraftPanel } from "./DraftPanel";
@@ -33,6 +36,7 @@ import { WaitingTimer } from "./WaitingTimer";
 /** One conversation: who it is, what was said, and what you can do about it. */
 export function Thread({ tenant, conversationId }: { tenant: string; conversationId: string }) {
   const t = useT();
+  const locale = useLocale();
   const me = useMe();
   const conversation = useConversation(conversationId);
   const messages = useMessages(conversationId);
@@ -48,6 +52,7 @@ export function Thread({ tenant, conversationId }: { tenant: string; conversatio
   const createTask = useCreateTask();
   const editCustomer = useEditCustomer(conversation.data?.contact.id ?? "");
   const now = useNow();
+  const wide = useWide();
   const [panel, setPanel] = useState(false);
   const [draftToEdit, setDraftToEdit] = useState<{ id?: string; text: string }>();
   const sentDraft = useRef<string | null>(null);
@@ -123,6 +128,14 @@ export function Thread({ tenant, conversationId }: { tenant: string; conversatio
     });
   };
 
+  const showEvidence = (messageId: string) => {
+    const bubble = document.getElementById(`message-${messageId}`);
+    bubble?.scrollIntoView({ block: "center" });
+    // CSS cannot quieten an animation started here, so this asks for itself.
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    bubble?.animate([{ opacity: 0.35 }, { opacity: 1 }], { duration: 900 });
+  };
+
   const takeAction = async (action: Record<string, unknown>) => {
     if (action.kind === "create_lead") {
       await createLead.mutateAsync({
@@ -148,19 +161,26 @@ export function Thread({ tenant, conversationId }: { tenant: string; conversatio
     <div data-thread className="flex h-full min-h-0 flex-col">
       <header className="border-b border-black/5 p-3 dark:border-white/10">
         <div className="flex items-center gap-2">
-          <Link href={`/${tenant}/inbox`} className="text-muted text-sm lg:hidden">
-            ←
+          <Link
+            href={`/${tenant}/inbox`}
+            aria-label={t("thread.back")}
+            // A thumb's width, pulled back into the header's own padding.
+            className="text-muted -ms-2 inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center text-sm lg:hidden"
+          >
+            {/* An arrow is a character, and a character does not mirror. */}
+            <span aria-hidden className="inline-block rtl:-scale-x-100">
+              ←
+            </span>
           </Link>
-          <h1 className="truncate text-sm font-medium">
-            {countryFlag(row.contact.country)} {row.contact.name ?? t("inbox.unknownCustomer")}
+          <h1 className="min-w-0 flex-1 text-sm font-medium">
+            <CustomerName country={row.contact.country} name={row.contact.name} />
           </h1>
-          <WaitingTimer waitingSince={row.waiting_since} state={row.sla_state} />
-          <div className="ms-auto flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-1 sm:gap-2">
             {!row.assignee && (
               <button
                 type="button"
                 onClick={() => me.data && assign.mutate(me.data.user.id)}
-                className="hover:bg-background min-h-11 rounded-md px-3 text-sm"
+                className="hover:bg-background min-h-11 rounded-md px-2 text-sm sm:px-3"
               >
                 {t("thread.assignToMe")}
               </button>
@@ -169,7 +189,7 @@ export function Thread({ tenant, conversationId }: { tenant: string; conversatio
               type="button"
               aria-pressed={panel}
               onClick={() => setPanel((was) => !was)}
-              className="hover:bg-background min-h-11 rounded-md px-3 text-sm"
+              className="hover:bg-background min-h-11 rounded-md px-2 text-sm sm:px-3"
             >
               {t("customer.details")}
             </button>
@@ -177,7 +197,7 @@ export function Thread({ tenant, conversationId }: { tenant: string; conversatio
               <button
                 type="button"
                 onClick={() => setStatus.mutate("closed")}
-                className="hover:bg-background min-h-11 rounded-md px-3 text-sm"
+                className="hover:bg-background min-h-11 rounded-md px-2 text-sm sm:px-3"
               >
                 {t("thread.close")}
               </button>
@@ -185,20 +205,23 @@ export function Thread({ tenant, conversationId }: { tenant: string; conversatio
               <button
                 type="button"
                 onClick={() => setStatus.mutate("open")}
-                className="hover:bg-background min-h-11 rounded-md px-3 text-sm"
+                className="hover:bg-background min-h-11 rounded-md px-2 text-sm sm:px-3"
               >
                 {t("thread.reopen")}
               </button>
             )}
           </div>
         </div>
-        <p className="text-muted mt-1 text-xs">
+        {/* The timer sits here, under the name: beside it, on a phone, it
+            took two lines and left the name three letters. */}
+        <p className="text-muted mt-1 flex flex-wrap items-center gap-x-2 text-xs">
+          <WaitingTimer waitingSince={row.waiting_since} state={row.sla_state} />
           {row.assignee
             ? `${mine ? t("thread.assignedToYou") : row.assignee.name}`
             : t("inbox.unassigned")}
           {" · "}
           {windowOpen
-            ? `${t("thread.windowOpen")} ${formatUntil(row.window_expires_at ?? "", new Date(now))}`
+            ? `${t("thread.windowOpen")} ${formatUntil(row.window_expires_at ?? "", locale, new Date(now))}`
             : t("thread.windowClosed")}
         </p>
       </header>
@@ -214,28 +237,40 @@ export function Thread({ tenant, conversationId }: { tenant: string; conversatio
               {t("thread.older")}
             </button>
           )}
-          <ul>
-            {thread.map((message) => (
-              <MessageBubble key={message.id} message={message} onRetry={retry.mutate} />
-            ))}
-          </ul>
+          {/* A log ([07] § 10): a message that arrives is read out, politely,
+              without taking the keyboard. Around the list, not on it — a log is
+              not a list, and its items would stop being list items. */}
+          <div role="log" aria-live="polite" aria-relevant="additions" aria-label={t("thread.messages")}>
+            <ul>
+              {thread.map((message) => (
+                <MessageBubble key={message.id} message={message} onRetry={retry.mutate} />
+              ))}
+            </ul>
+          </div>
         </div>
 
-        {panel && (
-          // A column beside the thread on a desktop, a sheet over it on a phone.
-          <aside className="border-border bg-surface fixed inset-y-0 end-0 z-30 w-80 overflow-y-auto border-s lg:static lg:z-auto lg:w-72">
-            <CustomerPanel
-              tenant={tenant}
-              contactId={row.contact.id}
-              onClose={() => setPanel(false)}
-              onEvidence={(messageId) => {
-                const bubble = document.getElementById(`message-${messageId}`);
-                bubble?.scrollIntoView({ block: "center" });
-                bubble?.animate([{ opacity: 0.35 }, { opacity: 1 }], { duration: 900 });
-              }}
-            />
-          </aside>
-        )}
+        {panel &&
+          (wide ? (
+            // A column beside the thread, there while a reply is being typed.
+            <aside className="border-border bg-surface w-72 overflow-y-auto border-s">
+              <CustomerPanel tenant={tenant} contactId={row.contact.id} onEvidence={showEvidence} />
+            </aside>
+          ) : (
+            // On a phone it covers the thread, so it is a dialog: focus goes in,
+            // Escape comes out, and a screen reader is told the page changed.
+            <Modal variant="sheet" label={t("customer.details")} onClose={() => setPanel(false)}>
+              <CustomerPanel
+                tenant={tenant}
+                contactId={row.contact.id}
+                onClose={() => setPanel(false)}
+                onEvidence={(messageId) => {
+                  // The message is underneath: put the sheet away to show it.
+                  setPanel(false);
+                  showEvidence(messageId);
+                }}
+              />
+            </Modal>
+          ))}
       </div>
 
       <DraftPanel
@@ -252,6 +287,7 @@ export function Thread({ tenant, conversationId }: { tenant: string; conversatio
       <Composer
         key={draftToEdit ? `${draftToEdit.id ?? "followup"}:${draftToEdit.text}` : "plain"}
         conversationId={conversationId}
+        channelId={row.channel?.id}
         windowOpen={windowOpen}
         disabled={row.status !== "open"}
         draftToEdit={draftToEdit}

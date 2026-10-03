@@ -94,7 +94,10 @@ async def patch_member(ctx: TeamAdmin, user_id: UUID, patch: MemberPatch) -> dic
                 ctx.tenant_id,
             )
             if owners == 1:
-                raise Conflict("this is the last owner; make someone else an owner first")
+                raise Conflict(
+                    "this is the last owner; make someone else an owner first",
+                    ar="هذا آخر مالك للمساحة؛ اجعل شخصًا آخر مالكًا أولًا.",
+                )
 
         await conn.execute(
             """update memberships
@@ -153,7 +156,10 @@ async def create_team(ctx: TeamAdmin, body: TeamIn) -> TeamOut:
                 body.name,
             )
         except asyncpg.UniqueViolationError as exc:
-            raise Conflict(f"a team called {body.name!r} already exists") from exc
+            raise Conflict(
+                f"a team called {body.name!r} already exists",
+                ar=f"يوجد فريق باسم «{body.name}» من قبل.",
+            ) from exc
         for user_id in body.member_ids:
             await conn.execute(
                 """insert into team_members (tenant_id, team_id, user_id)
@@ -175,7 +181,10 @@ async def rename_team(ctx: TeamAdmin, team_id: UUID, body: TeamIn) -> dict[str, 
                 "update teams set name = $2 where id = $1 returning id", team_id, body.name
             )
         except asyncpg.UniqueViolationError as exc:
-            raise Conflict(f"a team called {body.name!r} already exists") from exc
+            raise Conflict(
+                f"a team called {body.name!r} already exists",
+                ar=f"يوجد فريق باسم «{body.name}» من قبل.",
+            ) from exc
         if renamed is None:
             raise NotFound("no such team")
         members = await conn.fetchval(
@@ -196,7 +205,10 @@ async def delete_team(ctx: TeamAdmin, team_id: UUID) -> None:
         if settings.default_team_id == team_id or any(
             rule.team_id == team_id for rule in settings.routing_rules
         ):
-            raise Conflict("routing still sends customers to this team; change the routing first")
+            raise Conflict(
+                "routing still sends customers to this team; change the routing first",
+                ar="ما زال التوزيع يرسل عملاء إلى هذا الفريق؛ غيّر التوزيع أولًا.",
+            )
         deleted = await conn.fetchval("delete from teams where id = $1 returning id", team_id)
         if deleted is None:
             raise NotFound("no such team")

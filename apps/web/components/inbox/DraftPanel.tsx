@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { Suggestion } from "@/lib/api/hooks";
 import type { MessageKey } from "@/lib/i18n";
 import { useT } from "@/lib/i18n-client";
+import { blockedReasons } from "@/lib/words";
 
 export type DiscardReason = "wrong_info" | "wrong_tone" | "not_needed" | "other";
 type Source = Record<string, unknown>;
@@ -81,7 +82,10 @@ export function DraftPanel({
   if (suggestion.status === "blocked") {
     return (
       <div className="text-muted border-border border-t px-3 py-2 text-sm" role="status" dir="auto">
-        {t("draft.blocked")}: {suggestion.blocked_reason ?? t("draft.unavailable")}
+        {t("draft.blocked")}:{" "}
+        {suggestion.blocked_reason
+          ? blockedReasons(t, suggestion.blocked_reason)
+          : t("draft.unavailable")}
       </div>
     );
   }
@@ -160,7 +164,8 @@ export function DraftPanel({
                     <span key={index}>
                       <button
                         type="button"
-                        className="rounded-full border border-black/15 px-2 py-1 dark:border-white/20"
+                        className="inline-flex min-h-11 items-center rounded-full border border-black/15 px-3 dark:border-white/20"
+                        dir="auto"
                         onClick={() => setOpenedDocument(openedDocument === String(index) ? null : String(index))}
                       >
                         {label}
@@ -172,7 +177,7 @@ export function DraftPanel({
                       )}
                     </span>
                   ) : (
-                    <span key={index} className="rounded-full border border-black/15 px-2 py-1 dark:border-white/20">
+                    <span key={index} dir="auto" className="rounded-full border border-black/15 px-2 py-1 dark:border-white/20">
                       {label}
                     </span>
                   );
@@ -207,7 +212,8 @@ export function DraftPanel({
                           setActionError(failure instanceof Error ? failure.message : t("draft.actionFailed"));
                         }
                       }}
-                      className="rounded-md border border-black/15 px-2 py-1 text-xs disabled:opacity-50 dark:border-white/20"
+                      className="min-h-11 rounded-md border border-black/15 px-3 text-xs disabled:opacity-50 dark:border-white/20"
+                      dir="auto"
                     >
                       {stringAt(action, "label") ?? t("draft.action")}
                     </button>

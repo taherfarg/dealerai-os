@@ -85,6 +85,14 @@ class Settings(BaseSettings):
     #: Graph API version the WhatsApp connector calls. Meta keeps a version about two years.
     whatsapp_graph_version: str = "v25.0"
 
+    #: Web Push (docs/sales/07-frontend.md § 8). The private key is a base64url
+    #: P-256 scalar — `npm run vapid:keys` writes one locally. Unset, nothing is
+    #: pushed and the bell works as before. The subject is who a push service
+    #: writes to about this sender: a real mailto: or https: address in
+    #: production, where Apple refuses a made-up one.
+    vapid_private_key: str | None = None
+    vapid_subject: str = "mailto:push@dealerai.local"
+
     #: Local development only: stored objects live in this directory instead of
     #: Supabase Storage. Relative paths resolve against the repo root.
     storage_dir: str | None = None

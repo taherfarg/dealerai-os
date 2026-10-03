@@ -2,8 +2,10 @@
 
 import type { Lead, Stage } from "@/lib/api/hooks";
 import { useNow } from "@/lib/clock";
-import { countryFlag, formatMoney, formatRelative } from "@/lib/format";
-import { useT } from "@/lib/i18n-client";
+import { Auto, CustomerName, Ltr } from "@/components/Bidi";
+import { formatDue, formatMoney } from "@/lib/format";
+import { useLocale, useT } from "@/lib/i18n-client";
+import { counted } from "@/lib/words";
 
 const BAND_TONE: Record<string, string> = {
   hot: "bg-red-500/15 text-red-700 dark:text-red-300",
@@ -33,6 +35,7 @@ export function LeadCard({
   now?: number;
 }) {
   const t = useT();
+  const locale = useLocale();
   const clock = useNow(60_000, now);
   // Never below zero: the ticking clock lags by up to a minute, and a lead
   // moved a second ago would otherwise read "-1 days here".
@@ -50,9 +53,11 @@ export function LeadCard({
     >
       <button type="button" onClick={onOpen} className="block w-full text-start">
         <span className="flex items-baseline justify-between gap-2">
-          <span className="truncate text-sm font-medium">
-            {countryFlag(lead.contact.country)} {lead.contact.name}
-          </span>
+          <CustomerName
+            country={lead.contact.country}
+            name={lead.contact.name}
+            className="text-sm font-medium"
+          />
           {lead.band && (
             <span
               className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${BAND_TONE[lead.band]}`}
@@ -62,19 +67,19 @@ export function LeadCard({
           )}
         </span>
 
-        <span className="text-muted mt-1 block truncate text-xs">
-          {lead.vehicle?.label ?? t("pipeline.noCar")}
+        <span className="text-muted mt-1 flex text-xs">
+          <Auto className="min-w-0 truncate">{lead.vehicle?.label ?? t("pipeline.noCar")}</Auto>
         </span>
 
         <span className="text-muted mt-1 flex flex-wrap items-center gap-2 text-[11px]">
-          {lead.budget && <span>{formatMoney(lead.budget)}</span>}
+          {lead.budget && <Ltr>{formatMoney(lead.budget)}</Ltr>}
           <span>{lead.owner?.name ?? t("customers.nobody")}</span>
           <span>
-            {days} {t("pipeline.daysInStage")}
+            {counted(locale, days, "days")} {t("pipeline.here")}
           </span>
           {lead.next_action_at && (
             <span>
-              {t("pipeline.nextAction")} {formatRelative(lead.next_action_at, new Date(clock))}
+              {t("pipeline.nextAction")} {formatDue(lead.next_action_at, locale, new Date(clock))}
             </span>
           )}
         </span>

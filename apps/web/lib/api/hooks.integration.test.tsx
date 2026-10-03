@@ -3,7 +3,13 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { TenantApiProvider } from "./context";
-import { useBulkReassign, useSaveSalesSettings, useSendMessage, useSuggestion } from "./hooks";
+import {
+  useBulkReassign,
+  useSaveSalesSettings,
+  useSendMessage,
+  useSuggestion,
+  useTellServerMyLanguage,
+} from "./hooks";
 
 vi.mock("@/lib/auth/token", () => ({ getBrowserAccessToken: async () => null }));
 
@@ -126,5 +132,50 @@ describe("settings and handing customers over", () => {
     });
     expect(failed).toEqual(["customer-2"]);
     expect(fetch).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe("the reader's language", () => {
+  /** An API that knows one language for this person and takes a new one. */
+  const server = (knows: "en" | "ar") => {
+    const fetch = vi.fn<(request: Request) => Promise<Response>>(async (request) =>
+      request.method === "PUT"
+        ? new Response(null, { status: 204 })
+        : new Response(JSON.stringify({ user: { id: "user-1" }, locale: knows }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }),
+    );
+    vi.stubGlobal("fetch", fetch);
+    return fetch;
+  };
+  const told = (fetch: ReturnType<typeof server>) =>
+    fetch.mock.calls.map(([request]) => request).filter((request) => request.method === "PUT");
+
+  it("tells the server when the language on screen is not the one it has", async () => {
+    const fetch = server("en");
+    const { wrapper, client } = setup();
+    renderHook(() => useTellServerMyLanguage("ar"), { wrapper });
+
+    await waitFor(() => expect(told(fetch)).toHaveLength(1));
+    const [request] = told(fetch);
+    expect(request.url).toContain("/v1/me/locale");
+    expect(JSON.parse(await request.text())).toEqual({ locale: "ar" });
+    // And remembers that it did, so it is said once.
+    await waitFor(() =>
+      expect(
+        (client.getQueryData(["me", "tenant-1"]) as { locale: string } | undefined)?.locale,
+      ).toBe("ar"),
+    );
+    expect(told(fetch)).toHaveLength(1);
+  });
+
+  it("says nothing when the server already has it", async () => {
+    const fetch = server("ar");
+    const { wrapper } = setup();
+    renderHook(() => useTellServerMyLanguage("ar"), { wrapper });
+    await waitFor(() => expect(fetch).toHaveBeenCalled());
+    await act(async () => {});
+    expect(told(fetch)).toHaveLength(0);
   });
 });

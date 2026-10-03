@@ -211,7 +211,9 @@ def test_a_manager_may_assign_anyone(client: TestClient) -> None:
     )
     assert response.status_code == 200
     assert response.json()["assignee"]["id"] == str(SALES_2)
-    assert "Assigned to" in str(_thread_events(client, UNASSIGNED, MANAGER))
+    [line] = [e for e in _thread_events(client, UNASSIGNED, MANAGER) if e["type"] == "assigned"]  # type: ignore[index]
+    assert line["text"].startswith("Assigned to ")  # type: ignore[index]
+    assert line["text"] == f"Assigned to {line['name']}"  # type: ignore[index]
 
 
 def _thread_events(client: TestClient, conversation_id: uuid.UUID, user: uuid.UUID) -> list[object]:

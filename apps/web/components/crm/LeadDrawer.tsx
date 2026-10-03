@@ -1,9 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useLead, type Stage } from "@/lib/api/hooks";
-import { formatDateTime, formatMoney, formatRelative } from "@/lib/format";
-import { useT } from "@/lib/i18n-client";
+import { useLead, useMe, type Stage } from "@/lib/api/hooks";
+import { formatDateTime, formatDue, formatMoney, formatRelative } from "@/lib/format";
+import { Auto, Ltr } from "@/components/Bidi";
+import { Modal } from "@/components/Modal";
+import { useLocale, useT } from "@/lib/i18n-client";
+import { word } from "@/lib/words";
 import { ScoreReasons } from "./ScoreReasons";
 
 /** Everything about one lead, opened from `?lead=` so the URL can be shared. */
@@ -21,27 +24,29 @@ export function LeadDrawer({
   onMove: (leadId: string, stageId: string) => void;
 }) {
   const t = useT();
+  const locale = useLocale();
+  const me = useMe();
   const lead = useLead(leadId);
 
   return (
-    <aside
-      aria-label={t("customer.details")}
-      className="border-border bg-surface fixed inset-y-0 end-0 z-30 w-full overflow-y-auto border-s p-4 shadow-xl sm:w-96"
-    >
-      <div className="flex items-start justify-between gap-2">
-        <h2 className="text-sm font-medium">{lead.data?.contact.name ?? "…"}</h2>
+    // It covers the board, so it is a dialog: focus goes in, Escape comes out.
+    <Modal variant="sheet" label={t("lead.details")} onClose={onClose}>
+      <div className="flex items-start justify-between gap-2 p-4 pb-0">
+        <h2 className="text-sm font-medium" dir="auto">
+          {lead.data?.contact.name ?? "…"}
+        </h2>
         <button
           type="button"
           onClick={onClose}
           aria-label={t("lead.close")}
-          className="text-muted min-h-11 px-2"
+          className="text-muted min-h-11 min-w-11 px-2"
         >
           ✕
         </button>
       </div>
 
       {lead.data && (
-        <div className="mt-3 flex flex-col gap-4">
+        <div className="mt-3 flex flex-col gap-4 p-4 pt-0">
           <p className="text-sm">{lead.data.vehicle?.label ?? t("pipeline.noCar")}</p>
 
           <label className="block">
@@ -65,17 +70,21 @@ export function LeadDrawer({
             {lead.data.budget && (
               <>
                 <dt className="text-muted">{t("lead.budget")}</dt>
-                <dd>{formatMoney(lead.data.budget)}</dd>
+                <dd>
+                  <Ltr>{formatMoney(lead.data.budget)}</Ltr>
+                </dd>
               </>
             )}
             <dt className="text-muted">{t("lead.source")}</dt>
-            <dd>{lead.data.source ?? "—"}</dd>
+            <dd>{lead.data.source ? word(t, "source", lead.data.source) : "—"}</dd>
             <dt className="text-muted">{t("lead.created")}</dt>
-            <dd>{formatDateTime(lead.data.created_at, "Asia/Dubai")}</dd>
+            <dd>{formatDateTime(lead.data.created_at, me.data?.tenant.timezone ?? "Asia/Dubai", locale)}</dd>
             {lead.data.lost_reason && (
               <>
                 <dt className="text-muted">{t("lead.lostReason")}</dt>
-                <dd>{lead.data.lost_reason}</dd>
+                <dd>
+                  <Auto>{lead.data.lost_reason}</Auto>
+                </dd>
               </>
             )}
           </dl>
@@ -85,7 +94,7 @@ export function LeadDrawer({
           {lead.data.conversation_id && (
             <Link
               href={`/${tenant}/inbox/${lead.data.conversation_id}`}
-              className="text-sm underline"
+              className="inline-flex min-h-11 items-center self-start text-sm underline"
             >
               {t("lead.conversation")}
             </Link>
@@ -101,9 +110,11 @@ export function LeadDrawer({
               <ol className="mt-1">
                 {lead.data.history.map((move) => (
                   <li key={move.at} className="flex justify-between gap-2 py-1 text-xs">
-                    <span>{move.text}</span>
-                    <span className="text-muted">
-                      {move.by} · {formatRelative(move.at)}
+                    <Auto>{move.text}</Auto>
+                    {/* The name is set apart: beside a Latin name a number joins
+                        the name's run, and "3 د" comes out as "د … 3". */}
+                    <span className="text-muted shrink-0">
+                      <Auto>{move.by}</Auto> · {formatRelative(move.at, locale)}
                     </span>
                   </li>
                 ))}
@@ -121,10 +132,10 @@ export function LeadDrawer({
               <ul className="mt-1">
                 {lead.data.tasks.map((task) => (
                   <li key={task.id} className="flex justify-between gap-2 py-1 text-xs">
-                    <span className={task.status === "done" ? "line-through" : ""}>
+                    <Auto className={task.status === "done" ? "line-through" : ""}>
                       {task.title}
-                    </span>
-                    <span className="text-muted">{formatRelative(task.due_at)}</span>
+                    </Auto>
+                    <span className="text-muted shrink-0">{formatDue(task.due_at, locale)}</span>
                   </li>
                 ))}
               </ul>
@@ -132,6 +143,6 @@ export function LeadDrawer({
           </section>
         </div>
       )}
-    </aside>
+    </Modal>
   );
 }

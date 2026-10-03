@@ -3,8 +3,9 @@
 import Link from "next/link";
 import type { Task } from "@/lib/api/hooks";
 import { useNow } from "@/lib/clock";
-import { formatRelative } from "@/lib/format";
-import { useT } from "@/lib/i18n-client";
+import { Auto } from "@/components/Bidi";
+import { formatDue } from "@/lib/format";
+import { useLocale, useT } from "@/lib/i18n-client";
 import { FollowUpCard } from "./FollowUpCard";
 
 const KIND_ICON: Record<Task["kind"], string> = {
@@ -58,6 +59,7 @@ export function TaskRow({
   now?: number;
 }) {
   const t = useT();
+  const locale = useLocale();
   const clock = useNow(60_000, now);
   const done = task.status !== "open";
   const overdue = !done && new Date(task.due_at).getTime() < clock;
@@ -68,22 +70,27 @@ export function TaskRow({
       data-overdue={overdue}
       className="flex flex-wrap items-center gap-3 border-b border-black/5 py-2 dark:border-white/10"
     >
-      <input
-        type="checkbox"
-        checked={done}
-        aria-label={t("tasks.complete")}
-        onChange={(event) => onComplete(event.target.checked)}
-        className="size-4 shrink-0"
-      />
+      {/* The box is 16 px; the label round it is what a thumb presses. */}
+      <label className="-ms-3 flex min-h-11 min-w-11 shrink-0 items-center justify-center">
+        <input
+          type="checkbox"
+          checked={done}
+          aria-label={t("tasks.complete")}
+          onChange={(event) => onComplete(event.target.checked)}
+          className="size-4"
+        />
+      </label>
 
       <span className="min-w-0 flex-1">
-        <span className={`block truncate text-sm ${done ? "text-muted line-through" : ""}`}>
-          <span aria-hidden className="me-1">
+        <span className={`flex items-baseline gap-1 text-sm ${done ? "text-muted" : ""}`}>
+          <span aria-hidden className="shrink-0">
             {KIND_ICON[task.kind]}
           </span>
-          {task.title}
+          {/* The title alone is cut, and at its own end: a title in English on
+              an Arabic screen used to lose its first words. */}
+          <Auto className={`min-w-0 truncate ${done ? "line-through" : ""}`}>{task.title}</Auto>
           {task.source === "ai" && (
-            <span className="ms-2 rounded bg-blue-500/15 px-1 text-[10px] uppercase text-blue-700 dark:text-blue-300">
+            <span className="shrink-0 rounded bg-blue-500/15 px-1 text-[10px] uppercase text-blue-700 dark:text-blue-300">
               {t("tasks.ai")}
             </span>
           )}
@@ -91,7 +98,10 @@ export function TaskRow({
         {task.contact && (
           <Link
             href={`/${tenant}/customers/${task.contact.id}`}
-            className="text-muted truncate text-xs underline"
+            // A thumb's height to press, taken from the padding and given back
+            // by the margin, so the row is no taller for it.
+            className="text-muted -my-3.5 inline-block py-3.5 text-xs underline"
+            dir="auto"
           >
             {task.contact.name}
           </Link>
@@ -107,7 +117,7 @@ export function TaskRow({
         className={`shrink-0 text-xs ${overdue ? "font-medium text-red-600 dark:text-red-400" : "text-muted"}`}
       >
         {overdue && <span className="me-1">{t("tasks.overdue")}</span>}
-        {formatRelative(task.due_at, new Date(clock))}
+        {formatDue(task.due_at, locale, new Date(clock))}
       </time>
 
       {!done && (

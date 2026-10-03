@@ -32,9 +32,13 @@ const base: Lead = {
   next_action_at: null,
 };
 
-const show = (overrides: Partial<Lead>, handlers: { onMove?: (id: string) => void } = {}) =>
+const show = (
+  overrides: Partial<Lead>,
+  handlers: { onMove?: (id: string) => void } = {},
+  locale: "en" | "ar" = "en",
+) =>
   render(
-    <LocaleProvider locale="en">
+    <LocaleProvider locale={locale}>
       <ul>
         <LeadCard
           lead={{ ...base, ...overrides }}
@@ -56,6 +60,14 @@ describe("LeadCard", () => {
     expect(screen.getByText("Ahmed Nasser")).toBeDefined();
     expect(screen.getByText("3 days here")).toBeDefined();
     expect(screen.getByText(/Hot 78/)).toBeDefined();
+  });
+
+  it("counts the days the Arabic way", () => {
+    const { unmount } = show({}, {}, "ar");
+    expect(screen.getByText("3 أيام هنا")).toBeDefined();
+    unmount();
+    show({ stage_entered_at: new Date(NOW - 2 * 86_400_000).toISOString() }, {}, "ar");
+    expect(screen.getByText("يومان هنا")).toBeDefined();
   });
 
   it("counts a lead moved a moment ago as zero days, not minus one", () => {

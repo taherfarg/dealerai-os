@@ -65,8 +65,13 @@ export function ConversationList() {
     return () => observer.disconnect();
   }, [conversations]);
 
+  // The page's heading — or, beside an open conversation, the heading under
+  // that customer's. Not shown: the tabs already say where one is.
+  const Heading = conversationId ? "h2" : "h1";
+
   return (
     <div className="flex h-full min-h-0 flex-col">
+      <Heading className="sr-only">{t("nav.inbox")}</Heading>
       <div className="border-b border-black/5 p-3 dark:border-white/10">
         <div role="tablist" aria-label={t("nav.inbox")} className="flex gap-1">
           {allowed.map((candidate) => {
@@ -78,7 +83,7 @@ export function ConversationList() {
                 role="tab"
                 aria-selected={candidate === view}
                 onClick={() => setParam("view", candidate === "mine" ? "" : candidate)}
-                className={`min-h-11 rounded-md px-3 text-sm transition-colors ${
+                className={`min-h-11 min-w-11 rounded-md px-3 text-sm transition-colors ${
                   candidate === view ? "bg-background font-medium" : "hover:bg-background"
                 }`}
               >

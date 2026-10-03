@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
+import asyncpg
 import pytest
 
 from dealerai.core.errors import NotFound
@@ -25,9 +26,22 @@ async def test_people_are_listed_with_their_roles() -> None:
     assert [(p.name, p.role) for p in people] == [(name, role) for name, role, *_ in PEOPLE]
 
 
-async def test_an_unknown_email_gets_nothing() -> None:
-    with pytest.raises(NotFound):
-        await dev.create_session(dev.DevSessionIn(email="stranger@example.test"))
+async def test_somebody_new_gets_a_session_and_no_workspace(
+    db: None, su: asyncpg.Connection
+) -> None:
+    """What Supabase does on sign-up, so an invitation can be accepted locally."""
+    session = await dev.create_session(
+        dev.DevSessionIn(email="Layla@Pollux.test", name="Layla Hassan")
+    )
+    user = decode_supabase_jwt(session.access_token)
+    assert user.email == "layla@pollux.test"
+    assert user.claims["user_metadata"] == {"full_name": "Layla Hassan"}
+    assert (session.tenant_id, session.tenant_slug) == (None, None)
+    assert await su.fetchval("select email from auth.users where id = $1", user.id) == (
+        "layla@pollux.test"
+    )
+    again = await dev.create_session(dev.DevSessionIn(email="layla@pollux.test"))
+    assert decode_supabase_jwt(again.access_token).id == user.id, "one person, one id"
 
 
 @pytest.mark.parametrize("env", ["staging", "production"])

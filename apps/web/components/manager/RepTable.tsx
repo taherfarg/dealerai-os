@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Fragment, useState } from "react";
 import type { Conversation, RepRow } from "@/lib/api/hooks";
 import { formatDuration } from "@/lib/format";
-import { useT } from "@/lib/i18n-client";
+import { useLocale, useT } from "@/lib/i18n-client";
 import { tone } from "./StatTile";
 
 const TONE_TEXT = {
@@ -14,10 +14,13 @@ const TONE_TEXT = {
 } as const;
 
 function Median({ seconds, target }: { seconds: number | null; target: number }) {
+  const locale = useLocale();
   const band = tone(seconds, target);
   return (
-    <span className={`tabular-nums ${band ? TONE_TEXT[band] : "text-muted"}`} dir="ltr">
-      {seconds == null ? "—" : formatDuration(seconds)}
+    // No dir here: the units are the reader's, and Arabic ones forced left to
+    // right come out in the wrong order.
+    <span className={`tabular-nums ${band ? TONE_TEXT[band] : "text-muted"}`}>
+      {seconds == null ? "—" : formatDuration(seconds, locale)}
     </span>
   );
 }

@@ -9,8 +9,10 @@ from __future__ import annotations
 import asyncio
 import uuid
 from collections.abc import Iterator
+from typing import Any
 
 import asyncpg
+import jwt
 import pytest
 from fastapi.testclient import TestClient
 
@@ -65,11 +67,50 @@ def client(_migrated: None) -> Iterator[TestClient]:
         yield c
 
 
-def auth(user_id: uuid.UUID, tenant_id: uuid.UUID | None = None) -> dict[str, str]:
-    headers = {"Authorization": f"Bearer {mint_test_token(user_id, secret=SECRET)}"}
+def auth(
+    user_id: uuid.UUID,
+    tenant_id: uuid.UUID | None = None,
+    *,
+    email: str | None = None,
+    name: str | None = None,
+) -> dict[str, str]:
+    token = mint_test_token(user_id, secret=SECRET, email=email, name=name)
+    headers = {"Authorization": f"Bearer {token}"}
     if tenant_id is not None:
         headers["X-Tenant-Id"] = str(tenant_id)
     return headers
+
+
+def _fetch(sql: str, *args: object) -> list[asyncpg.Record]:
+    async def run() -> list[asyncpg.Record]:
+        conn = await asyncpg.connect(get_settings().migration_dsn)
+        try:
+            return list(await conn.fetch(sql, *args))
+        finally:
+            await conn.close()
+
+    return asyncio.run(run())
+
+
+INVITED = "new@dealer.test"
+
+
+def _invite(client: TestClient, **body: object) -> str:
+    response = client.post(
+        f"/v1/tenants/{TENANT_A}/invites",
+        json={"email": INVITED, "role": "sales", **body},
+        headers=auth(USER_A, TENANT_A),
+    )
+    assert response.status_code == 201, response.text
+    return str(response.json()["token"])
+
+
+def _join(client: TestClient, token: str, **claims: str) -> Any:
+    return client.post(
+        "/v1/invites/accept",
+        json={"token": token},
+        headers=auth(USER_B, **({"email": INVITED} | claims)),
+    )
 
 
 # --------------------------------------------------------------------------
@@ -193,6 +234,17 @@ def test_duplicate_slug_is_409(client: TestClient) -> None:
     assert r.status_code == 409
 
 
+@pytest.mark.parametrize("slug", ["login", "auth", "onboarding", "accept-invite", "icon"])
+def test_a_workspace_cannot_take_an_address_the_app_answers_at(
+    client: TestClient, slug: str
+) -> None:
+    """The app's own page would answer there, and the workspace could never be
+    opened. The same answer as a slug somebody has: it is taken."""
+    r = client.post("/v1/tenants", json={"name": "Icon Motors", "slug": slug}, headers=auth(USER_A))
+    assert r.status_code == 409, r.text
+    assert slug in r.json()["detail"]
+
+
 def test_invalid_slug_is_rejected(client: TestClient) -> None:
     r = client.post(
         "/v1/tenants", json={"name": "Bad Slug", "slug": "Not A Slug!"}, headers=auth(USER_A)
@@ -246,18 +298,78 @@ def test_autonomy_rules_round_trip(client: TestClient) -> None:
 
 
 def test_owner_can_invite_and_the_link_is_redeemable(client: TestClient) -> None:
-    invite = client.post(
+    accepted = _join(client, _invite(client))
+    assert accepted.status_code == 200, accepted.text
+    assert accepted.json()["role"] == "sales"
+
+
+def test_a_forwarded_invitation_is_refused(client: TestClient) -> None:
+    """Anybody holding the link joined with any account."""
+    refused = _join(client, _invite(client), email="someone.else@dealer.test")
+    assert refused.status_code == 403
+    assert not _fetch(
+        "select 1 from memberships where tenant_id = $1 and user_id = $2", TENANT_A, USER_B
+    )
+
+
+def test_an_address_is_compared_as_an_address(client: TestClient) -> None:
+    token = _invite(client, email="New@Dealer.test")
+    assert _join(client, token, email="new@dealer.TEST").status_code == 200
+
+
+def test_joining_puts_them_in_the_invited_teams(client: TestClient) -> None:
+    team = uuid.uuid4()
+    _exec("insert into teams (id, tenant_id, name) values ($1, $2, 'Local')", team, TENANT_A)
+    assert _join(client, _invite(client, team_ids=[str(team)])).status_code == 200
+    rows = _fetch("select team_id from team_members where user_id = $1", USER_B)
+    assert [row["team_id"] for row in rows] == [team]
+
+
+def test_an_invitation_names_only_this_workspaces_teams(client: TestClient) -> None:
+    theirs = uuid.uuid4()
+    _exec("insert into teams (id, tenant_id, name) values ($1, $2, 'Export')", theirs, TENANT_B)
+    response = client.post(
         f"/v1/tenants/{TENANT_A}/invites",
-        json={"email": "new@dealer.test", "role": "sales"},
+        json={"email": INVITED, "role": "sales", "team_ids": [str(theirs)]},
         headers=auth(USER_A, TENANT_A),
     )
-    assert invite.status_code == 201, invite.text
+    assert response.status_code == 422
 
-    accepted = client.post(
-        "/v1/invites/accept", json={"token": invite.json()["token"]}, headers=auth(USER_B)
+
+def test_joining_remembers_who_they_are(client: TestClient) -> None:
+    """Only the seed wrote profiles: a real salesperson was nameless everywhere."""
+    _join(client, _invite(client), name="Layla Hassan")
+    [profile] = _fetch("select email, full_name from profiles where id = $1", USER_B)
+    assert (profile["email"], profile["full_name"]) == (INVITED, "Layla Hassan")
+
+
+def test_creating_a_workspace_remembers_its_owner(client: TestClient) -> None:
+    response = client.post(
+        "/v1/tenants",
+        json={"name": "Test Motors", "slug": f"test-{uuid.uuid4().hex[:8]}"},
+        headers=auth(USER_B, email="owner@dealer.test", name="Khalid Al Suwaidi"),
     )
-    assert accepted.status_code == 200
-    assert accepted.json()["role"] == "sales"
+    assert response.status_code == 201, response.text
+    [profile] = _fetch("select full_name from profiles where id = $1", USER_B)
+    assert profile["full_name"] == "Khalid Al Suwaidi"
+
+
+def test_the_link_names_the_workspace_and_joining_says_where_to_go(client: TestClient) -> None:
+    token = _invite(client)
+    claims = jwt.decode(token, options={"verify_signature": False})
+    tenant = client.get(f"/v1/tenants/{TENANT_A}", headers=auth(USER_A, TENANT_A)).json()
+    assert claims["tenant_name"] == tenant["name"]
+    assert claims["email"] == INVITED
+    assert _join(client, token).json()["tenant_slug"] == tenant["slug"]
+
+
+def test_an_invitation_is_for_a_salesperson_unless_it_says_otherwise(client: TestClient) -> None:
+    response = client.post(
+        f"/v1/tenants/{TENANT_A}/invites",
+        json={"email": INVITED},
+        headers=auth(USER_A, TENANT_A),
+    )
+    assert response.json()["role"] == "sales"
 
 
 def test_replaying_an_invite_neither_duplicates_nor_reroles(client: TestClient) -> None:
@@ -269,8 +381,9 @@ def test_replaying_an_invite_neither_duplicates_nor_reroles(client: TestClient) 
     )
     token = invite.json()["token"]
 
-    first = client.post("/v1/invites/accept", json={"token": token}, headers=auth(USER_B))
-    second = client.post("/v1/invites/accept", json={"token": token}, headers=auth(USER_B))
+    invited = auth(USER_B, email="b@dealer.test")
+    first = client.post("/v1/invites/accept", json={"token": token}, headers=invited)
+    second = client.post("/v1/invites/accept", json={"token": token}, headers=invited)
     assert first.status_code == second.status_code == 200
     assert first.json()["role"] == second.json()["role"] == "viewer"
 

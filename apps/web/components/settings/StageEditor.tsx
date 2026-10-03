@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ApiError } from "@/lib/api/client";
 import { useReplaceStages, type Pipeline, type Stage } from "@/lib/api/hooks";
+import { Auto } from "@/components/Bidi";
 import { useT } from "@/lib/i18n-client";
 
 type Editable = { id?: string; name: string; category: Stage["category"] };
@@ -38,8 +39,8 @@ export function StageEditor({ pipeline }: { pipeline: Pipeline }) {
 
   return (
     <section className="bg-surface border-border rounded-lg border p-3">
-      <h2 className="text-sm font-semibold" dir="auto">
-        {pipeline.name}
+      <h2 className="text-sm font-semibold">
+        <Auto>{pipeline.name}</Auto>
       </h2>
       <ol className="mt-2 flex flex-col gap-1">
         {stages.map((stage, index) => (

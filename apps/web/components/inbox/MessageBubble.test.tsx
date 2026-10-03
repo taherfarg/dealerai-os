@@ -56,6 +56,11 @@ describe("MessageBubble", () => {
     expect(screen.getByText(/white Land Cruiser/)).toBeDefined();
   });
 
+  it("lets a message keep the direction it was written in", () => {
+    show({ text: "Le prix pour Oran, tout compris ?" });
+    expect(screen.getByText("Le prix pour Oran, tout compris ?").getAttribute("dir")).toBe("auto");
+  });
+
   it("can never be mistaken for a sent message when it is a note", () => {
     const { container } = show({
       kind: "note",
@@ -78,6 +83,22 @@ describe("MessageBubble", () => {
     expect(screen.getByRole("button", { name: /try again/i })).toBeDefined();
   });
 
+  it("writes a sent message's time and ticks so they can be read on the gold", () => {
+    // Grey on the accent colour is 2.3 to 1. The bubble's own black, lightened,
+    // is above 4.5.
+    show({ direction: "out", origin: "inbox", status: "read" });
+    const meta = screen.getByText("✓✓").parentElement as HTMLElement;
+    expect(meta.className).not.toContain("text-muted");
+    expect(meta.className).toContain("text-black/70");
+  });
+
+  it("keeps the quiet grey for a message that arrived, on its white", () => {
+    const { container } = show({});
+    expect((container.querySelector("time")?.parentElement as HTMLElement).className).toContain(
+      "text-muted",
+    );
+  });
+
   it("shows ticks only for messages we sent", () => {
     show({ direction: "out", origin: "inbox", status: "read" });
     expect(screen.getByText("✓✓")).toBeDefined();
@@ -91,6 +112,23 @@ describe("MessageBubble", () => {
   it("renders an unsupported type honestly rather than blankly", () => {
     show({ type: "unsupported", text: null });
     expect(screen.getByText(/open it on the phone/i)).toBeDefined();
+  });
+
+  it("says what happened in the thread in the reader's language", () => {
+    render(
+      <LocaleProvider locale="ar">
+        <ul>
+          <MessageBubble
+            message={{
+              ...base,
+              kind: "event",
+              event: { type: "assigned", text: "Assigned to Sara Mansour", name: "Sara Mansour" },
+            }}
+          />
+        </ul>
+      </LocaleProvider>,
+    );
+    expect(screen.getByText("أُسندت إلى Sara Mansour")).toBeDefined();
   });
 
   it("shows an event as a line, not a bubble", () => {

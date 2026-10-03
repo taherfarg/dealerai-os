@@ -22,7 +22,12 @@ from ..db.queries.crm import ONE_TASK, TASKS_LIST
 from ..db.session import tenant_session
 from ..deps import Ctx, TenantContext, require_permission
 from ..events.bus import emit
-from ..sales.messaging import render_template, template_block_reason, window_is_open
+from ..sales.messaging import (
+    OPTED_OUT,
+    render_template,
+    template_block_reason,
+    window_is_open,
+)
 from .inbox import QueuedMessage, UserRef
 
 router = APIRouter(prefix="/v1/tasks", tags=["tasks"])
@@ -268,11 +273,19 @@ async def send_draft(
         task = await _row_or_404(conn, task_id)
         draft = task["ai_draft"] or {}
         if task["status"] != "open":
-            raise Unusable("That follow-up has already been dealt with.")
+            raise Unusable(
+                "That follow-up has already been dealt with.", ar="سبق التعامل مع هذه المتابعة."
+            )
         if task["conversation_id"] is None:
-            raise Unusable("That follow-up has no conversation to send in.")
+            raise Unusable(
+                "That follow-up has no conversation to send in.",
+                ar="لا توجد محادثة تُرسل فيها هذه المتابعة.",
+            )
         if not draft.get("text") and not draft.get("template_id"):
-            raise Unusable("That follow-up has no draft to send. Open the conversation instead.")
+            raise Unusable(
+                "That follow-up has no draft to send. Open the conversation instead.",
+                ar="لا توجد مسودة تُرسل لهذه المتابعة. افتح المحادثة.",
+            )
 
         conversation = await conn.fetchrow(
             """select c.id, c.wa_window_expires_at, ct.consent, ch.status as channel_status
@@ -285,9 +298,12 @@ async def send_draft(
         if conversation is None:
             raise NotFound("no such conversation")
         if conversation["channel_status"] != "connected":
-            raise ChannelUnavailable("This WhatsApp number is not connected right now.")
+            raise ChannelUnavailable(
+                "This WhatsApp number is not connected right now.",
+                ar="رقم واتساب هذا غير متصل الآن.",
+            )
         if (conversation["consent"] or {}).get("opted_out_at"):
-            raise ConsentRequired("The customer asked not to be messaged.")
+            raise ConsentRequired(OPTED_OUT.en, ar=OPTED_OUT.ar)
 
         now = datetime.now(UTC)
         if draft.get("template_id"):
@@ -296,10 +312,13 @@ async def send_draft(
                 UUID(str(draft["template_id"])),
             )
             if template is None:
-                raise Unusable("The template this follow-up used is no longer approved.")
+                raise Unusable(
+                    "The template this follow-up used is no longer approved.",
+                    ar="القالب الذي استخدمته هذه المتابعة لم يعد معتمدًا.",
+                )
             reason = template_block_reason(template["category"], conversation["consent"] or {})
             if reason:
-                raise ConsentRequired(reason)
+                raise ConsentRequired(reason.en, ar=reason.ar)
             variables = [str(value) for value in (draft.get("variables") or [])]
             message_type = "template"
             text = render_template(template["body"], variables)
@@ -315,7 +334,11 @@ async def send_draft(
                 # Drafted Tuesday, sent Thursday.
                 raise WindowClosed(
                     "More than 24 hours since the customer's last message. "
-                    "Open the conversation and send an approved template."
+                    "Open the conversation and send an approved template.",
+                    ar=(
+                        "مرّ أكثر من 24 ساعة على آخر رسالة من العميل. "
+                        "افتح المحادثة وأرسل قالبًا معتمدًا."
+                    ),
                 )
             message_type, text, template_data = "text", str(draft["text"]), None
 

@@ -6,8 +6,9 @@ import { AvailabilitySwitch } from "@/components/AvailabilitySwitch";
 import { TaskRow } from "@/components/crm/TaskRow";
 import { WaitingTimer } from "@/components/inbox/WaitingTimer";
 import { useEditTask, useMe, useMyDay, useSendDraft } from "@/lib/api/hooks";
-import { countryFlag, formatDuration, formatMoney } from "@/lib/format";
-import { useT } from "@/lib/i18n-client";
+import { CustomerName } from "@/components/Bidi";
+import { formatDuration, formatMoney } from "@/lib/format";
+import { useLocale, useT } from "@/lib/i18n-client";
 
 /** A number with its name under it, which is all three of these need. */
 function Figure({ label, value }: { label: string; value: string }) {
@@ -22,6 +23,7 @@ function Figure({ label, value }: { label: string; value: string }) {
 export default function TodayPage({ params }: { params: Promise<{ tenant: string }> }) {
   const { tenant } = use(params);
   const t = useT();
+  const locale = useLocale();
   const me = useMe();
   const day = useMyDay();
   const edit = useEditTask();
@@ -33,15 +35,15 @@ export default function TodayPage({ params }: { params: Promise<{ tenant: string
   return (
     <div className="mx-auto max-w-4xl">
       <h1 className="text-lg font-semibold">
-        {t("today.greeting")}
-        {name ? `, ${name}` : ""}
+        {/* The comma is the language's own, so it lives in the sentence. */}
+        {name ? t("today.hello").replace("{name}", name) : t("today.greeting")}
       </h1>
 
       <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-3">
         <Figure label={t("today.repliedToday")} value={String(day.data?.replied_today ?? 0)} />
         <Figure
           label={t("today.median")}
-          value={median ? formatDuration(median) : "—"}
+          value={median ? formatDuration(median, locale) : "—"}
         />
         <div className="bg-surface border-border rounded-lg border p-1">
           <AvailabilitySwitch />
@@ -57,11 +59,13 @@ export default function TodayPage({ params }: { params: Promise<{ tenant: string
                 <li key={conversation.id} className="border-b border-black/5 dark:border-white/10">
                   <Link
                     href={`/${tenant}/inbox/${conversation.id}`}
-                    className="hover:bg-background flex items-center justify-between gap-2 py-2"
+                    className="hover:bg-background flex min-h-11 items-center justify-between gap-2 py-2"
                   >
-                    <span className="truncate text-sm">
-                      {countryFlag(conversation.contact.country)} {conversation.contact.name}
-                    </span>
+                    <CustomerName
+                      country={conversation.contact.country}
+                      name={conversation.contact.name}
+                      className="text-sm"
+                    />
                     <WaitingTimer
                       waitingSince={conversation.waiting_since}
                       state={conversation.sla_state}
@@ -108,11 +112,13 @@ export default function TodayPage({ params }: { params: Promise<{ tenant: string
                 <li key={lead.id} className="border-b border-black/5 dark:border-white/10">
                   <Link
                     href={`/${tenant}/pipeline?lead=${lead.id}`}
-                    className="hover:bg-background flex flex-wrap items-center justify-between gap-2 py-2"
+                    className="hover:bg-background flex min-h-11 flex-wrap items-center justify-between gap-2 py-2"
                   >
-                    <span className="truncate text-sm">
-                      {countryFlag(lead.contact.country)} {lead.contact.name}
-                    </span>
+                    <CustomerName
+                      country={lead.contact.country}
+                      name={lead.contact.name}
+                      className="text-sm"
+                    />
                     <span className="text-muted text-xs">
                       {lead.vehicle?.label ?? lead.pipeline_name} · {lead.stage.name}
                       {lead.budget && ` · ${formatMoney(lead.budget)}`}

@@ -9,21 +9,15 @@ import { WaitingList } from "@/components/manager/WaitingList";
 import { useManagerDashboard, useMe, type ManagerDashboard } from "@/lib/api/hooks";
 import { useFilters } from "@/lib/filters";
 import { formatDuration } from "@/lib/format";
-import type { MessageKey } from "@/lib/i18n";
-import { useT } from "@/lib/i18n-client";
+import { Auto } from "@/components/Bidi";
+import { useLocale, useT } from "@/lib/i18n-client";
+import { word } from "@/lib/words";
 
 type Share = ManagerDashboard["phone_share"]["this_week"];
 
 function inboxShare(share: Share): string {
   const replies = share.inbox + share.phone;
   return replies ? `${Math.round((100 * share.inbox) / replies)}%` : "—";
-}
-
-/** A source the catalogue knows by name, or the value as recorded. */
-function sourceLabel(source: string, t: (key: MessageKey) => string): string {
-  const key = `source.${source}` as MessageKey;
-  const label = t(key);
-  return label === key ? source : label;
 }
 
 /**
@@ -34,6 +28,7 @@ function sourceLabel(source: string, t: (key: MessageKey) => string): string {
 export default function DashboardPage({ params }: { params: Promise<{ tenant: string }> }) {
   const { tenant } = use(params);
   const t = useT();
+  const locale = useLocale();
   const me = useMe();
   const [filters, setFilters] = useFilters({ date: "" });
   const permissions = me.data?.permissions ?? [];
@@ -93,8 +88,8 @@ export default function DashboardPage({ params }: { params: Promise<{ tenant: st
         <StatTile label={t("tile.waitingNow")} value={String(tiles.waiting_now)} href={inbox} />
         <StatTile
           label={t("tile.median")}
-          value={median == null ? "—" : formatDuration(median)}
-          hint={`${t("tile.target")} ${formatDuration(target)}`}
+          value={median == null ? "—" : formatDuration(median, locale)}
+          hint={`${t("tile.target")} ${formatDuration(target, locale)}`}
           tone={tone(median, target)}
         />
         <StatTile label={t("tile.missed")} value={String(tiles.missed_targets)} />
@@ -126,8 +121,8 @@ export default function DashboardPage({ params }: { params: Promise<{ tenant: st
           <h2 className="text-sm font-semibold">{t("dashboard.pipeline")}</h2>
           {boards.map((stages) => (
             <div key={stages[0].pipeline_id} className="mt-2">
-              <h3 className="text-muted text-xs" dir="auto">
-                {stages[0].pipeline_name}
+              <h3 className="text-muted text-xs">
+                <Auto>{stages[0].pipeline_name}</Auto>
               </h3>
               <ul className="text-sm">
                 {stages.map((stage) => (
@@ -146,7 +141,7 @@ export default function DashboardPage({ params }: { params: Promise<{ tenant: st
           <ul className="mt-2 text-sm">
             {sources.map((source) => (
               <li key={source.source} className="flex justify-between gap-2 py-0.5">
-                <span>{sourceLabel(source.source, t)}</span>
+                <span>{word(t, "source", source.source)}</span>
                 <span className="tabular-nums">{source.leads}</span>
               </li>
             ))}

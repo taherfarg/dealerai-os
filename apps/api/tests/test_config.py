@@ -38,3 +38,22 @@ def test_migration_dsn_falls_back_to_database_url(monkeypatch: pytest.MonkeyPatc
     monkeypatch.delenv("MIGRATION_DATABASE_URL", raising=False)
     s = Settings(_env_file=None, database_url="postgresql://x/y")  # type: ignore[call-arg]
     assert s.migration_dsn == "postgresql://x/y"
+
+
+def test_http_clients_do_not_write_addresses_into_the_log() -> None:
+    """httpx announces every request with its whole URL. A push subscription's
+    endpoint is the address of somebody's phone, and it must not end up in a
+    log because a worker sent to it."""
+    import logging
+
+    from dealerai.core.logging import configure_logging
+
+    root = logging.getLogger()
+    before = root.level
+    root.setLevel(logging.DEBUG)  # as LOG_LEVEL=DEBUG does on a laptop
+    try:
+        configure_logging()
+        for client in ("httpx", "httpcore"):
+            assert not logging.getLogger(client).isEnabledFor(logging.INFO), client
+    finally:
+        root.setLevel(before)

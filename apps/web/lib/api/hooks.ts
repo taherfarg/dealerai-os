@@ -7,6 +7,7 @@ import {
   useQueryClient,
   type InfiniteData,
 } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { unwrap } from "./client";
 import { useTenantApi } from "./context";
 import { keys } from "./keys";
@@ -34,6 +35,32 @@ export function useMe() {
     queryKey: keys.me(tenantId),
     queryFn: async () => unwrap(await api.GET("/v1/me", { params: { header } })),
   });
+}
+
+/**
+ * Tells the server which language is on screen, whenever that is not the one
+ * it has for this person — so what it writes for them while they are away, a
+ * notification or a push, is in it. Said on a difference rather than on a
+ * click: that covers the toggle, a second device, and everybody who chose
+ * Arabic before the server kept it.
+ */
+export function useTellServerMyLanguage(locale: "en" | "ar") {
+  const { api, tenantId, header } = useTenantApi();
+  const queryClient = useQueryClient();
+  const known = useMe().data?.locale;
+  const { mutate } = useMutation({
+    mutationFn: async (said: "en" | "ar") =>
+      unwrap(await api.PUT("/v1/me/locale", { params: { header }, body: { locale: said } })),
+    // Remembered here, so it is said once and not again on the next render.
+    onSuccess: (_nothing, said) =>
+      queryClient.setQueryData(
+        keys.me(tenantId),
+        (me: components["schemas"]["MeOut"] | undefined) => me && { ...me, locale: said },
+      ),
+  });
+  useEffect(() => {
+    if (known && known !== locale) mutate(locale);
+  }, [known, locale, mutate]);
 }
 
 export type Member = components["schemas"]["dealerai__routes__team__MemberOut"];
@@ -422,6 +449,67 @@ export function useMarkNotificationsRead() {
         }),
       ),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.notifications(tenantId) }),
+  });
+}
+
+// --------------------------------------------------------------------------
+// push: the caller's own devices ([07] § 8)
+// --------------------------------------------------------------------------
+
+export type PushDevice = components["schemas"]["PushDevice"];
+
+/** The key a browser subscribes with. Not retried: a 503 is an answer — push
+ *  is not set up on this server — and the screen says so. */
+export function usePushKey() {
+  const { api, tenantId, header } = useTenantApi();
+  return useQuery({
+    queryKey: keys.pushKey(tenantId),
+    queryFn: async () => unwrap(await api.GET("/v1/push/key", { params: { header } })),
+    retry: false,
+    staleTime: Infinity,
+  });
+}
+
+export function usePushDevices() {
+  const { api, tenantId, header } = useTenantApi();
+  return useQuery({
+    queryKey: keys.pushDevices(tenantId),
+    queryFn: async () => unwrap(await api.GET("/v1/push-subscriptions", { params: { header } })),
+  });
+}
+
+export function useSubscribeDevice() {
+  const { api, tenantId, header } = useTenantApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: components["schemas"]["PushSubscriptionIn"]) =>
+      unwrap(await api.POST("/v1/push-subscriptions", { params: { header }, body })),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: keys.pushDevices(tenantId) }),
+  });
+}
+
+export function useRemoveDevice() {
+  const { api, tenantId, header } = useTenantApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (deviceId: string) =>
+      unwrap(
+        await api.DELETE("/v1/push-subscriptions/{device_id}", {
+          params: { header, path: { device_id: deviceId } },
+        }),
+      ),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: keys.pushDevices(tenantId) }),
+  });
+}
+
+/** A push to my own devices, now. It can forget one that is gone, so the list is re-read. */
+export function useTestPush() {
+  const { api, tenantId, header } = useTenantApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () =>
+      unwrap(await api.POST("/v1/push-subscriptions/test", { params: { header } })),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: keys.pushDevices(tenantId) }),
   });
 }
 
@@ -858,6 +946,22 @@ export function useTeams() {
   return useQuery({
     queryKey: keys.teams(tenantId),
     queryFn: async () => unwrap(await api.GET("/v1/teams", { params: { header } })),
+  });
+}
+
+export type Invitation = components["schemas"]["InviteOut"];
+
+/** A signed, expiring link for one email, into teams (routes/tenants.create_invite). */
+export function useInvite() {
+  const { api, tenantId, header } = useTenantApi();
+  return useMutation({
+    mutationFn: async (body: components["schemas"]["InviteCreate"]) =>
+      unwrap(
+        await api.POST("/v1/tenants/{tenant_id}/invites", {
+          params: { header, path: { tenant_id: tenantId } },
+          body,
+        }),
+      ),
   });
 }
 

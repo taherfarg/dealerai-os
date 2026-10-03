@@ -1,6 +1,7 @@
 "use client";
 
 import type { QuickReply } from "@/lib/api/hooks";
+import { Auto } from "@/components/Bidi";
 import { useT } from "@/lib/i18n-client";
 
 /** The replies whose shortcut starts with what was typed after the slash. */
@@ -40,21 +41,24 @@ export function QuickReplyMenu({
       className="bg-surface border-border mb-2 rounded-md border text-sm shadow"
     >
       {options.map((reply, index) => (
-        <li key={reply.id} role="option" aria-selected={index === active}>
-          <button
-            type="button"
-            // Keep the textarea focused, so typing carries on after a click.
-            onMouseDown={(event) => event.preventDefault()}
-            onClick={() => onPick(reply)}
-            className={`flex min-h-11 w-full items-center gap-2 px-3 text-start ${
-              index === active ? "bg-background" : ""
-            }`}
-          >
-            <span className="font-mono text-xs" dir="ltr">
-              {reply.shortcut}
-            </span>
-            <span className="truncate">{reply.title}</span>
-          </button>
+        // The option is the control: a button inside one is a control inside a
+        // control, which a screen reader cannot reach. The keys are the
+        // composer's — the box keeps the keyboard while the menu is open.
+        <li
+          key={reply.id}
+          role="option"
+          aria-selected={index === active}
+          // Keep the textarea focused, so typing carries on after a press.
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => onPick(reply)}
+          className={`flex min-h-11 cursor-pointer items-center gap-2 px-3 ${
+            index === active ? "bg-background" : ""
+          }`}
+        >
+          <span className="font-mono text-xs" dir="ltr">
+            {reply.shortcut}
+          </span>
+          <Auto className="min-w-0 truncate">{reply.title}</Auto>
         </li>
       ))}
     </ul>

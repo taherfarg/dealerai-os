@@ -28,6 +28,13 @@ Added here:
 - **`view` instead of filters for the inbox.** `mine`, `unassigned`, `team`, `all` are server-side
   definitions, so the four tabs cannot drift between clients.
 - **Long work returns 202 with a job or run id**; nothing blocks on a model call.
+- **A refusal is said in its reader's language.** The web sends the language on screen as
+  `Accept-Language` — the page's, not the browser's own list. When that is Arabic and the refusal
+  has an Arabic sentence, `detail` is that sentence; otherwise it is the English one. A 404 answers
+  an Arabic reader with one general sentence, whatever was missing. `type`, `title`, `status` and
+  `errors[]` never change with the language: a client decides on those, and only shows `detail`.
+  In the code the Arabic sits beside the English at the raise site (`ar=`), and
+  `tests/test_refusals_in_arabic.py` fails when a refusal a person can cause has none.
 
 ---
 
@@ -35,8 +42,9 @@ Added here:
 
 | Method | Route | Permission | Returns |
 |---|---|---|---|
-| GET | `/v1/me` | — | `Me`: user, tenant, role, scope, team ids, permissions, accepting_chats |
+| GET | `/v1/me` | — | `Me`: user, tenant, role, scope, team ids, permissions, accepting_chats, locale |
 | PATCH | `/v1/me` | — | `{accepting_chats}` → `Me` |
+| PUT | `/v1/me/locale` | — | `{locale: "en" \| "ar"}` → 204. The language this person has on screen, said by the browser whenever it is not the one the server has; what the server writes for them later — a notification, a push — is written in it |
 | GET | `/v1/members` | — | `Member[]` (name, role, teams, languages, availability, open conversations) |
 | PATCH | `/v1/members/{user_id}` | `settings.team` | role, teams, languages, accepting_chats |
 | POST | `/v1/tenants/{id}/invites` *existing* | `settings.team` | Invitation |
@@ -52,7 +60,8 @@ Added here:
              "logo_url": "https://…", "accent_color": "#4AA0FF"},
   "role": "sales", "scope": "own", "team_ids": ["…"],
   "permissions": ["inbox.send", "leads.mark_won_lost"],
-  "accepting_chats": true
+  "accepting_chats": true,
+  "locale": "en"
 }
 ```
 
@@ -191,8 +200,11 @@ URL, `transcript`, `location`, `template`, `vehicle`, `reply_to`, `reactions`, `
 | GET | `/v1/brief/today` | `dashboard.manager` |
 | GET | `/v1/notifications?unread_only&cursor` | — · always the caller's own |
 | POST | `/v1/notifications/read` | — · `{ids}` or `{all: true}` |
-| POST | `/v1/push-subscriptions` | — · `{endpoint, p256dh, auth, user_agent}` |
+| GET | `/v1/push/key` | — · the public key a browser subscribes with; 503 when the server has none |
+| GET | `/v1/push-subscriptions` | — · the caller's own devices, never their addresses or keys |
+| POST | `/v1/push-subscriptions` | — · `{endpoint, p256dh, auth, user_agent}`; the endpoint must be a push service browsers use (422 otherwise), and the device becomes the caller's, whoever had it |
 | DELETE | `/v1/push-subscriptions/{id}` | — |
+| POST | `/v1/push-subscriptions/test` | — · a push to the caller's own devices, now: `{sent, failed}` |
 
 The manager dashboard returns tiles, a row per salesperson, the oldest waiting conversations,
 pipeline totals, lead sources, the inbox-versus-phone share and the brief — one request, because it

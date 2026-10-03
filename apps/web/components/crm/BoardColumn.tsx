@@ -1,6 +1,7 @@
 "use client";
 
 import type { Lead, Stage } from "@/lib/api/hooks";
+import { Ltr } from "@/components/Bidi";
 import { formatMoney } from "@/lib/format";
 import { useT } from "@/lib/i18n-client";
 import { LeadCard } from "./LeadCard";
@@ -42,10 +43,17 @@ export function BoardColumn({
       className="bg-background/60 flex w-[85vw] shrink-0 snap-center flex-col rounded-lg p-2 sm:w-72"
     >
       <header className="mb-2 flex items-baseline justify-between gap-2 px-1">
-        <h2 className="text-sm font-medium">{stage.name}</h2>
-        <span className="text-muted text-xs">
+        <h2 className="text-sm font-medium" dir="auto">
+          {stage.name}
+        </h2>
+        <span className="text-muted shrink-0 text-xs">
           {leads.length}
-          {total > 0 && ` · ${formatMoney({ amount_minor: total, currency })}`}
+          {total > 0 && (
+            <>
+              {" · "}
+              <Ltr>{formatMoney({ amount_minor: total, currency })}</Ltr>
+            </>
+          )}
         </span>
       </header>
 

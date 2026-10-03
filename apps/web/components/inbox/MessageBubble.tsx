@@ -2,8 +2,10 @@
 
 import type { Message } from "@/lib/api/hooks";
 import { API_BASE } from "@/lib/api/client";
+import { Auto } from "@/components/Bidi";
 import { formatRelative } from "@/lib/format";
-import { useT } from "@/lib/i18n-client";
+import { useLocale, useT } from "@/lib/i18n-client";
+import { eventText } from "@/lib/words";
 
 const TICKS: Record<string, string> = {
   queued: "·",
@@ -30,17 +32,21 @@ export function MessageBubble({
   onRetry?: (messageId: string) => void;
 }) {
   const t = useT();
+  const locale = useLocale();
 
   if (message.kind === "event") {
     return (
       <li data-kind="event" className="my-2 text-center">
-        <span className="text-muted text-xs">{String(message.event?.text ?? "")}</span>
+        <Auto className="text-muted text-xs">{eventText(t, message.event)}</Auto>
       </li>
     );
   }
 
   const note = message.kind === "note";
   const ours = message.direction === "out";
+  // What is said quietly inside a bubble. Grey on the gold of a sent message
+  // is 2.3 to 1; the bubble's own black, lightened, stays above 4.5.
+  const quiet = ours && !note ? "text-black/70" : "text-muted";
 
   return (
     <li
@@ -78,27 +84,36 @@ export function MessageBubble({
           />
         )}
         {message.attachment && !["audio", "image"].includes(message.type) && (
-          <a href={source(message.attachment.url)} className="underline">
+          <a href={source(message.attachment.url)} className="underline" dir="auto">
             {message.attachment.filename ?? t("thread.attachment")}
           </a>
         )}
 
-        {message.text && <p className="whitespace-pre-wrap">{message.text}</p>}
+        {/* Each message in the direction it was written ([07] § 6): a French
+            question in an Arabic thread keeps its question mark at its end. */}
+        {message.text && (
+          <Auto as="p" className="whitespace-pre-wrap">
+            {message.text}
+          </Auto>
+        )}
 
         {message.transcript?.text ? (
           // Next to the audio, never instead of it: a wrong transcript has to be
           // checkable against what was actually said.
-          <p className="text-muted mt-1 border-s-2 border-black/10 ps-2 text-xs italic dark:border-white/20">
+          <Auto
+            as="p"
+            className={`${quiet} mt-1 border-s-2 border-black/10 ps-2 text-xs italic dark:border-white/20`}
+          >
             {String(message.transcript.text)}
-          </p>
+          </Auto>
         ) : null}
 
         {!message.text && !message.attachment && !message.transcript && (
-          <p className="text-muted italic">{t("thread.openOnPhone")}</p>
+          <p className={`${quiet} italic`}>{t("thread.openOnPhone")}</p>
         )}
 
-        <div className="text-muted mt-1 flex items-center gap-2 text-[11px]">
-          <time dateTime={message.created_at}>{formatRelative(message.created_at)}</time>
+        <div className={`${quiet} mt-1 flex items-center gap-2 text-[11px]`}>
+          <time dateTime={message.created_at}>{formatRelative(message.created_at, locale)}</time>
           {message.origin === "phone_app" && <span>{t("thread.sentFromPhone")}</span>}
           {message.author?.name && ours && !note && <span>{message.author.name}</span>}
           {message.status && message.status !== "failed" && <span>{TICKS[message.status]}</span>}
@@ -107,7 +122,12 @@ export function MessageBubble({
         {message.status === "failed" && (
           <p className="mt-1 text-xs text-red-700 dark:text-red-300">
             {t("thread.notDelivered")}
-            {message.error?.message ? ` — ${String(message.error.message)}` : ""}{" "}
+            {message.error?.message ? (
+              <>
+                {" — "}
+                <Auto>{String(message.error.message)}</Auto>
+              </>
+            ) : null}{" "}
             {onRetry && (
               <button type="button" onClick={() => onRetry(message.id)} className="underline">
                 {t("thread.retry")}

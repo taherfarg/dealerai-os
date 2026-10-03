@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { ApiError } from "@/lib/api/client";
 import {
   useDeleteTeam,
   useEditMember,
@@ -12,15 +11,12 @@ import {
   type Team,
 } from "@/lib/api/hooks";
 import type { MessageKey } from "@/lib/i18n";
-import { useT } from "@/lib/i18n-client";
+import { useLocale, useT } from "@/lib/i18n-client";
+import { counted } from "@/lib/words";
+import { InviteForm } from "./InviteForm";
+import { FIELD, problem, ROLES } from "./shared";
 
-const ROLES = ["owner", "admin", "manager", "sales", "viewer"] as const;
 const LANGUAGES = ["ar", "en", "fr"] as const;
-const FIELD = "min-h-11 rounded-md border border-black/10 px-2 dark:border-white/15";
-
-function problem(error: unknown, fallback: string): string {
-  return error instanceof ApiError ? (error.problem.detail ?? error.problem.title) : fallback;
-}
 
 /** Its own component so a refusal — the last owner — shows on its own row. */
 function MemberRow({ member, teams }: { member: Member; teams: Team[] }) {
@@ -108,6 +104,7 @@ function MemberRow({ member, teams }: { member: Member; teams: Team[] }) {
 
 function TeamRow({ team }: { team: Team }) {
   const t = useT();
+  const locale = useLocale();
   const save = useSaveTeam();
   const remove = useDeleteTeam();
   const failed = save.error ?? remove.error;
@@ -126,7 +123,7 @@ function TeamRow({ team }: { team: Team }) {
         dir="auto"
       />
       <span className="text-muted text-xs">
-        {team.member_ids.length} {t("team.people")}
+        {counted(locale, team.member_ids.length, "people")}
       </span>
       <button
         type="button"
@@ -147,8 +144,8 @@ function TeamRow({ team }: { team: Team }) {
 
 /**
  * Team and roles (08-screens § 13): who is here, what they may do, who they
- * work with — and, in words, what each role lets somebody see. Invitations
- * arrive with sign-in in S7.
+ * work with — and, in words, what each role lets somebody see. Somebody new
+ * arrives by an invitation link from here (08-screens § 14).
  */
 export function TeamSettings() {
   const t = useT();
@@ -161,6 +158,8 @@ export function TeamSettings() {
   return (
     <div className="flex flex-col gap-6">
       <h1 className="text-lg font-semibold">{t("settings.team")}</h1>
+
+      <InviteForm />
 
       <section>
         <h2 className="text-sm font-semibold">{t("team.members")}</h2>

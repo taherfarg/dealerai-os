@@ -56,3 +56,25 @@ body {
   font-family: "Segoe UI", "Noto Sans Arabic", "IBM Plex Sans Arabic", system-ui, sans-serif;
   line-height: 1.75;
 }
+
+/* One focus ring, the brand's, wherever the keyboard is ([07] § 10). */
+:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+/* Arabic letters join; spacing them pulls words apart ([07] § 6). */
+[dir="rtl"] [class*="tracking-"] {
+  letter-spacing: normal;
+}
+
+/* Somebody who asked their device for less motion gets none from us. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

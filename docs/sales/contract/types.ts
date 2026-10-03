@@ -187,6 +187,8 @@ export type ConversationSummary = {
   assignee: UserRef | null;
   team: { id: ID; name: string } | null;
   last_message: {
+    // The words that arrived, or "" when none did: what kind of thing a photo or
+    // a voice note is, the screen says from `type`, in its reader's language.
     preview: string;
     type: MessageType;
     direction: "in" | "out";
@@ -237,8 +239,11 @@ export type Message = {
   status: MessageStatus | null; // outbound only
   error: { code: string; message: string } | null; // when status = failed
   event: {
-    type: "assigned" | "unassigned" | "closed" | "reopened" | "lead_created" | "stage_changed" | "history_imported";
-    text: string;
+    type:
+      | "assigned" | "unassigned" | "closed" | "reopened" | "spam"
+      | "lead_created" | "stage_change" | "conversation.reopened" | "history_imported";
+    text?: string; // the sentence in English: what a screen shows for a type it has no words for
+    name?: string; // who or what it happened to (the assignee, the stage), apart from the sentence
   } | null;
   referral: { source: "ad"; headline: string; ad_id: string } | null; // came from a Click-to-WhatsApp ad
   created_at: ISODate;
@@ -290,7 +295,10 @@ export type Suggestion = {
   sources: SuggestionSource[];
   actions: SuggestionAction[];
   needs_human: string | null; // e.g. "Customer asked for a final price"
-  blocked_reason: string | null; // why no draft was produced (a guard rejected it)
+  // Why no draft was shown: each refusal as "check: detail", joined by "; " — the
+  // screen says which check it was in its reader's language. Null when the model
+  // simply produced nothing.
+  blocked_reason: string | null;
   created_at: ISODate;
 };
 

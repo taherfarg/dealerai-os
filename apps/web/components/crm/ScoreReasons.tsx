@@ -1,7 +1,9 @@
 "use client";
 
 import type { LeadDetail } from "@/lib/api/hooks";
+import { Auto, Ltr } from "@/components/Bidi";
 import { useT } from "@/lib/i18n-client";
+import { word } from "@/lib/words";
 
 /**
  * What the score is made of.
@@ -26,24 +28,26 @@ export function ScoreReasons({
         {reasons.map((reason, index) => (
           <li
             key={`${reason.signal}-${index}`}
-            className="flex items-baseline justify-between gap-2 py-1 text-sm"
+            className="flex items-center justify-between gap-2 py-1 text-sm"
           >
-            <span>
-              {reason.label}
+            <span className="flex items-center gap-1">
+              {/* The API sends the signal and its English label: the label is
+                  for a signal this build has no words for yet. */}
+              <Auto>{word(t, "score", reason.signal, reason.label)}</Auto>
               {reason.evidence_message_id && (
                 <button
                   type="button"
                   onClick={() => onEvidence?.(reason.evidence_message_id as string)}
                   aria-label={t("lead.evidence")}
-                  className="text-muted ms-1 text-xs underline"
+                  className="text-muted inline-flex min-h-11 min-w-11 items-center justify-center text-xs underline"
                 >
                   ↗
                 </button>
               )}
             </span>
-            <span className={reason.points < 0 ? "text-red-600 dark:text-red-400" : "text-muted"}>
+            <Ltr className={reason.points < 0 ? "text-red-600 dark:text-red-400" : "text-muted"}>
               {reason.points > 0 ? `+${reason.points}` : reason.points}
-            </span>
+            </Ltr>
           </li>
         ))}
       </ul>

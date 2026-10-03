@@ -16,7 +16,7 @@ export function LocaleToggle({ locale }: { locale: Locale }) {
           name="locale"
           value={l}
           aria-pressed={l === locale}
-          className={`px-2 py-1 uppercase transition-colors ${
+          className={`min-h-11 min-w-11 px-2 uppercase transition-colors ${
             l === locale ? "bg-brand text-white" : "hover:bg-background"
           }`}
         >

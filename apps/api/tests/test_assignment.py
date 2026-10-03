@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import uuid
 from datetime import UTC, datetime, timedelta
 
@@ -133,6 +134,10 @@ async def test_the_handler_assigns_and_says_so(db: None, workspace: asyncpg.Conn
         "select event from messages where conversation_id = $1 and kind = 'event'", conversation_id
     )
     assert event_line is not None
+    # The name beside the sentence, so a screen can say the sentence its own way.
+    assert json.loads(event_line)["name"] == await su.fetchval(
+        "select full_name from profiles where id = $1", row["assigned_to"]
+    )
     assert (
         await su.fetchval(
             "select count(*) from notifications where kind = 'assigned' and user_id = $1",

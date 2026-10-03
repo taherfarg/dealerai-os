@@ -2,13 +2,14 @@
 
 import { useNow } from "@/lib/clock";
 import { formatDuration } from "@/lib/format";
-import { useT } from "@/lib/i18n-client";
+import { useLocale, useT } from "@/lib/i18n-client";
 
 export type SlaState = "ok" | "due_soon" | "breached" | null;
 
 const TONE: Record<"ok" | "due_soon" | "breached", string> = {
   ok: "text-muted",
-  due_soon: "text-amber-600 dark:text-amber-400",
+  // amber-700, not 600: on white that is 5 to 1, where 600 is 3.2.
+  due_soon: "text-amber-700 dark:text-amber-400",
   breached: "text-red-600 dark:text-red-400",
 };
 
@@ -29,6 +30,7 @@ export function WaitingTimer({
   now?: number;
 }) {
   const t = useT();
+  const locale = useLocale();
   const clock = useNow(30_000, now);
   if (!waitingSince || !state) return null;
   const seconds = Math.max(0, (clock - new Date(waitingSince).getTime()) / 1000);
@@ -40,9 +42,9 @@ export function WaitingTimer({
   return (
     <span
       className={`inline-flex items-center gap-1 text-xs font-medium ${TONE[state]}`}
-      aria-label={`${label} ${formatDuration(seconds)}`}
+      aria-label={`${label} ${formatDuration(seconds, locale)}`}
     >
-      {label} {formatDuration(seconds)}
+      {label} {formatDuration(seconds, locale)}
     </span>
   );
 }
