@@ -48,7 +48,7 @@ async def current_user(request: Request) -> AuthedUser:
     scheme, _, token = header.partition(" ")
     if scheme.lower() != "bearer" or not token:
         raise Unauthenticated("expected an Authorization: Bearer header")
-    return decode_supabase_jwt(token)
+    return await decode_supabase_jwt(token)
 
 
 CurrentUser = Annotated[AuthedUser, Depends(current_user)]

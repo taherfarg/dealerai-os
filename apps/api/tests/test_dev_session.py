@@ -16,7 +16,7 @@ from dealerai.scripts.seed_sales import PEOPLE, TENANT_SLUG, person_email, perso
 async def test_a_dev_session_is_a_token_the_api_accepts() -> None:
     name = PEOPLE[2][0]  # Ahmed, a salesperson
     session = await dev.create_session(dev.DevSessionIn(email=person_email(name)))
-    user = decode_supabase_jwt(session.access_token)
+    user = await decode_supabase_jwt(session.access_token)
     assert user.id == person_id(name)
     assert session.tenant_slug == TENANT_SLUG
 
@@ -33,7 +33,7 @@ async def test_somebody_new_gets_a_session_and_no_workspace(
     session = await dev.create_session(
         dev.DevSessionIn(email="Layla@Pollux.test", name="Layla Hassan")
     )
-    user = decode_supabase_jwt(session.access_token)
+    user = await decode_supabase_jwt(session.access_token)
     assert user.email == "layla@pollux.test"
     assert user.claims["user_metadata"] == {"full_name": "Layla Hassan"}
     assert (session.tenant_id, session.tenant_slug) == (None, None)
@@ -41,7 +41,7 @@ async def test_somebody_new_gets_a_session_and_no_workspace(
         "layla@pollux.test"
     )
     again = await dev.create_session(dev.DevSessionIn(email="layla@pollux.test"))
-    assert decode_supabase_jwt(again.access_token).id == user.id, "one person, one id"
+    assert (await decode_supabase_jwt(again.access_token)).id == user.id, "one person, one id"
 
 
 @pytest.mark.parametrize("env", ["staging", "production"])
