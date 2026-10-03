@@ -11,7 +11,8 @@ import {
   type Team,
 } from "@/lib/api/hooks";
 import type { MessageKey } from "@/lib/i18n";
-import { useT } from "@/lib/i18n-client";
+import { useLocale, useT } from "@/lib/i18n-client";
+import { counted } from "@/lib/words";
 import { InviteForm } from "./InviteForm";
 import { FIELD, problem, ROLES } from "./shared";
 
@@ -103,6 +104,7 @@ function MemberRow({ member, teams }: { member: Member; teams: Team[] }) {
 
 function TeamRow({ team }: { team: Team }) {
   const t = useT();
+  const locale = useLocale();
   const save = useSaveTeam();
   const remove = useDeleteTeam();
   const failed = save.error ?? remove.error;
@@ -121,7 +123,7 @@ function TeamRow({ team }: { team: Team }) {
         dir="auto"
       />
       <span className="text-muted text-xs">
-        {team.member_ids.length} {t("team.people")}
+        {counted(locale, team.member_ids.length, "people")}
       </span>
       <button
         type="button"

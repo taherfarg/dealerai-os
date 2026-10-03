@@ -34,9 +34,9 @@ const base: Conversation = {
   has_ai_draft: false,
 };
 
-const show = (conversation: Conversation) =>
+const show = (conversation: Conversation, locale: "en" | "ar" = "en") =>
   render(
-    <LocaleProvider locale="en">
+    <LocaleProvider locale={locale}>
       <ConversationRow conversation={conversation} href="/pollux/inbox/c1" active={false} />
     </LocaleProvider>,
   );
@@ -84,12 +84,15 @@ describe("ConversationRow", () => {
     expect(screen.getByText("From phone:")).toBeDefined();
   });
 
-  it("says a voice note is a voice note", () => {
-    show({
-      ...base,
-      last_message: { ...base.last_message!, type: "audio", preview: "Voice note" },
-    });
+  it("says a voice note is a voice note, in the reader's language", () => {
+    // Nothing was written, so the API sends no words: what kind of thing
+    // arrived is the app's to say.
+    const voice = { ...base, last_message: { ...base.last_message!, type: "audio", preview: "" } };
+    const { unmount } = show(voice);
     expect(screen.getByText("Voice note")).toBeDefined();
+    unmount();
+    show(voice, "ar");
+    expect(screen.getByText("رسالة صوتية")).toBeDefined();
   });
 
   it("shows an unassigned conversation as unassigned, and an assigned one by name", () => {

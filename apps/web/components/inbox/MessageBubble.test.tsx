@@ -98,6 +98,23 @@ describe("MessageBubble", () => {
     expect(screen.getByText(/open it on the phone/i)).toBeDefined();
   });
 
+  it("says what happened in the thread in the reader's language", () => {
+    render(
+      <LocaleProvider locale="ar">
+        <ul>
+          <MessageBubble
+            message={{
+              ...base,
+              kind: "event",
+              event: { type: "assigned", text: "Assigned to Sara Mansour", name: "Sara Mansour" },
+            }}
+          />
+        </ul>
+      </LocaleProvider>,
+    );
+    expect(screen.getByText("أُسندت إلى Sara Mansour")).toBeDefined();
+  });
+
   it("shows an event as a line, not a bubble", () => {
     const { container } = show({
       kind: "event",

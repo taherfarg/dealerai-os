@@ -1006,7 +1006,9 @@ async def _seed(conn: asyncpg.Connection) -> list[tuple[int, str]]:
     # The sentence the guard itself writes, about a draft it really blocks: the
     # muted line on screen is one the product can actually produce.
     refused = "Yes, the Hilux GR Sport is available, and it will be delivered to you tomorrow."
-    blocked_reason = "; ".join(finding.message for finding in commitments_guard.check(refused))
+    blocked_reason = "; ".join(
+        f"{finding.guard}: {finding.message}" for finding in commitments_guard.check(refused)
+    )
     await conn.execute(
         """insert into ai_suggestions
              (tenant_id, conversation_id, for_message_id, status, language,

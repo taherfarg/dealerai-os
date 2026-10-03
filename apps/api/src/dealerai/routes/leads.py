@@ -338,6 +338,7 @@ async def edit_lead(ctx: Ctx, lead_id: UUID, body: LeadPatch) -> dict[str, Any]:
                     lead["conversation_id"],
                     "stage_change",
                     f"Lead moved to {stage['name']}",
+                    name=stage["name"],
                 )
 
         return await _detail(conn, ctx.tenant_id, lead_id)

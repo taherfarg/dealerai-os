@@ -5,6 +5,7 @@ import type { Conversation } from "@/lib/api/hooks";
 import { Auto, CustomerName } from "@/components/Bidi";
 import { formatRelative } from "@/lib/format";
 import { useLocale, useT } from "@/lib/i18n-client";
+import { word } from "@/lib/words";
 import { WaitingTimer } from "./WaitingTimer";
 
 /** What the preview says came from us, rather than from the customer. */
@@ -61,7 +62,11 @@ export function ConversationRow({
           {last ? (
             <>
               {ours && <span className="shrink-0">{ours}</span>}
-              <Auto className="min-w-0 truncate">{last.preview}</Auto>
+              {/* No words arrived — a photo, a voice note: the app says what
+                  kind of thing it was, in the reader's language. */}
+              <Auto className="min-w-0 truncate">
+                {last.preview || word(t, "preview", last.type, t("preview.unsupported"))}
+              </Auto>
             </>
           ) : (
             t("inbox.noMessages")

@@ -35,8 +35,8 @@ export default function TodayPage({ params }: { params: Promise<{ tenant: string
   return (
     <div className="mx-auto max-w-4xl">
       <h1 className="text-lg font-semibold">
-        {t("today.greeting")}
-        {name ? `, ${name}` : ""}
+        {/* The comma is the language's own, so it lives in the sentence. */}
+        {name ? t("today.hello").replace("{name}", name) : t("today.greeting")}
       </h1>
 
       <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-3">

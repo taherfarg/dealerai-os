@@ -267,7 +267,10 @@ async def _draft(tenant_id: UUID, conversation_id: UUID, message_id: UUID, run: 
         findings = _inspect(drafted.draft, ground, read)
 
     if drafted.draft is None or findings:
-        blocked = "; ".join(finding.message for finding in findings) or "no usable draft"
+        # Each refusal as `check: detail`. The screen says which check it was in
+        # its reader's language (apps/web/lib/words.ts); the detail is for the log.
+        # With no finding there is no reason to keep: the model produced nothing.
+        blocked = "; ".join(f"{finding.guard}: {finding.message}" for finding in findings)
         async with tenant_session(tenant_id) as conn:
             await conn.execute(
                 q.FINISH,
@@ -280,8 +283,9 @@ async def _draft(tenant_id: UUID, conversation_id: UUID, message_id: UUID, run: 
                 [],
                 [],
                 None,
-                blocked[:_MAX_ERROR],
+                blocked[:_MAX_ERROR] or None,
             )
+        blocked = blocked or "no usable draft"
         run.summary = f"blocked: {blocked[:100]}"
         log.info("draft_blocked", conversation_id=str(conversation_id), because=blocked)
         return

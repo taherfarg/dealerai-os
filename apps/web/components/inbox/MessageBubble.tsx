@@ -5,6 +5,7 @@ import { API_BASE } from "@/lib/api/client";
 import { Auto } from "@/components/Bidi";
 import { formatRelative } from "@/lib/format";
 import { useLocale, useT } from "@/lib/i18n-client";
+import { eventText } from "@/lib/words";
 
 const TICKS: Record<string, string> = {
   queued: "·",
@@ -36,7 +37,7 @@ export function MessageBubble({
   if (message.kind === "event") {
     return (
       <li data-kind="event" className="my-2 text-center">
-        <Auto className="text-muted text-xs">{String(message.event?.text ?? "")}</Auto>
+        <Auto className="text-muted text-xs">{eventText(t, message.event)}</Auto>
       </li>
     );
   }

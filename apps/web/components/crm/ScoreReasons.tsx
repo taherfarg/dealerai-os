@@ -3,6 +3,7 @@
 import type { LeadDetail } from "@/lib/api/hooks";
 import { Auto, Ltr } from "@/components/Bidi";
 import { useT } from "@/lib/i18n-client";
+import { word } from "@/lib/words";
 
 /**
  * What the score is made of.
@@ -30,7 +31,9 @@ export function ScoreReasons({
             className="flex items-baseline justify-between gap-2 py-1 text-sm"
           >
             <span className="flex items-baseline gap-1">
-              <Auto>{reason.label}</Auto>
+              {/* The API sends the signal and its English label: the label is
+                  for a signal this build has no words for yet. */}
+              <Auto>{word(t, "score", reason.signal, reason.label)}</Auto>
               {reason.evidence_message_id && (
                 <button
                   type="button"

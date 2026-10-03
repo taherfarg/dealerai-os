@@ -5,6 +5,7 @@ import { useLead, useMe, type Stage } from "@/lib/api/hooks";
 import { formatDateTime, formatDue, formatMoney, formatRelative } from "@/lib/format";
 import { Auto, Ltr } from "@/components/Bidi";
 import { useLocale, useT } from "@/lib/i18n-client";
+import { word } from "@/lib/words";
 import { ScoreReasons } from "./ScoreReasons";
 
 /** Everything about one lead, opened from `?lead=` so the URL can be shared. */
@@ -76,7 +77,7 @@ export function LeadDrawer({
               </>
             )}
             <dt className="text-muted">{t("lead.source")}</dt>
-            <dd>{lead.data.source ?? "—"}</dd>
+            <dd>{lead.data.source ? word(t, "source", lead.data.source) : "—"}</dd>
             <dt className="text-muted">{t("lead.created")}</dt>
             <dd>{formatDateTime(lead.data.created_at, me.data?.tenant.timezone ?? "Asia/Dubai", locale)}</dd>
             {lead.data.lost_reason && (

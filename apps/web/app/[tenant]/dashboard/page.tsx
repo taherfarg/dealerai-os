@@ -9,21 +9,14 @@ import { WaitingList } from "@/components/manager/WaitingList";
 import { useManagerDashboard, useMe, type ManagerDashboard } from "@/lib/api/hooks";
 import { useFilters } from "@/lib/filters";
 import { formatDuration } from "@/lib/format";
-import type { MessageKey } from "@/lib/i18n";
 import { useLocale, useT } from "@/lib/i18n-client";
+import { word } from "@/lib/words";
 
 type Share = ManagerDashboard["phone_share"]["this_week"];
 
 function inboxShare(share: Share): string {
   const replies = share.inbox + share.phone;
   return replies ? `${Math.round((100 * share.inbox) / replies)}%` : "—";
-}
-
-/** A source the catalogue knows by name, or the value as recorded. */
-function sourceLabel(source: string, t: (key: MessageKey) => string): string {
-  const key = `source.${source}` as MessageKey;
-  const label = t(key);
-  return label === key ? source : label;
 }
 
 /**
@@ -147,7 +140,7 @@ export default function DashboardPage({ params }: { params: Promise<{ tenant: st
           <ul className="mt-2 text-sm">
             {sources.map((source) => (
               <li key={source.source} className="flex justify-between gap-2 py-0.5">
-                <span>{sourceLabel(source.source, t)}</span>
+                <span>{word(t, "source", source.source)}</span>
                 <span className="tabular-nums">{source.leads}</span>
               </li>
             ))}

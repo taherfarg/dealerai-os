@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { Suggestion } from "@/lib/api/hooks";
 import type { MessageKey } from "@/lib/i18n";
 import { useT } from "@/lib/i18n-client";
+import { blockedReasons } from "@/lib/words";
 
 export type DiscardReason = "wrong_info" | "wrong_tone" | "not_needed" | "other";
 type Source = Record<string, unknown>;
@@ -81,7 +82,10 @@ export function DraftPanel({
   if (suggestion.status === "blocked") {
     return (
       <div className="text-muted border-border border-t px-3 py-2 text-sm" role="status" dir="auto">
-        {t("draft.blocked")}: {suggestion.blocked_reason ?? t("draft.unavailable")}
+        {t("draft.blocked")}:{" "}
+        {suggestion.blocked_reason
+          ? blockedReasons(t, suggestion.blocked_reason)
+          : t("draft.unavailable")}
       </div>
     );
   }

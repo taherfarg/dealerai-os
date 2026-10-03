@@ -149,7 +149,12 @@ async def on_assign_requested(event: Event) -> None:
         )
         name = await conn.fetchval("select full_name from profiles where id = $1", chosen)
         await event_line(
-            conn, tenant_id, conversation_id, "assigned", f"Assigned to {name or 'a colleague'}"
+            conn,
+            tenant_id,
+            conversation_id,
+            "assigned",
+            f"Assigned to {name or 'a colleague'}",
+            **({"name": name} if name else {}),
         )
         await notify(
             conn,

@@ -3,17 +3,19 @@
 import { useCustomerTimeline, type TimelineEntry } from "@/lib/api/hooks";
 import { Auto } from "@/components/Bidi";
 import { formatRelative } from "@/lib/format";
+import type { MessageKey } from "@/lib/i18n";
 import { useLocale, useT } from "@/lib/i18n-client";
+import { eventText } from "@/lib/words";
 
 type Entry = TimelineEntry & { data: Record<string, unknown> };
 
-function line(entry: Entry): { who: string; text: string } {
+function line(entry: Entry, t: (key: MessageKey) => string): { who: string; text: string } {
   const data = entry.data;
   if (entry.kind === "activity") {
     return { who: "·", text: String(data.body ?? data.activity_kind ?? "") };
   }
-  const event = data.event as { text?: string } | null;
-  if (event?.text) return { who: "·", text: event.text };
+  const event = data.event as Record<string, unknown> | null;
+  if (event) return { who: "·", text: eventText(t, event) };
   const transcript = data.transcript as { text?: string } | null;
   const said = (data.body as string | null) ?? transcript?.text ?? "";
   // In and out, not left and right: these two arrows mean the same whichever
@@ -48,7 +50,7 @@ export function Timeline({ contactId }: { contactId: string }) {
     <div>
       <ol className="divide-y divide-black/5 dark:divide-white/10">
         {entries.map((entry) => {
-          const { who, text } = line(entry);
+          const { who, text } = line(entry, t);
           return (
             <li
               key={`${entry.kind}-${entry.id}`}

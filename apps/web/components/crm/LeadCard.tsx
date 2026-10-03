@@ -5,6 +5,7 @@ import { useNow } from "@/lib/clock";
 import { Auto, CustomerName, Ltr } from "@/components/Bidi";
 import { formatDue, formatMoney } from "@/lib/format";
 import { useLocale, useT } from "@/lib/i18n-client";
+import { counted } from "@/lib/words";
 
 const BAND_TONE: Record<string, string> = {
   hot: "bg-red-500/15 text-red-700 dark:text-red-300",
@@ -74,7 +75,7 @@ export function LeadCard({
           {lead.budget && <Ltr>{formatMoney(lead.budget)}</Ltr>}
           <span>{lead.owner?.name ?? t("customers.nobody")}</span>
           <span>
-            {days} {t("pipeline.daysInStage")}
+            {counted(locale, days, "days")} {t("pipeline.here")}
           </span>
           {lead.next_action_at && (
             <span>

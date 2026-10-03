@@ -52,18 +52,6 @@ messages_router = APIRouter(prefix="/v1/messages", tags=["inbox"])
 #: the due-soon notification uses, so the amber row and the ping agree.
 DUE_SOON = timedelta(minutes=2)
 
-#: What a row shows instead of text, when what arrived was not text.
-_PREVIEWS = {
-    "image": "Photo",
-    "audio": "Voice note",
-    "video": "Video",
-    "document": "Document",
-    "location": "Location",
-    "sticker": "Sticker",
-    "template": "Template",
-    "unsupported": "Message",
-}
-
 _FOREVER = datetime.max.replace(tzinfo=UTC)
 _NEVER = datetime.min.replace(tzinfo=UTC)
 
@@ -137,12 +125,10 @@ def _sla_state(
 
 
 def _preview(row: Mapping[str, Any]) -> str:
-    """What the row shows: the words, or what kind of thing arrived."""
+    """The words that arrived, or none. What kind of thing a photo or a voice
+    note is, the screen says from the message's `type`, in its reader's language."""
     transcript = (row["transcript"] or {}).get("text") if row["transcript"] else None
-    text = row["body"] or transcript
-    if text:
-        return str(text)[:160]
-    return _PREVIEWS.get(str(row["last_type"]), "Message")
+    return str(row["body"] or transcript or "")[:160]
 
 
 def summary(row: Mapping[str, Any], now: datetime) -> dict[str, Any]:
@@ -350,7 +336,7 @@ def message_out(row: Mapping[str, Any]) -> dict[str, Any]:
                 or (
                     (row["reply_transcript"] or {}).get("text") if row["reply_transcript"] else None
                 )
-                or _PREVIEWS.get(str(row["reply_type"]), "Message"),
+                or "",
             }
             if row["reply_to_id"]
             else None
@@ -670,6 +656,7 @@ async def assign_conversation(
             conversation_id,
             "assigned" if body.user_id else "unassigned",
             f"Assigned to {name or 'a colleague'}" if body.user_id else "Returned to the queue",
+            **({"name": name} if name else {}),
         )
         if body.user_id and body.user_id != ctx.user.id:
             await emit(

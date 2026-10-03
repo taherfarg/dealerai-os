@@ -4,7 +4,8 @@ import { useState } from "react";
 import { ApiError } from "@/lib/api/client";
 import { useDeleteDocument, useDocuments, useUploadDocument } from "@/lib/api/hooks";
 import type { MessageKey } from "@/lib/i18n";
-import { useT } from "@/lib/i18n-client";
+import { useLocale, useT } from "@/lib/i18n-client";
+import { counted } from "@/lib/words";
 
 /** routes/documents.KINDS — what a dealership uploads by hand. */
 const KINDS = ["policy", "export_policy", "faq", "spec_sheet", "price_list", "other"] as const;
@@ -17,6 +18,7 @@ const FIELD = "min-h-11 rounded-md border border-black/10 px-2 dark:border-white
  */
 export function KnowledgeSettings() {
   const t = useT();
+  const locale = useLocale();
   const documents = useDocuments();
   const upload = useUploadDocument();
   const remove = useDeleteDocument();
@@ -107,7 +109,7 @@ export function KnowledgeSettings() {
                 {t(`doc.${document.kind}` as MessageKey)} ·{" "}
                 {t(`knowledge.status.${document.status}` as MessageKey)}
                 {document.status === "ready" &&
-                  ` · ${document.chunk_count} ${t("knowledge.passages")}`}
+                  ` · ${counted(locale, document.chunk_count, "passages")}`}
               </span>
               {document.error && (
                 <span className="block text-xs text-red-600 dark:text-red-400">
