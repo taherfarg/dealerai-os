@@ -232,11 +232,16 @@ export function Thread({ tenant, conversationId }: { tenant: string; conversatio
               {t("thread.older")}
             </button>
           )}
-          <ul>
-            {thread.map((message) => (
-              <MessageBubble key={message.id} message={message} onRetry={retry.mutate} />
-            ))}
-          </ul>
+          {/* A log ([07] § 10): a message that arrives is read out, politely,
+              without taking the keyboard. Around the list, not on it — a log is
+              not a list, and its items would stop being list items. */}
+          <div role="log" aria-live="polite" aria-relevant="additions" aria-label={t("thread.messages")}>
+            <ul>
+              {thread.map((message) => (
+                <MessageBubble key={message.id} message={message} onRetry={retry.mutate} />
+              ))}
+            </ul>
+          </div>
         </div>
 
         {panel &&

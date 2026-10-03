@@ -12,6 +12,7 @@ export const ar = {
   "nav.approvals": "الموافقات",
   "nav.settings": "الإعدادات",
   "nav.marketing": "التسويق",
+  "nav.main": "القائمة الرئيسية",
   "nav.command": "مركز القيادة",
   "nav.content": "المحتوى",
   "availability.taking": "أستقبل المحادثات",
@@ -129,6 +130,7 @@ export const ar = {
   "thread.windowClosedHint": "مرت أكثر من ٢٤ ساعة على رسالة العميل. أرسل قالبًا.",
   "thread.gone": "هذه المحادثة غير متاحة.",
   "thread.back": "العودة إلى المحادثات",
+  "thread.messages": "الرسائل",
   "event.assigned": "أُسندت إلى {name}",
   "event.unassigned": "أُعيدت إلى قائمة الانتظار",
   "event.reopened": "أُعيد فتحها",
@@ -560,4 +562,5 @@ export const ar = {
   "accept.signOut": "سجّل الخروج واستخدم البريد المدعو",
   "accept.expired": "انتهت صلاحية هذه الدعوة. اطلب دعوة جديدة ممن أرسلها.",
   "accept.invalid": "هذا الرابط ليس دعوة.",
+  "accept.title": "دعوة",
 } satisfies Record<keyof typeof en, string>;

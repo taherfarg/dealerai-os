@@ -9,6 +9,7 @@ export const en = {
   "nav.approvals": "Approvals",
   "nav.settings": "Settings",
   "nav.marketing": "Marketing",
+  "nav.main": "Main",
   "nav.command": "Command Center",
   "nav.content": "Content",
   "availability.taking": "Taking chats",
@@ -126,6 +127,7 @@ export const en = {
   "thread.windowClosedHint": "More than 24 hours since the customer wrote. Send a template.",
   "thread.gone": "This conversation is not available.",
   "thread.back": "Back to conversations",
+  "thread.messages": "Messages",
   "event.assigned": "Assigned to {name}",
   "event.unassigned": "Returned to the queue",
   "event.reopened": "Reopened",
@@ -559,4 +561,5 @@ export const en = {
   "accept.signOut": "Sign out and use the invited email",
   "accept.expired": "This invitation has expired. Ask whoever sent it for a new one.",
   "accept.invalid": "This link is not an invitation.",
+  "accept.title": "Invitation",
 } as const;

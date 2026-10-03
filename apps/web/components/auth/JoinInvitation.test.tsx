@@ -58,6 +58,12 @@ beforeEach(() => {
 });
 
 describe("JoinInvitation", () => {
+  it("says a link is not an invitation under a heading, like any other page", () => {
+    show("nonsense");
+    expect(screen.getByRole("heading", { level: 1, name: "Invitation" })).toBeDefined();
+    expect(screen.getByRole("alert").textContent).toBe("This link is not an invitation.");
+  });
+
   it("shows a signed-out visitor both ways in, each keeping the invitation", async () => {
     show();
     const create = await screen.findByRole("link", { name: "Create an account with this email" });

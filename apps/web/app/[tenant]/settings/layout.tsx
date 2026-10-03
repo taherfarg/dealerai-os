@@ -35,12 +35,15 @@ export default function SettingsLayout({
         {allowed
           ? children
           : elsewhere && (
-              <p className="text-sm">
-                {t("settings.notYours")}{" "}
-                <Link href={`/${tenant}${elsewhere.href}`} className="underline">
-                  {t(elsewhere.key)}
-                </Link>
-              </p>
+              <>
+                <h1 className="text-lg font-semibold">{t("nav.settings")}</h1>
+                <p className="mt-2 text-sm">
+                  {t("settings.notYours")}{" "}
+                  <Link href={`/${tenant}${elsewhere.href}`} className="underline">
+                    {t(elsewhere.key)}
+                  </Link>
+                </p>
+              </>
             )}
       </div>
     </div>

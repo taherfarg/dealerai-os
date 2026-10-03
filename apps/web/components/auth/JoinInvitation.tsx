@@ -33,18 +33,14 @@ export function JoinInvitation({ token }: { token: string }) {
     signedInEmail().then(setCurrent, () => setCurrent(null));
   }, []);
 
-  if (!invitation) {
+  if (!invitation || invitation.expired) {
     return (
-      <p role="alert" className="text-sm">
-        {t("accept.invalid")}
-      </p>
-    );
-  }
-  if (invitation.expired) {
-    return (
-      <p role="alert" className="text-sm">
-        {t("accept.expired")}
-      </p>
+      <div className="flex flex-col gap-2">
+        <h1 className="text-xl font-semibold">{t("accept.title")}</h1>
+        <p role="alert" className="text-sm">
+          {invitation ? t("accept.expired") : t("accept.invalid")}
+        </p>
+      </div>
     );
   }
 

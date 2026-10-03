@@ -1,7 +1,7 @@
 // The app's service worker (docs/sales/07-frontend.md § 8). It keeps one page —
 // what to show with no network — and an icon; never an API response, and never
 // anything a customer said. It shows what is pushed and opens what is tapped.
-const CACHE = "dealerai-shell-v1";
+const CACHE = "dealerai-shell-v2";
 const SHELL = ["/offline.html", "/icon/192"];
 
 self.addEventListener("install", (event) => {

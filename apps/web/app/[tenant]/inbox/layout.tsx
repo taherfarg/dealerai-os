@@ -18,9 +18,11 @@ export default function InboxLayout({
 }) {
   return (
     <div className="group grid h-full grid-cols-1 lg:grid-cols-[360px_1fr] lg:gap-0">
-      <aside className="min-h-0 border-black/5 group-has-[[data-thread]]:hidden lg:block lg:border-e lg:group-has-[[data-thread]]:block dark:border-white/10">
+      {/* A div, not an aside: the list is the page, not something beside it —
+          and the shell already has the page's one complementary landmark. */}
+      <div className="min-h-0 border-black/5 group-has-[[data-thread]]:hidden lg:block lg:border-e lg:group-has-[[data-thread]]:block dark:border-white/10">
         <ConversationList />
-      </aside>
+      </div>
       <section className="min-h-0">{children}</section>
     </div>
   );

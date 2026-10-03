@@ -55,7 +55,8 @@ export function Shell({
 
         <WorkspaceSwitcher current={tenant} tenants={tenants} locale={locale} />
 
-        <nav className="hidden flex-col gap-1 md:flex">
+        {/* The same list as the bar under a phone's page; CSS shows one. */}
+        <nav aria-label={t(locale, "nav.main")} className="hidden flex-col gap-1 md:flex">
           <NavLinks
             slug={tenant.slug}
             items={SALES}
@@ -74,7 +75,10 @@ export function Shell({
 
       <main className="min-w-0 p-4 pb-24 md:p-8">{children}</main>
 
-      <nav className="border-border bg-surface fixed inset-x-0 bottom-0 flex justify-around border-t p-1 md:hidden">
+      <nav
+        aria-label={t(locale, "nav.main")}
+        className="border-border bg-surface fixed inset-x-0 bottom-0 flex justify-around border-t p-1 md:hidden"
+      >
         <NavLinks slug={tenant.slug} items={MOBILE} />
       </nav>
     </div>
