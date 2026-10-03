@@ -133,7 +133,7 @@ export function ProfileField({
               aria-label={t("profile.evidence")}
               onClick={() => field.evidence_message_id && onEvidence?.(field.evidence_message_id)}
               // The mark stays small; what a thumb presses is the height of the row.
-              className="inline-flex min-h-11 items-center disabled:opacity-60"
+              className="inline-flex min-h-11 min-w-11 items-center justify-center disabled:opacity-60"
             >
               <span className="rounded bg-blue-500/15 px-1 text-[10px] font-medium uppercase text-blue-700 dark:text-blue-300">
                 {t("profile.fromAi")}

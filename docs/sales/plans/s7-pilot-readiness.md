@@ -4439,3 +4439,118 @@ git commit -m "docs(sales): S7 Part C, the Arabic and accessibility pass, with t
 
 Inline in this session, as Parts A and B were — no subagents unless asked. Checkpoints after C3
 (what the browser can fix alone), C6 (what needed the server), C10, and C11.
+
+## Part C review — 2026-10-03
+
+Eleven tasks, then every screen again: the same 40 states in Arabic at 375 px, the same 40 in
+English, a day's work with the keyboard alone, and the server's own words read by an Arabic reader
+and an English one from the same event. The findings the plan fixed are in its table above; these
+are what building it and running it found besides.
+
+| Found | Why it mattered | Fixed in |
+|---|---|---|
+| An upcoming task read "<1m" | An age is clamped at zero, so every task not yet due said so — and would have said "now" in Arabic. A due time has its own formatter, which says how far ahead it is: "in 3h" | `71dc388` |
+| A flag is made of left-to-right characters | Inside `dir="auto"` the flag is the first thing read, and it turned an Arabic customer's name left to right. `CustomerName` keeps it outside | `3d13072` |
+| `dir="ltr"` or `dir="auto"` on a line of its own moves the line | A phone number or a Latin title jumped to the left edge of an Arabic screen. The direction goes on a span inside a line that still starts where the page does | `3d13072`, `e5e6b92` |
+| The thread's own lines and the list's previews were English the API wrote | "Assigned to Sara", "Voice note": the seeded threads had none, so the audit never met them. An event keeps the name beside its sentence and a preview with no words is empty; the screen says both | `2364c77` |
+| Why a draft was held back was a sentence, not a code | The screen could not say it in Arabic. It is stored as `check: detail`, and a draft the model simply did not produce has no reason at all | `2364c77` |
+| A notification that begins with a Latin name read backwards | "James Whitfield أصبح من عملائك" was laid out left to right. No test showed it; handing a customer to an Arabic reader did. Names are wrapped in Unicode isolates and the bell reads sentences with `unicode-bidi: plaintext` — `dir="auto"` takes the first letter even inside an isolate | `6625824` |
+| React runs an effect's cleanup after the dialog has left the page | Closing it then gives focus back to nothing. The modal closes in a layout effect's cleanup, while it is still there | `234dc64` |
+| jsdom has `<dialog>` and none of its behaviour | Every test of a dialog would have seen a closed one. A setup file opens and closes it; focus is checked in a browser | `234dc64` |
+| The inbox's list was a second `<aside>` | Two landmarks of one kind with no names. It is the page, so it is a `div`; and the log's role went on a wrapper, because a log is not a list | `2cae71c` |
+| The amber "due soon" timer was 3.2 to 1 | It only shows while a customer is about to wait too long, so most runs never drew it | `e5e6b92` |
+| On the dashboard the brief's rows put who and what in one element | The name decided the direction, and an Arabic reader lost the first word of the reason | `e5e6b92` |
+| A template's first blank is not always a name | The plan prefilled it with the customer's. In "The {{1}} is available" that is the car. Only a blank followed by a comma is taken for a greeting | `603a355` |
+| 37 presses of Tab to reach the first conversation on a desk | Measured by the keyboard walk. A skip link is the first stop now: one press, Enter, four more | with this review |
+| In English the thread's header still cut the customer's name at 375 px | "Omar Al Mazr…": the two buttons took what the timer had given back. They are narrower on a phone | with this review |
+
+Different from the plan, on purpose: a due time has its own `formatDue`, because an age must never
+run ahead — a message from a phone whose clock is two minutes fast was not sent "in 2m"; the
+catalogue's new groups follow the ones already there (`channels.status.*`, `source.*`); `Words`
+lives in `core/words.py`, shared by refusals and notifications, with `same()` for what is data in
+either language; a 404 answers an Arabic reader with one general sentence rather than staying
+exempt; the lead drawer is a dialog at every width and the customer panel only below `lg`, which
+needs `lib/media.ts`; C3 made three small changes to the API although the plan called it the
+browser's alone; and the paid-message note is on every template, since outside the 24 hours every
+template is charged, not only a marketing one.
+
+Sound as built, and left alone: no catalogue string was missing; no screen scrolled sideways at
+375 px before or after; icon-only buttons already had names in both languages; and response state
+and lead band already said in words what their colours said.
+
+Known and deliberately not changed in Part C:
+
+- **What the model writes for the team is English** — a draft's "needs a person" line, action
+  chips, the summary and next step, a follow-up's reason, and so the `followup_ready`
+  notification's title and the titles of tasks the copilot creates. S4's decision. Making it the
+  team's language is a setting, three prompts and the copilot's evals again: asked of the owner.
+- **No screen reader was run.** `axe-core`, the accessibility tree and a keyboard are what was
+  used. TalkBack and VoiceOver on real phones are Part D's, with the real push.
+- A file that could not be read keeps its reason in English (`documents.error`, written by the
+  worker once for everybody). A lead's history line is "New → Qualified": the names are the
+  dealership's and the arrow does not mirror.
+- A notification written before this part keeps the words it was written in, and an event written
+  before it shows its English sentence.
+- Somebody with two devices in two languages is written to in the language of the one opened last.
+- Links inside a sentence are smaller than 44 px (a task's customer, "Create an account", "Open
+  [section]"), and so are the buttons of the local sign-in page.
+- The template picker does not fill in the car or the price.
+- Not built, as planned: the keyboard map, web fonts, per-vehicle Arabic names, stage and team
+  names in two languages, the Marketing screens.
+- This run's database was on port 54432: after a restart Windows had reserved the range that holds
+  54332. Nothing in the repository changed for it.
+
+**The audit, before and after** — 40 states, Arabic, 375 px:
+
+| | Before | After |
+|---|---|---|
+| States with an `axe-core` violation | 14, across 7 rules (page-has-heading-one, landmark-unique, heading-order, landmark-one-main, region, nested-interactive, color-contrast) | 0 — and 0 in English |
+| Pages with no `h1` | 7 | 0 |
+| Screens that scroll sideways | 0 | 0 |
+| Dialogs that are modal, named, hold focus, close on Escape and give focus back | 0 of 4, and two sheets that were not dialogs | 6 of 6 |
+| Controls under 44 px, outside a sentence and the local sign-in page | 15 kinds, the thread's back link at 12 × 20 | 0 |
+| Presses of Tab to the first conversation, on a desk | 37 | 1, Enter, then 4 |
+
+**Checks, final:** `npm run check` on the scratch database — 1,550 backend tests, the guards at
+100% branch coverage, 322 web tests, types, lint and logical CSS; `npm run check:openapi` — no
+drift.
+
+**Verified end to end on 2026-10-03**, against a freshly seeded workspace:
+
+1. The 40 states in Arabic at 375 px, as a salesperson, a manager, the owner and nobody: no
+   sideways scroll, a heading on every page, and nothing from `axe-core`. The same 40 in English:
+   the same, and the screens read as they did.
+2. The audit table, row by row, in the screenshots: "تأخر الرد 22 د 41 ث", "22 د", "الآن",
+   "بعد 1 س", a date that reads 01/10/2026 from the right; "+971500000104"; "Le prix pour Oran,
+   tout compris ?" with its question mark at its end; "Omar Al Maz…" cut where it ends; a back
+   arrow that points back; "+10"; "التشغيل المشترك · متصلة" and "خدمي · معتمد"; "واتساب";
+   "3 أشخاص", "5 مقاطع", "0 يوم هنا"; "صباح الخير، Ahmed".
+3. A refusal caused from a screen in Arabic: removing a stage that holds a lead said "ما زالت مرحلة
+   «New» تضم فرصة واحدة. انقلها أولًا.", and a shortcut already taken "الاختصار /price مستخدم في رد
+   سريع آخر." The same two in English, to an English reader.
+4. The app opened in Arabic told the server once (`PUT /v1/me/locale`) and not again on the next
+   load; `profiles.locale` read `ar` for that person and `en` for the rest.
+5. With the worker running, Sara handed one customer to Ahmed, who reads Arabic, and one to
+   Mohamed, who reads English. Ahmed's bell: "Omar Al Mazrouei أصبح من عملائك", "سلّمه إليك Sara
+   Mansour", the name on the right where the sentence starts. Mohamed's: "Priya Nair is yours now",
+   "Handed over by Sara Mansour". One waiting customer was "… بانتظار الرد" to Ahmed and "… is
+   waiting" to Sara, from one event.
+6. A task fell due for each of them. The stand-in for a push service checked the signature and
+   opened both: "حان موعدها: Call Omar about the passport copy" on Ahmed's device, "Due now: Call
+   Omar about the passport copy" on Mohamed's.
+7. With a keyboard only, in Arabic on a desk: signed in; opened Omar's conversation; typed `/pr`,
+   Enter put the quick reply in the box in his language with his name, Enter sent it; opened and
+   closed the customer panel; moved James's lead from New to Contacted with the arrow key; and, as
+   the owner, opened Erase, left it with Escape — focus back on the button — opened it again, typed
+   the customer's name, and erased them. Each of the six dialogs, walked on its own: modal, named,
+   focus inside on opening, fourteen Tabs that never reached the page behind, Escape, and focus
+   back on what opened it. The bell closed on Escape and took focus back.
+8. With reduced motion asked for, no element had a transition or an animation longer than a
+   millisecond. Focus drew a 2 px ring in the brand's colour, on a phone and on a desk.
+9. As Salem, to Karim, whose window had closed: the reply box was gone and the picker offered
+   French first; `price_update` came with "Karim" in its first blank; Send stayed off until the
+   other two were filled; the preview read "Bonjour Karim, le prix de Toyota Hilux 2.8 est
+   maintenant AED 128,000."; and the row was there as a `template`, queued. A note for colleagues
+   could still be written.
+
+---

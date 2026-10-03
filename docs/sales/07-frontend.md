@@ -104,13 +104,33 @@ the same workspace for whoever clicks it.
   `satisfies Record<MessageKey, string>`, so a missing translation fails `tsc`, not the user.
 - `useT()` for client components; the existing cookie-based `setLocale` server action still sets
   `dir` on the first server render, so the layout never flips after paint.
-- Customer content renders with `dir="auto"` per message — a French message inside an Arabic UI
-  stays left to right.
-- Prices, phone numbers, times, VINs and plate numbers render in `<span dir="ltr" class="tabular-nums">`
-  inside Arabic text.
-- Arabic is never letter-spaced (it breaks joining), and Arabic strings run about 25% longer than
-  English, so buttons, badges and table headers wrap or truncate with a tooltip rather than clip.
-- `check:rtl` is extended to catch `space-x-*` and to scan the new directories.
+- **What a person wrote keeps its own direction.** `components/Bidi.tsx` is where the rule lives:
+  `Auto` (`dir="auto"`) for a message, a name, a title — on the element that truncates, so a Latin
+  name in an Arabic line loses its end and not its beginning; `Ltr` for what is a number — a phone
+  number, a price, a score, an id — inline, so the number keeps its order without leaving the side
+  of the page its line starts on; `CustomerName`, which keeps the flag outside the name (a flag is
+  made of left-to-right characters and would turn an Arabic name left to right).
+- **Two things side by side get a gap on their parent**, never a margin on one of them: an element
+  with a direction of its own has its own idea of which side is the start. `check:rtl` refuses
+  `space-x-*` for the same reason, and tests its own patterns before trusting them.
+- **Times are words, not numbers.** A duration, an age, a due time and a date are said by
+  `lib/format.ts` in the reader's language — every formatter takes the language as a required
+  argument — and flow with their sentence. Wrapping one in `dir="ltr"` puts its parts in the wrong
+  order ("د 38" for "38 د"), which is what Parts A and B did to their dates.
+- **A stored code is said as a word.** `lib/words.ts`: a channel's status, a template's category, a
+  lead's source, a score's signals, why a draft was held back, what the thread says about itself,
+  and counts in Arabic's own forms. A code with no word yet is shown as it is, never as a blank.
+- **The server learns the language twice** ([06](06-api-contract.md) §1, §2): per request, from
+  `Accept-Language`, for what it refuses; and per person, in `profiles.locale`, for what it writes
+  when nobody is there to ask — a notification and its push. A sentence written that way may begin
+  with a name in another script, so the server wraps names in Unicode isolates and the bell reads
+  them with `unicode-bidi: plaintext`, which looks past isolates where `dir="auto"` does not.
+- Arabic is never letter-spaced (it breaks joining) — one rule in `globals.css` — and Arabic
+  strings run about 25% longer than English, so buttons, badges and table headers wrap or truncate
+  rather than clip.
+- **Not translated:** what the model writes for the team (a draft's "needs a person" line, action
+  chips, the summary, a follow-up's reason) is English by S4's design; stage, team and pipeline
+  names are the dealership's own words.
 
 ---
 
@@ -151,12 +171,22 @@ state showing `problem.detail` with Retry. A dropped connection shows an offline
 
 ## 10. Accessibility
 
-Labels on every icon-only button in both languages · visible focus · focus trapped and restored in
-dialogs · the thread is `role="log"` with `aria-live="polite"` for incoming messages · colour is
-never the only signal (response state and lead band carry text or an icon) · `prefers-reduced-motion`
-respected · a keyboard map shown with `?`: J/K move, Enter opens, R replies, N internal note,
-T template, A assign to me, E close, `/` quick replies, Alt+Enter sends the draft, G then I/P/T/D
-jumps to Inbox, Pipeline, Tasks, Dashboard.
+Labels on every icon-only button in both languages · one visible focus ring, the brand's
+(`:focus-visible` in `globals.css`) · a dialog is a `<dialog>` opened with `showModal()` through
+`components/Modal.tsx`, so focus moves in, Tab stays inside, Escape closes and focus returns to
+whatever opened it — the customer panel and the lead drawer are dialogs wherever they cover the
+screen · the thread's messages sit in a `role="log"` wrapper, `aria-live="polite"` · one `h1` on
+every page and one name per landmark, with a skip link past the navigation · colour is never the
+only signal (response state and lead band carry text or an icon) · `prefers-reduced-motion`
+respected, in CSS and in the one animation started from script · controls are 44 px to press, bar
+a link inside a sentence.
+
+Checked with `axe-core` (already installed, under the lint config) over 40 states in each language
+at 375 px, and by a walk with the keyboard alone; the scripts and the numbers are in the
+[Part C review](plans/s7-pilot-readiness.md#part-c-review--2026-10-03).
+
+Not built: the keyboard map (`?`, J/K, R, N, G then I…). Everything is reachable with Tab, Enter,
+Escape and the arrows; shortcuts are for somebody who works the inbox from a desk all day.
 
 ---
 

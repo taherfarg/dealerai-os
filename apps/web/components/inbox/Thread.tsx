@@ -175,12 +175,12 @@ export function Thread({ tenant, conversationId }: { tenant: string; conversatio
           <h1 className="min-w-0 flex-1 text-sm font-medium">
             <CustomerName country={row.contact.country} name={row.contact.name} />
           </h1>
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="flex shrink-0 items-center gap-1 sm:gap-2">
             {!row.assignee && (
               <button
                 type="button"
                 onClick={() => me.data && assign.mutate(me.data.user.id)}
-                className="hover:bg-background min-h-11 rounded-md px-3 text-sm"
+                className="hover:bg-background min-h-11 rounded-md px-2 text-sm sm:px-3"
               >
                 {t("thread.assignToMe")}
               </button>
@@ -189,7 +189,7 @@ export function Thread({ tenant, conversationId }: { tenant: string; conversatio
               type="button"
               aria-pressed={panel}
               onClick={() => setPanel((was) => !was)}
-              className="hover:bg-background min-h-11 rounded-md px-3 text-sm"
+              className="hover:bg-background min-h-11 rounded-md px-2 text-sm sm:px-3"
             >
               {t("customer.details")}
             </button>
@@ -197,7 +197,7 @@ export function Thread({ tenant, conversationId }: { tenant: string; conversatio
               <button
                 type="button"
                 onClick={() => setStatus.mutate("closed")}
-                className="hover:bg-background min-h-11 rounded-md px-3 text-sm"
+                className="hover:bg-background min-h-11 rounded-md px-2 text-sm sm:px-3"
               >
                 {t("thread.close")}
               </button>
@@ -205,7 +205,7 @@ export function Thread({ tenant, conversationId }: { tenant: string; conversatio
               <button
                 type="button"
                 onClick={() => setStatus.mutate("open")}
-                className="hover:bg-background min-h-11 rounded-md px-3 text-sm"
+                className="hover:bg-background min-h-11 rounded-md px-2 text-sm sm:px-3"
               >
                 {t("thread.reopen")}
               </button>

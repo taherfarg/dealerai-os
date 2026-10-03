@@ -98,7 +98,9 @@ export function TaskRow({
         {task.contact && (
           <Link
             href={`/${tenant}/customers/${task.contact.id}`}
-            className="text-muted text-xs underline"
+            // A thumb's height to press, taken from the padding and given back
+            // by the margin, so the row is no taller for it.
+            className="text-muted -my-3.5 inline-block py-3.5 text-xs underline"
             dir="auto"
           >
             {task.contact.name}

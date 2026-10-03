@@ -13,6 +13,7 @@ export const ar = {
   "nav.settings": "الإعدادات",
   "nav.marketing": "التسويق",
   "nav.main": "القائمة الرئيسية",
+  "nav.skip": "تخطَّ إلى الصفحة",
   "nav.command": "مركز القيادة",
   "nav.content": "المحتوى",
   "availability.taking": "أستقبل المحادثات",

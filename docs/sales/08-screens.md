@@ -83,9 +83,12 @@ thread scrolls smoothly on a phone; opening the thread marks it read for that us
 - **Open window:** auto-growing text area, attachments, `/` for quick replies in the conversation's
   language, a car-card picker, a template button, and an internal-note toggle that turns the whole
   composer yellow.
-- **Closed window:** free text disabled with an explanation, and a template picker whose variables
-  are prefilled from the customer and car, with a live preview and a "Paid message" hint on
-  marketing templates.
+- **Closed window:** the reply box gives way to a template picker: the approved templates, the
+  customer's language first; an input per blank, the first holding the customer's first name where
+  the template greets them; the message as the customer will read it; and a note that a template
+  sent after the 24 hours is a paid message. Send stays off while a blank is empty. A note for
+  colleagues can still be written. (A template does not say what its blanks are for, so the car
+  and the price are typed; the copilot's follow-up draft fills them for templates in its order.)
 - **Draft panel** above the composer: the draft text, a High/Medium/Low confidence badge, the intent,
   a "Based on" row of car and document chips, an amber callout when a person must decide, and action
   chips (Create lead, Move to Negotiation, Follow up Thursday). Buttons: Send, Edit, Regenerate,

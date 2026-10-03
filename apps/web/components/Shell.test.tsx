@@ -23,4 +23,15 @@ describe("Shell", () => {
     expect(navigations).toHaveLength(2);
     expect(screen.getAllByRole("main")).toHaveLength(1);
   });
+
+  it("offers a way past the navigation, as the first thing Tab reaches", () => {
+    render(
+      <Shell tenant={pollux} tenants={[pollux]} locale="en" pendingApprovals={0}>
+        <p>page</p>
+      </Shell>,
+    );
+    const skip = screen.getAllByRole("link")[0];
+    expect(skip.textContent).toBe("Skip to the page");
+    expect(skip.getAttribute("href")).toBe(`#${screen.getByRole("main").id}`);
+  });
 });

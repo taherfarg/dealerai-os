@@ -44,6 +44,15 @@ export function Shell({
     // Grid columns, not float/absolute: the browser mirrors a grid under
     // dir="rtl" for free, so the sidebar moves to the right with no RTL CSS.
     <div className="grid min-h-screen grid-rows-[auto_1fr] md:grid-cols-[16rem_1fr] md:grid-rows-1">
+      {/* The first stop for a keyboard: on a desk the navigation is some
+          fifteen Tabs long, and every page begins after it. Seen only while
+          it has focus. */}
+      <a
+        href="#page"
+        className="bg-surface border-border sr-only rounded-md border px-3 py-2 text-sm focus:not-sr-only focus:fixed focus:start-2 focus:top-2 focus:z-50"
+      >
+        {t(locale, "nav.skip")}
+      </a>
       <aside className="border-border bg-surface flex flex-col gap-4 border-b p-4 md:border-b-0 md:border-e md:p-6">
         <div className="flex items-center justify-between gap-2">
           <span className="text-brand text-lg font-semibold tracking-tight">DealerAI</span>
@@ -73,7 +82,9 @@ export function Shell({
         </div>
       </aside>
 
-      <main className="min-w-0 p-4 pb-24 md:p-8">{children}</main>
+      <main id="page" className="min-w-0 p-4 pb-24 md:p-8">
+        {children}
+      </main>
 
       <nav
         aria-label={t(locale, "nav.main")}

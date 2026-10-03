@@ -10,6 +10,7 @@ export const en = {
   "nav.settings": "Settings",
   "nav.marketing": "Marketing",
   "nav.main": "Main",
+  "nav.skip": "Skip to the page",
   "nav.command": "Command Center",
   "nav.content": "Content",
   "availability.taking": "Taking chats",
