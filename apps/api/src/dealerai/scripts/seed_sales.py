@@ -22,6 +22,7 @@ from zoneinfo import ZoneInfo
 import asyncpg
 
 from ..ai.embeddings import embed, literal
+from ..ai.gateway import MissingAPIKey
 from ..config import get_settings
 from ..db.session import close_pool, init_pool, pool_is_open
 from ..guards import commitments as commitments_guard
@@ -1156,11 +1157,19 @@ async def seed() -> int:
             vectors = await embed(
                 [content for _, content in document_chunks], tenant_id=TENANT, kind="document"
             )
+        except MissingAPIKey:
+            # No key, no vectors. The policies are listed and can be read; retrieval,
+            # which needs the same key to embed the question, finds nothing in them
+            # until the workspace is seeded again with one. Never a made-up vector:
+            # that would answer every question with whichever passage came first.
+            vectors = []
+            print("no GOOGLE_API_KEY: the policies are seeded without embeddings")
         finally:
             if opened:
                 await close_pool()
         async with conn.transaction():
-            for (chunk_id, _), vector in zip(document_chunks, vectors, strict=True):
+            embedded = zip(document_chunks, vectors, strict=True) if vectors else ()
+            for (chunk_id, _), vector in embedded:
                 await conn.execute(
                     "update doc_chunks set embedding = $2::vector where id = $1",
                     chunk_id,
