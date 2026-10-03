@@ -1,6 +1,7 @@
 "use client";
 
 import { useCustomerTimeline, type TimelineEntry } from "@/lib/api/hooks";
+import { Auto } from "@/components/Bidi";
 import { formatRelative } from "@/lib/format";
 import { useLocale, useT } from "@/lib/i18n-client";
 
@@ -15,12 +16,14 @@ function line(entry: Entry): { who: string; text: string } {
   if (event?.text) return { who: "·", text: event.text };
   const transcript = data.transcript as { text?: string } | null;
   const said = (data.body as string | null) ?? transcript?.text ?? "";
+  // In and out, not left and right: these two arrows mean the same whichever
+  // way the page runs.
   const who =
     data.direction === "in"
-      ? "←"
+      ? "↙"
       : data.origin === "phone_app"
         ? "📱"
-        : ((data.author as string | null) ?? "→");
+        : ((data.author as string | null) ?? "↗");
   return { who, text: said };
 }
 
@@ -55,7 +58,9 @@ export function Timeline({ contactId }: { contactId: string }) {
               <span className="text-muted w-16 shrink-0 text-xs" aria-hidden>
                 {who}
               </span>
-              <p className="min-w-0 flex-1 whitespace-pre-wrap text-sm">{text}</p>
+              <Auto as="p" className="min-w-0 flex-1 whitespace-pre-wrap text-sm">
+                {text}
+              </Auto>
               <time className="text-muted shrink-0 text-xs" dateTime={entry.at}>
                 {formatRelative(entry.at, locale)}
               </time>

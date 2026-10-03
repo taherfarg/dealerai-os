@@ -56,6 +56,11 @@ describe("MessageBubble", () => {
     expect(screen.getByText(/white Land Cruiser/)).toBeDefined();
   });
 
+  it("lets a message keep the direction it was written in", () => {
+    show({ text: "Le prix pour Oran, tout compris ?" });
+    expect(screen.getByText("Le prix pour Oran, tout compris ?").getAttribute("dir")).toBe("auto");
+  });
+
   it("can never be mistaken for a sent message when it is a note", () => {
     const { container } = show({
       kind: "note",

@@ -17,7 +17,8 @@ import {
   useTasks,
 } from "@/lib/api/hooks";
 import { useFilters } from "@/lib/filters";
-import { countryFlag, formatDue, formatMoney } from "@/lib/format";
+import { Auto, CustomerName, Ltr } from "@/components/Bidi";
+import { formatDue, formatMoney } from "@/lib/format";
 import { useLocale, useT } from "@/lib/i18n-client";
 
 const TABS = ["timeline", "leads", "tasks", "profile"] as const;
@@ -77,11 +78,13 @@ export default function CustomerPage({
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <h1 className="text-lg font-semibold">
-            {countryFlag(record.country)} {record.name ?? t("inbox.unknownCustomer")}
+            <CustomerName country={record.country} name={record.name} wrap />
           </h1>
           <ul className="text-muted mt-1 flex flex-wrap gap-3 text-xs">
             {record.identities.map((identity) => (
-              <li key={identity.id}>{identity.value}</li>
+              <li key={identity.id}>
+                <Ltr>{identity.value}</Ltr>
+              </li>
             ))}
           </ul>
           <p className="text-muted mt-1 text-xs">
@@ -166,14 +169,17 @@ export default function CustomerPage({
             <ul className="divide-y divide-black/5 dark:divide-white/10">
               {record.leads.map((lead) => (
                 <li key={lead.id} className="py-2">
-                  <Link href={`/${tenant}/pipeline?lead=${lead.id}`} className="text-sm">
-                    {lead.vehicle?.label ?? lead.pipeline_name}
-                    <span className="text-muted ms-2 text-xs">{lead.stage.name}</span>
+                  <Link
+                    href={`/${tenant}/pipeline?lead=${lead.id}`}
+                    className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-sm"
+                  >
+                    <Auto>{lead.vehicle?.label ?? lead.pipeline_name}</Auto>
+                    <Auto className="text-muted text-xs">{lead.stage.name}</Auto>
                     {lead.budget && (
-                      <span className="text-muted ms-2 text-xs">{formatMoney(lead.budget)}</span>
+                      <Ltr className="text-muted text-xs">{formatMoney(lead.budget)}</Ltr>
                     )}
                     {lead.lost_reason && (
-                      <span className="text-muted ms-2 text-xs italic">{lead.lost_reason}</span>
+                      <Auto className="text-muted text-xs italic">{lead.lost_reason}</Auto>
                     )}
                   </Link>
                 </li>
@@ -188,8 +194,8 @@ export default function CustomerPage({
             <ul className="divide-y divide-black/5 dark:divide-white/10">
               {theirTasks.map((task) => (
                 <li key={task.id} className="flex justify-between gap-2 py-2 text-sm">
-                  <span>{task.title}</span>
-                  <time className="text-muted text-xs" dateTime={task.due_at}>
+                  <Auto>{task.title}</Auto>
+                  <time className="text-muted shrink-0 text-xs" dateTime={task.due_at}>
                     {formatDue(task.due_at, locale)}
                   </time>
                 </li>

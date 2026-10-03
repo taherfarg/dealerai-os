@@ -1,6 +1,7 @@
 "use client";
 
 import type { LeadDetail } from "@/lib/api/hooks";
+import { Auto, Ltr } from "@/components/Bidi";
 import { useT } from "@/lib/i18n-client";
 
 /**
@@ -28,22 +29,22 @@ export function ScoreReasons({
             key={`${reason.signal}-${index}`}
             className="flex items-baseline justify-between gap-2 py-1 text-sm"
           >
-            <span>
-              {reason.label}
+            <span className="flex items-baseline gap-1">
+              <Auto>{reason.label}</Auto>
               {reason.evidence_message_id && (
                 <button
                   type="button"
                   onClick={() => onEvidence?.(reason.evidence_message_id as string)}
                   aria-label={t("lead.evidence")}
-                  className="text-muted ms-1 text-xs underline"
+                  className="text-muted text-xs underline"
                 >
                   ↗
                 </button>
               )}
             </span>
-            <span className={reason.points < 0 ? "text-red-600 dark:text-red-400" : "text-muted"}>
+            <Ltr className={reason.points < 0 ? "text-red-600 dark:text-red-400" : "text-muted"}>
               {reason.points > 0 ? `+${reason.points}` : reason.points}
-            </span>
+            </Ltr>
           </li>
         ))}
       </ul>

@@ -62,9 +62,18 @@ describe("ConversationRow", () => {
     expect(screen.queryByLabelText(/Waiting/)).toBeNull();
   });
 
-  it("marks our own last message as ours", () => {
+  it("lets the name and what was said each choose their direction", () => {
+    show(base);
+    expect(screen.getByText("Karim Benali").getAttribute("dir")).toBe("auto");
+    expect(screen.getByText("Le prix pour Oran ?").getAttribute("dir")).toBe("auto");
+  });
+
+  it("marks our own last message as ours, outside the words that were sent", () => {
     show({ ...base, last_message: { ...base.last_message!, direction: "out", origin: "inbox" } });
-    expect(screen.getByText(/^You: /)).toBeDefined();
+    // "You:" is the app's word, in the reader's language. Inside the element
+    // that takes its direction from the message it would decide that direction.
+    expect(screen.getByText("Le prix pour Oran ?").textContent).toBe("Le prix pour Oran ?");
+    expect(screen.getByText("You:")).toBeDefined();
   });
 
   it("marks a reply typed on the phone as coming from the phone", () => {
@@ -72,7 +81,7 @@ describe("ConversationRow", () => {
       ...base,
       last_message: { ...base.last_message!, direction: "out", origin: "phone_app" },
     });
-    expect(screen.getByText(/^From phone: /)).toBeDefined();
+    expect(screen.getByText("From phone:")).toBeDefined();
   });
 
   it("says a voice note is a voice note", () => {

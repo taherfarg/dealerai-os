@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import type { Conversation } from "@/lib/api/hooks";
-import { countryFlag, formatRelative } from "@/lib/format";
+import { Auto, CustomerName } from "@/components/Bidi";
+import { formatRelative } from "@/lib/format";
 import { useLocale, useT } from "@/lib/i18n-client";
 import { WaitingTimer } from "./WaitingTimer";
 
@@ -31,6 +32,7 @@ export function ConversationRow({
   const locale = useLocale();
   const { contact, last_message: last } = conversation;
   const unread = conversation.unread_count;
+  const ours = prefix(conversation, t("inbox.you"), t("inbox.fromPhone"));
   return (
     <li data-sla={conversation.sla_state ?? "none"}>
       <Link
@@ -41,9 +43,11 @@ export function ConversationRow({
         }`}
       >
         <div className="flex items-baseline justify-between gap-2">
-          <span className="truncate text-sm font-medium">
-            {countryFlag(contact.country)} {contact.name ?? t("inbox.unknownCustomer")}
-          </span>
+          <CustomerName
+            country={contact.country}
+            name={contact.name}
+            className="text-sm font-medium"
+          />
           {last && (
             <time className="text-muted shrink-0 text-xs" dateTime={last.at}>
               {formatRelative(last.at, locale)}
@@ -51,10 +55,17 @@ export function ConversationRow({
           )}
         </div>
 
-        <p className="text-muted mt-1 truncate text-sm">
-          {last
-            ? `${prefix(conversation, t("inbox.you"), t("inbox.fromPhone"))}${last.preview}`
-            : t("inbox.noMessages")}
+        {/* What was said sits in an element of its own: it chooses its
+            direction and is cut at its own end, and "You:" stays the reader's. */}
+        <p className="text-muted mt-1 flex gap-1 text-sm">
+          {last ? (
+            <>
+              {ours && <span className="shrink-0">{ours}</span>}
+              <Auto className="min-w-0 truncate">{last.preview}</Auto>
+            </>
+          ) : (
+            t("inbox.noMessages")
+          )}
         </p>
 
         <div className="mt-2 flex flex-wrap items-center gap-2">

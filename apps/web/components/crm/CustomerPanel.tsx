@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useCreateLead, useCustomer, useEditCustomer, type CustomerDetail } from "@/lib/api/hooks";
-import { countryFlag, formatMoney } from "@/lib/format";
+import { Auto, CustomerName, Ltr } from "@/components/Bidi";
+import { formatMoney } from "@/lib/format";
 import { useT } from "@/lib/i18n-client";
 import { ProfileField, type Field } from "./ProfileField";
 
@@ -49,10 +50,12 @@ export function CustomerPanel({
     <div className="flex h-full flex-col gap-4 p-4" data-customer-panel>
       <header className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <h2 className="truncate text-sm font-medium">
-            {countryFlag(record.country)} {record.name ?? t("inbox.unknownCustomer")}
+          <h2 className="text-sm font-medium">
+            <CustomerName country={record.country} name={record.name} />
           </h2>
-          <p className="text-muted truncate text-xs">{record.phone}</p>
+          <p className="text-muted truncate text-xs">
+            <Ltr>{record.phone}</Ltr>
+          </p>
           <p className="text-muted mt-1 text-xs">{record.owner?.name ?? t("customers.nobody")}</p>
         </div>
         {onClose && (
@@ -76,7 +79,7 @@ export function CustomerPanel({
       {record.tags.length > 0 && (
         <ul className="flex flex-wrap gap-1">
           {record.tags.map((tag) => (
-            <li key={tag} className="bg-background rounded-full px-2 py-0.5 text-xs">
+            <li key={tag} dir="auto" className="bg-background rounded-full px-2 py-0.5 text-xs">
               {tag}
             </li>
           ))}
@@ -107,15 +110,17 @@ export function CustomerPanel({
         {openLead ? (
           <Link
             href={`/${tenant}/pipeline?lead=${openLead.id}`}
-            className="hover:bg-background block rounded-md border border-black/5 p-2 dark:border-white/10"
+            // A gap on the row, never a margin on one of its parts: a part with
+            // its own direction has its own idea of which side is the start.
+            className="hover:bg-background flex flex-wrap items-baseline gap-x-2 gap-y-1 rounded-md border border-black/5 p-2 dark:border-white/10"
           >
-            <span className="text-sm">{openLead.vehicle?.label ?? openLead.pipeline_name}</span>
-            <span className="text-muted ms-2 text-xs">{openLead.stage.name}</span>
+            <Auto className="text-sm">{openLead.vehicle?.label ?? openLead.pipeline_name}</Auto>
+            <Auto className="text-muted text-xs">{openLead.stage.name}</Auto>
             {openLead.budget && (
-              <span className="text-muted ms-2 text-xs">{formatMoney(openLead.budget)}</span>
+              <Ltr className="text-muted text-xs">{formatMoney(openLead.budget)}</Ltr>
             )}
             {openLead.band && (
-              <span className="ms-2 text-xs font-medium">{t(`band.${openLead.band}`)}</span>
+              <span className="text-xs font-medium">{t(`band.${openLead.band}`)}</span>
             )}
           </Link>
         ) : (

@@ -7,7 +7,8 @@ import {
   type Customer,
   type CustomerDetail,
 } from "@/lib/api/hooks";
-import { countryFlag, formatRelative } from "@/lib/format";
+import { Auto, CustomerName, Ltr } from "@/components/Bidi";
+import { formatRelative } from "@/lib/format";
 import { useLocale, useT } from "@/lib/i18n-client";
 
 /**
@@ -66,10 +67,8 @@ export function MergeDialog({
                 chosen?.id === row.id ? "bg-accent/20" : "hover:bg-background"
               }`}
             >
-              <span>
-                {countryFlag(row.country)} {row.name}
-              </span>
-              <span className="text-muted text-xs">{row.phone}</span>
+              <CustomerName country={row.country} name={row.name} />
+              <Ltr className="text-muted shrink-0 text-xs">{row.phone}</Ltr>
             </button>
           </li>
         ))}
@@ -85,8 +84,12 @@ export function MergeDialog({
           ).map(([label, name, phone, owner]) => (
             <section key={label} className="border-border rounded-md border p-2">
               <h3 className="text-muted font-semibold uppercase">{label}</h3>
-              <p className="mt-1 text-sm">{name}</p>
-              <p className="text-muted">{phone}</p>
+              <p className="mt-1 text-sm">
+                <Auto>{name}</Auto>
+              </p>
+              <p className="text-muted">
+                <Ltr>{phone}</Ltr>
+              </p>
               <p className="text-muted">{owner ?? t("customers.nobody")}</p>
             </section>
           ))}

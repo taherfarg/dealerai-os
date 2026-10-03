@@ -109,6 +109,7 @@ export const en = {
   "thread.windowClosed": "Window closed — templates only",
   "thread.windowClosedHint": "More than 24 hours since the customer wrote. Send a template.",
   "thread.gone": "This conversation is not available.",
+  "thread.back": "Back to conversations",
   "notifications.title": "Notifications",
   "notifications.markAllRead": "Mark all read",
   "notifications.empty": "Nothing new.",

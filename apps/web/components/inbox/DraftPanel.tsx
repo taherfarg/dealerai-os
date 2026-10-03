@@ -161,6 +161,7 @@ export function DraftPanel({
                       <button
                         type="button"
                         className="rounded-full border border-black/15 px-2 py-1 dark:border-white/20"
+                        dir="auto"
                         onClick={() => setOpenedDocument(openedDocument === String(index) ? null : String(index))}
                       >
                         {label}
@@ -172,7 +173,7 @@ export function DraftPanel({
                       )}
                     </span>
                   ) : (
-                    <span key={index} className="rounded-full border border-black/15 px-2 py-1 dark:border-white/20">
+                    <span key={index} dir="auto" className="rounded-full border border-black/15 px-2 py-1 dark:border-white/20">
                       {label}
                     </span>
                   );
@@ -208,6 +209,7 @@ export function DraftPanel({
                         }
                       }}
                       className="rounded-md border border-black/15 px-2 py-1 text-xs disabled:opacity-50 dark:border-white/20"
+                      dir="auto"
                     >
                       {stringAt(action, "label") ?? t("draft.action")}
                     </button>

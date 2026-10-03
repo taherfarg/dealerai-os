@@ -6,7 +6,8 @@ import { AvailabilitySwitch } from "@/components/AvailabilitySwitch";
 import { TaskRow } from "@/components/crm/TaskRow";
 import { WaitingTimer } from "@/components/inbox/WaitingTimer";
 import { useEditTask, useMe, useMyDay, useSendDraft } from "@/lib/api/hooks";
-import { countryFlag, formatDuration, formatMoney } from "@/lib/format";
+import { CustomerName } from "@/components/Bidi";
+import { formatDuration, formatMoney } from "@/lib/format";
 import { useLocale, useT } from "@/lib/i18n-client";
 
 /** A number with its name under it, which is all three of these need. */
@@ -60,9 +61,11 @@ export default function TodayPage({ params }: { params: Promise<{ tenant: string
                     href={`/${tenant}/inbox/${conversation.id}`}
                     className="hover:bg-background flex items-center justify-between gap-2 py-2"
                   >
-                    <span className="truncate text-sm">
-                      {countryFlag(conversation.contact.country)} {conversation.contact.name}
-                    </span>
+                    <CustomerName
+                      country={conversation.contact.country}
+                      name={conversation.contact.name}
+                      className="text-sm"
+                    />
                     <WaitingTimer
                       waitingSince={conversation.waiting_since}
                       state={conversation.sla_state}
@@ -111,9 +114,11 @@ export default function TodayPage({ params }: { params: Promise<{ tenant: string
                     href={`/${tenant}/pipeline?lead=${lead.id}`}
                     className="hover:bg-background flex flex-wrap items-center justify-between gap-2 py-2"
                   >
-                    <span className="truncate text-sm">
-                      {countryFlag(lead.contact.country)} {lead.contact.name}
-                    </span>
+                    <CustomerName
+                      country={lead.contact.country}
+                      name={lead.contact.name}
+                      className="text-sm"
+                    />
                     <span className="text-muted text-xs">
                       {lead.vehicle?.label ?? lead.pipeline_name} · {lead.stage.name}
                       {lead.budget && ` · ${formatMoney(lead.budget)}`}

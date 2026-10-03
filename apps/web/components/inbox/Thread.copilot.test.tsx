@@ -82,3 +82,11 @@ describe("copilot in the thread", () => {
     expect(sessionStorage.getItem("dealerai:followup-edit:conversation-1")).toBeNull();
   });
 });
+
+describe("the thread's header", () => {
+  it("turns the back arrow round for somebody who reads right to left", () => {
+    render(<LocaleProvider locale="ar"><Thread tenant="pollux" conversationId="conversation-1" /></LocaleProvider>);
+    const back = screen.getByRole("link", { name: "العودة إلى المحادثات" });
+    expect(back.querySelector("span")?.className).toContain("rtl:-scale-x-100");
+  });
+});

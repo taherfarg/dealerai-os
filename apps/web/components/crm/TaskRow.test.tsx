@@ -49,6 +49,18 @@ describe("TaskRow", () => {
     expect(screen.getByRole("link", { name: "Omar Al Mazrouei" })).toBeDefined();
   });
 
+  it("lets the title choose its direction, and cuts it at its end", () => {
+    show({});
+    const title = screen.getByText("Call Omar back");
+    expect(title.getAttribute("dir")).toBe("auto");
+    expect(title.className).toContain("truncate");
+  });
+
+  it("says how far ahead a task is, rather than that it is due now", () => {
+    show({});
+    expect(screen.getByText("in 1h")).toBeDefined();
+  });
+
   it("reads as overdue in words as well as in red", () => {
     const { container } = show({ due_at: new Date(NOW - 86_400_000).toISOString() });
     expect(screen.getByText("Overdue")).toBeDefined();

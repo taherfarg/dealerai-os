@@ -2,7 +2,8 @@
 
 import type { Lead, Stage } from "@/lib/api/hooks";
 import { useNow } from "@/lib/clock";
-import { countryFlag, formatDue, formatMoney } from "@/lib/format";
+import { Auto, CustomerName, Ltr } from "@/components/Bidi";
+import { formatDue, formatMoney } from "@/lib/format";
 import { useLocale, useT } from "@/lib/i18n-client";
 
 const BAND_TONE: Record<string, string> = {
@@ -51,9 +52,11 @@ export function LeadCard({
     >
       <button type="button" onClick={onOpen} className="block w-full text-start">
         <span className="flex items-baseline justify-between gap-2">
-          <span className="truncate text-sm font-medium">
-            {countryFlag(lead.contact.country)} {lead.contact.name}
-          </span>
+          <CustomerName
+            country={lead.contact.country}
+            name={lead.contact.name}
+            className="text-sm font-medium"
+          />
           {lead.band && (
             <span
               className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${BAND_TONE[lead.band]}`}
@@ -63,12 +66,12 @@ export function LeadCard({
           )}
         </span>
 
-        <span className="text-muted mt-1 block truncate text-xs">
-          {lead.vehicle?.label ?? t("pipeline.noCar")}
+        <span className="text-muted mt-1 flex text-xs">
+          <Auto className="min-w-0 truncate">{lead.vehicle?.label ?? t("pipeline.noCar")}</Auto>
         </span>
 
         <span className="text-muted mt-1 flex flex-wrap items-center gap-2 text-[11px]">
-          {lead.budget && <span>{formatMoney(lead.budget)}</span>}
+          {lead.budget && <Ltr>{formatMoney(lead.budget)}</Ltr>}
           <span>{lead.owner?.name ?? t("customers.nobody")}</span>
           <span>
             {days} {t("pipeline.daysInStage")}

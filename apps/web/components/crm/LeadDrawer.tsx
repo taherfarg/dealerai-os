@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useLead, useMe, type Stage } from "@/lib/api/hooks";
 import { formatDateTime, formatDue, formatMoney, formatRelative } from "@/lib/format";
+import { Auto, Ltr } from "@/components/Bidi";
 import { useLocale, useT } from "@/lib/i18n-client";
 import { ScoreReasons } from "./ScoreReasons";
 
@@ -31,7 +32,9 @@ export function LeadDrawer({
       className="border-border bg-surface fixed inset-y-0 end-0 z-30 w-full overflow-y-auto border-s p-4 shadow-xl sm:w-96"
     >
       <div className="flex items-start justify-between gap-2">
-        <h2 className="text-sm font-medium">{lead.data?.contact.name ?? "…"}</h2>
+        <h2 className="text-sm font-medium" dir="auto">
+          {lead.data?.contact.name ?? "…"}
+        </h2>
         <button
           type="button"
           onClick={onClose}
@@ -67,7 +70,9 @@ export function LeadDrawer({
             {lead.data.budget && (
               <>
                 <dt className="text-muted">{t("lead.budget")}</dt>
-                <dd>{formatMoney(lead.data.budget)}</dd>
+                <dd>
+                  <Ltr>{formatMoney(lead.data.budget)}</Ltr>
+                </dd>
               </>
             )}
             <dt className="text-muted">{t("lead.source")}</dt>
@@ -77,7 +82,9 @@ export function LeadDrawer({
             {lead.data.lost_reason && (
               <>
                 <dt className="text-muted">{t("lead.lostReason")}</dt>
-                <dd>{lead.data.lost_reason}</dd>
+                <dd>
+                  <Auto>{lead.data.lost_reason}</Auto>
+                </dd>
               </>
             )}
           </dl>
@@ -103,9 +110,11 @@ export function LeadDrawer({
               <ol className="mt-1">
                 {lead.data.history.map((move) => (
                   <li key={move.at} className="flex justify-between gap-2 py-1 text-xs">
-                    <span>{move.text}</span>
-                    <span className="text-muted">
-                      {move.by} · {formatRelative(move.at, locale)}
+                    <Auto>{move.text}</Auto>
+                    {/* The name is set apart: beside a Latin name a number joins
+                        the name's run, and "3 د" comes out as "د … 3". */}
+                    <span className="text-muted shrink-0">
+                      <Auto>{move.by}</Auto> · {formatRelative(move.at, locale)}
                     </span>
                   </li>
                 ))}
@@ -123,10 +132,10 @@ export function LeadDrawer({
               <ul className="mt-1">
                 {lead.data.tasks.map((task) => (
                   <li key={task.id} className="flex justify-between gap-2 py-1 text-xs">
-                    <span className={task.status === "done" ? "line-through" : ""}>
+                    <Auto className={task.status === "done" ? "line-through" : ""}>
                       {task.title}
-                    </span>
-                    <span className="text-muted">{formatDue(task.due_at, locale)}</span>
+                    </Auto>
+                    <span className="text-muted shrink-0">{formatDue(task.due_at, locale)}</span>
                   </li>
                 ))}
               </ul>

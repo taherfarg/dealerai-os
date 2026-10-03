@@ -22,8 +22,9 @@ import {
   type Suggestion,
 } from "@/lib/api/hooks";
 import { useNow } from "@/lib/clock";
-import { countryFlag, formatUntil } from "@/lib/format";
+import { formatUntil } from "@/lib/format";
 import { useLocale, useT } from "@/lib/i18n-client";
+import { CustomerName } from "@/components/Bidi";
 import { CustomerPanel } from "@/components/crm/CustomerPanel";
 import { Composer } from "./Composer";
 import { DraftPanel } from "./DraftPanel";
@@ -149,11 +150,18 @@ export function Thread({ tenant, conversationId }: { tenant: string; conversatio
     <div data-thread className="flex h-full min-h-0 flex-col">
       <header className="border-b border-black/5 p-3 dark:border-white/10">
         <div className="flex items-center gap-2">
-          <Link href={`/${tenant}/inbox`} className="text-muted text-sm lg:hidden">
-            ←
+          <Link
+            href={`/${tenant}/inbox`}
+            aria-label={t("thread.back")}
+            className="text-muted text-sm lg:hidden"
+          >
+            {/* An arrow is a character, and a character does not mirror. */}
+            <span aria-hidden className="inline-block rtl:-scale-x-100">
+              ←
+            </span>
           </Link>
-          <h1 className="truncate text-sm font-medium">
-            {countryFlag(row.contact.country)} {row.contact.name ?? t("inbox.unknownCustomer")}
+          <h1 className="min-w-0 text-sm font-medium">
+            <CustomerName country={row.contact.country} name={row.contact.name} />
           </h1>
           <WaitingTimer waitingSince={row.waiting_since} state={row.sla_state} />
           <div className="ms-auto flex items-center gap-2">

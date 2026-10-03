@@ -46,11 +46,11 @@ export function QuickReplySettings() {
         {(replies.data ?? []).map((reply) => (
           <li key={reply.id} className="bg-surface border-border rounded-lg border p-3 text-sm">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <span>
+              <span className="flex items-baseline gap-2">
                 <span className="font-mono" dir="ltr">
                   {reply.shortcut}
                 </span>
-                <span className="text-muted ms-2" dir="auto">
+                <span className="text-muted" dir="auto">
                   {reply.title}
                 </span>
               </span>
@@ -76,11 +76,14 @@ export function QuickReplySettings() {
             {LANGUAGES.map(
               (code) =>
                 reply.body[code] && (
-                  <p key={code} className="text-muted mt-1 text-xs" dir="auto">
-                    <span className="me-1 font-semibold uppercase" dir="ltr">
+                  // The row runs the way its text does — the label has a dir
+                  // of its own, so it is not what "auto" reads — and the gap
+                  // is the row's: a margin on the label fell on its far side.
+                  <p key={code} className="text-muted mt-1 flex gap-2 text-xs" dir="auto">
+                    <span className="shrink-0 font-semibold uppercase" dir="ltr">
                       {code}
                     </span>
-                    {reply.body[code]}
+                    <span className="min-w-0">{reply.body[code]}</span>
                   </p>
                 ),
             )}

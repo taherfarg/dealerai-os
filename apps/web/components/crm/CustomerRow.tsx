@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import type { Customer } from "@/lib/api/hooks";
-import { countryFlag, formatRelative } from "@/lib/format";
+import { CustomerName, Ltr } from "@/components/Bidi";
+import { formatRelative } from "@/lib/format";
 import { useLocale, useT } from "@/lib/i18n-client";
 
 const BAND_TONE: Record<string, string> = {
@@ -46,15 +47,17 @@ export function CustomerRow({
           onSelect ? "min-w-0 flex-1" : ""
         }`}
       >
-        <span className="truncate text-sm font-medium">
-          {countryFlag(customer.country)} {customer.name ?? t("inbox.unknownCustomer")}
+        <span className="flex min-w-0 items-baseline gap-2 text-sm font-medium">
+          <CustomerName country={customer.country} name={customer.name} />
           {customer.opted_out && (
-            <span className="ms-2 rounded bg-red-500/15 px-1 text-[10px] uppercase text-red-700 dark:text-red-300">
+            <span className="shrink-0 rounded bg-red-500/15 px-1 text-[10px] uppercase text-red-700 dark:text-red-300">
               {t("customer.optedOut")}
             </span>
           )}
         </span>
-        <span className="text-muted truncate text-xs">{customer.phone}</span>
+        <span className="text-muted truncate text-xs">
+          <Ltr>{customer.phone}</Ltr>
+        </span>
         <span className="text-muted truncate text-xs">
           {customer.owner?.name ?? t("customers.nobody")}
         </span>

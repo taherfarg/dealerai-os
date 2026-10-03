@@ -1,6 +1,7 @@
 "use client";
 
 import type { QuickReply } from "@/lib/api/hooks";
+import { Auto } from "@/components/Bidi";
 import { useT } from "@/lib/i18n-client";
 
 /** The replies whose shortcut starts with what was typed after the slash. */
@@ -53,7 +54,7 @@ export function QuickReplyMenu({
             <span className="font-mono text-xs" dir="ltr">
               {reply.shortcut}
             </span>
-            <span className="truncate">{reply.title}</span>
+            <Auto className="min-w-0 truncate">{reply.title}</Auto>
           </button>
         </li>
       ))}
