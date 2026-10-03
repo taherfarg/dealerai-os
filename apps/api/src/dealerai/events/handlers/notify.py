@@ -13,6 +13,7 @@ import asyncpg
 import structlog
 
 from ...config import get_settings
+from ...core.words import Words
 from ...db.session import tenant_session
 from ...notifications import push
 from ..bus import Event, emit, handler
@@ -47,26 +48,38 @@ async def notify(
     tenant_id: UUID,
     user_id: UUID,
     kind: str,
-    title: str,
-    body: str | None = None,
+    title: Words,
+    body: Words | None = None,
     entity: dict[str, str] | None = None,
     dedupe_key: str | None = None,
 ) -> None:
     """One row, once — and, for the kinds worth interrupting somebody for, one
     push. `dedupe_key` is what makes "once" true across retries: a row that was
-    already there asks for nothing."""
+    already there asks for nothing.
+
+    The words come in both languages and the row keeps one: its reader's, the
+    language their browser last said (`profiles.locale`, migration 0015). They
+    are not there to ask, and the push that follows carries the row as written.
+    Somebody with no profile yet has not said, and is told in English.
+    """
     entity = entity or {}
     notification_id = await conn.fetchval(
         """insert into notifications (tenant_id, user_id, kind, title, body, href, entity,
                                       dedupe_key)
-           values ($1, $2, $3, $4, $5, $6, $7, $8)
+           select $1::uuid, $2::uuid, $3::text,
+                  case when p.locale = 'ar' then $5::text else $4::text end,
+                  case when p.locale = 'ar' then $7::text else $6::text end,
+                  $8::text, $9::jsonb, $10::text
+             from (select 1) one left join profiles p on p.id = $2::uuid
            on conflict do nothing
            returning id""",
         tenant_id,
         user_id,
         kind,
-        title,
-        body,
+        title.en,
+        title.ar,
+        body.en if body else None,
+        body.ar if body else None,
         href_for(entity),
         entity,
         dedupe_key,

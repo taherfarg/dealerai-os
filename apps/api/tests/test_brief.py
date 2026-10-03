@@ -194,6 +194,26 @@ async def test_the_dashboard_shows_the_readers_brief(
     }
 
 
+async def test_the_brief_arrives_with_its_arabic_headline(
+    db: None, su: asyncpg.Connection, visibility_seed: dict[str, uuid.UUID], fake: FakeBrief
+) -> None:
+    """The headline was always written in both languages, for the dashboard.
+    The notification carried the English one whoever it was for."""
+    await _yesterday(su)
+    await su.execute("update profiles set locale = 'ar' where id = $1", MANAGER)
+
+    await _brief_due()
+
+    told = {
+        row["user_id"]: (row["title"], row["body"])
+        for row in await su.fetch(
+            "select user_id, title, body from notifications where kind = 'brief_ready'"
+        )
+    }
+    assert told[MANAGER] == ("موجزك الصباحي", "2 محادثة جديدة أمس.")
+    assert told[OWNER] == ("Your morning brief", "2 new conversations yesterday.")
+
+
 async def test_a_brief_notification_opens_the_dashboard(
     db: None, su: asyncpg.Connection, visibility_seed: dict[str, uuid.UUID], fake: FakeBrief
 ) -> None:

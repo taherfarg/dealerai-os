@@ -8,6 +8,7 @@ from uuid import UUID
 
 import structlog
 
+from ...core.words import Words, named, same, someone
 from ...db.session import tenant_session
 from ..bus import Event, handler
 from .notify import notify
@@ -39,14 +40,15 @@ async def on_contact_reassigned(event: Event) -> None:
         if row is None:
             log.info("contact_reassigned_gone", contact_id=str(contact_id))
             return
-        customer = row["full_name"] or "A customer"
+        who = someone(row["full_name"])
+        actor = named(row["actor_name"]) if row["actor_name"] else None
         await notify(
             conn,
             tenant_id=event.tenant_id,
             user_id=owner_id,
             kind="contact_assigned",
-            title=f"{customer} is yours now",
-            body=f"Handed over by {row['actor_name']}" if row["actor_name"] else None,
+            title=Words(f"{who.en} is yours now", f"{who.ar} أصبح من عملائك"),
+            body=Words(f"Handed over by {actor}", f"سلّمه إليك {actor}") if actor else None,
             entity={"type": "contact", "id": str(contact_id)},
             # Handing the same customer to the same person twice is one piece of
             # news, however many times the button was pressed.
@@ -77,8 +79,8 @@ async def on_task_due(event: Event) -> None:
             tenant_id=event.tenant_id,
             user_id=task["assignee_id"],
             kind="task_due",
-            title=f"Due now: {task['title']}",
-            body=task["full_name"],
+            title=Words(f"Due now: {named(task['title'])}", f"حان موعدها: {named(task['title'])}"),
+            body=same(task["full_name"]) if task["full_name"] else None,
             entity={"type": "task", "id": str(task_id)},
             # Re-opening a task after its time re-books the check; it is still
             # one piece of news.

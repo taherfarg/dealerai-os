@@ -11,6 +11,7 @@ import pytest
 
 from conftest import PHONE, SALES_1, SALES_2, TENANT_A, PushService, open_push, reseed_with_people
 from dealerai.config import get_settings
+from dealerai.core.words import Words, same
 from dealerai.db.session import tenant_session
 from dealerai.events.bus import Event
 from dealerai.events.handlers import notify as notifications
@@ -40,8 +41,8 @@ async def _tell(kind: str = "assigned", dedupe: str = "a") -> None:
             tenant_id=TENANT_A,
             user_id=SALES_1,
             kind=kind,
-            title="A customer is waiting for you",
-            body="Omar Haddad",
+            title=Words("A customer is waiting for you", "عميل بانتظارك"),
+            body=same("Omar Haddad"),
             entity={"type": "conversation", "id": CONVERSATION},
             dedupe_key=dedupe,
         )

@@ -8,6 +8,7 @@ from uuid import UUID
 import asyncpg
 import structlog
 
+from ...core.words import Words, someone
 from ...db.session import tenant_session
 from ...sales.assignment import Candidate, choose, route_to_team
 from ...sales.settings import SalesSettings
@@ -53,16 +54,31 @@ select user_id from memberships where tenant_id = $1 and role in ('owner', 'admi
 """
 
 #: kind -> (title, body). The words live here rather than in the emitters, so a
-#: notification reads the same wherever it was raised.
-_NOTIFICATIONS: dict[str, tuple[str, str | None]] = {
-    "message_received": ("New message", None),
-    "assigned": ("A customer is waiting for you", None),
-    "waiting_due_soon": ("A customer is about to wait too long", None),
-    "waiting_missed": ("A customer has been waiting too long", None),
-    "unassigned_waiting": ("An unassigned customer is waiting", None),
-    "template_rejected": ("WhatsApp rejected a template", "Open Settings → Channels to fix it."),
-    "channel_disconnected": ("WhatsApp was disconnected", "Reconnect it in Settings → Channels."),
-    "channel_quality": ("WhatsApp flagged this number's quality", None),
+#: notification reads the same wherever it was raised — in each language.
+_NOTIFICATIONS: dict[str, tuple[Words, Words | None]] = {
+    "message_received": (Words("New message", "رسالة جديدة"), None),
+    "assigned": (Words("A customer is waiting for you", "عميل بانتظارك"), None),
+    "waiting_due_soon": (
+        Words("A customer is about to wait too long", "عميل يوشك أن يطول انتظاره"),
+        None,
+    ),
+    "waiting_missed": (Words("A customer has been waiting too long", "عميل طال انتظاره"), None),
+    "unassigned_waiting": (
+        Words("An unassigned customer is waiting", "عميل غير مسند بانتظار الرد"),
+        None,
+    ),
+    "template_rejected": (
+        Words("WhatsApp rejected a template", "رفض واتساب أحد القوالب"),
+        Words("Open Settings → Channels to fix it.", "افتح الإعدادات ← القنوات لإصلاحه."),
+    ),
+    "channel_disconnected": (
+        Words("WhatsApp was disconnected", "انقطع اتصال واتساب"),
+        Words("Reconnect it in Settings → Channels.", "أعد ربطه من الإعدادات ← القنوات."),
+    ),
+    "channel_quality": (
+        Words("WhatsApp flagged this number's quality", "نبّه واتساب إلى جودة هذا الرقم"),
+        None,
+    ),
 }
 
 
@@ -161,7 +177,7 @@ async def on_assign_requested(event: Event) -> None:
             tenant_id=tenant_id,
             user_id=chosen,
             kind="assigned",
-            title="A customer is waiting for you",
+            title=_NOTIFICATIONS["assigned"][0],
             entity={"type": "conversation", "id": str(conversation_id)},
             dedupe_key=f"assigned:{conversation_id}:{chosen}",
         )
@@ -221,7 +237,8 @@ async def on_sla_check(event: Event) -> None:
         else:
             kind, recipients = "waiting_due_soon", [row["assigned_to"]]
 
-        title = f"{row['full_name'] or 'A customer'} is waiting"
+        who = someone(row["full_name"])
+        title = Words(f"{who.en} is waiting", f"{who.ar} بانتظار الرد")
         for user_id in dict.fromkeys(recipients):
             await notify(
                 conn,
@@ -282,7 +299,8 @@ async def on_notification_requested(event: Event) -> None:
                     for r in await conn.fetch(_TEAM_MANAGERS, tenant_id, row["team_id"])
                 ]
             )
-            title = f"{row['full_name'] or 'A customer'} sent a message"
+            who = someone(row["full_name"])
+            title = Words(f"{who.en} sent a message", f"{who.ar} أرسل رسالة")
             entity = {"type": "conversation", "id": str(conversation_id)}
             dedupe = f"message:{payload.get('message_id')}"
         else:

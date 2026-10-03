@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { useTenantApi } from "@/lib/api/context";
 import { useMarkNotificationsRead, useNotifications } from "@/lib/api/hooks";
-import { Auto } from "@/components/Bidi";
+import { Sentence } from "@/components/Bidi";
 import { formatRelative } from "@/lib/format";
 import { useLocale, useT } from "@/lib/i18n-client";
 
@@ -88,14 +88,14 @@ export function NotificationsBell() {
                 const inside = (
                   <>
                     <span className="flex items-baseline justify-between gap-2">
-                      <Auto className="text-sm font-medium">{row.title}</Auto>
+                      <Sentence className="text-sm font-medium">{row.title}</Sentence>
                       <time className="text-muted shrink-0 text-xs" dateTime={row.created_at}>
                         {formatRelative(row.created_at, locale)}
                       </time>
                     </span>
                     {row.body && (
                       <span className="text-muted block text-sm">
-                        <Auto>{row.body}</Auto>
+                        <Sentence>{row.body}</Sentence>
                       </span>
                     )}
                   </>

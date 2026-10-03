@@ -146,6 +146,12 @@ conversation, not a flag per message.
 | `notifications` | `id, tenant_id, user_id, kind, title, body, href, entity jsonb {type, id}, read_at, created_at`; index `(tenant_id, user_id, created_at desc)`, partial `where read_at is null` |
 | `push_subscriptions` | `id, tenant_id, user_id, endpoint (unique), p256dh, auth, user_agent, failure_count, last_success_at, created_at` — deleted when the push service answers 404 or 410. Written through `app.remember_push_subscription()`: a device belongs to whoever subscribed it last |
 
+`title` and `body` are written in their reader's language: every `notify()` is given both
+sentences and the insert keeps the one `profiles.locale` asks for (English for somebody who has
+never said). A name inside a sentence — the customer, a colleague, a task's title — is wrapped in
+Unicode isolates (U+2068 … U+2069), so that a Latin name at the start of an Arabic sentence does not
+turn the line left to right, in the bell or on a lock screen.
+
 A notification of a kind worth a push (assigned, waiting, task due, hot lead) queues
 `notification.push_requested` in the transaction that writes it. A task books its own
 `task.due_check` at its due time, through the `tasks_book_due` trigger, because tasks are written

@@ -9,6 +9,7 @@ from datetime import timedelta
 import asyncpg
 
 from conftest import SALES_1, TENANT_A, reseed_with_people
+from dealerai.core.words import named
 from dealerai.events.bus import Event
 from dealerai.events.handlers import crm
 
@@ -126,7 +127,7 @@ async def test_the_assignee_is_told_once(db: None, su: asyncpg.Connection) -> No
     [told] = await _told(su)
     assert told["user_id"] == SALES_1
     assert (told["title"], told["body"], told["href"]) == (
-        "Due now: Call Omar",
+        f"Due now: {named('Call Omar')}",
         "Omar Haddad",
         "/tasks",
     )

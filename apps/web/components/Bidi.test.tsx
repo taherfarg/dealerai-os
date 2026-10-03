@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { LocaleProvider } from "@/lib/i18n-client";
-import { Auto, CustomerName, Ltr } from "./Bidi";
+import { Auto, CustomerName, Ltr, Sentence } from "./Bidi";
 
 describe("Ltr", () => {
   it("keeps a number the way it is written", () => {
@@ -18,6 +18,17 @@ describe("Auto", () => {
     const text = screen.getByText("Le prix pour Oran ?");
     expect(text.getAttribute("dir")).toBe("auto");
     expect(text.tagName).toBe("P");
+  });
+});
+
+describe("Sentence", () => {
+  it("takes its direction from its own words, not from a name it begins with", () => {
+    // The server sets names apart with isolates; `dir="auto"` reads the first
+    // letter anyway, and `unicode-bidi: plaintext` reads past them.
+    render(<Sentence>James Whitfield أصبح من عملائك</Sentence>);
+    const sentence = screen.getByText("James Whitfield أصبح من عملائك");
+    expect(sentence.className).toContain("[unicode-bidi:plaintext]");
+    expect(sentence.getAttribute("dir")).toBeNull();
   });
 });
 

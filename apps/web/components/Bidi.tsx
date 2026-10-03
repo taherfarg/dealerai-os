@@ -42,6 +42,17 @@ export function Auto({
 }
 
 /**
+ * A sentence written for this reader somewhere else — a notification — which
+ * may begin with a name in another script: "James Whitfield أصبح من عملائك".
+ * The server sets such names apart with isolates, and the sentence runs the way
+ * its own first letter outside them does. `unicode-bidi: plaintext` reads it
+ * that way; `dir="auto"` takes the J and turns the line left to right.
+ */
+export function Sentence({ children, className = "" }: { children: ReactNode; className?: string }) {
+  return <span className={`[unicode-bidi:plaintext] ${className}`}>{children}</span>;
+}
+
+/**
  * A customer's name beside their flag. The flag stays outside the name: a flag
  * is two left-to-right characters, and inside `dir="auto"` it would be the
  * first thing read and turn an Arabic name left to right.

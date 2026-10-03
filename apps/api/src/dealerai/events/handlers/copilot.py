@@ -23,6 +23,7 @@ from ...agents.sales.profile import PROPOSABLE, Learned, coerce, study
 from ...ai.embeddings import embed, literal
 from ...ai.gateway import assert_within_budget
 from ...core.errors import BudgetExceeded, Unusable
+from ...core.words import Words, same, someone
 from ...db.queries import copilot as q
 from ...db.session import tenant_session
 from ...guards import Finding, Findings
@@ -554,8 +555,14 @@ async def _tell_the_owners_once(tenant_id: UUID) -> None:
                 tenant_id=tenant_id,
                 user_id=row["user_id"],
                 kind="ai_budget_exhausted",
-                title="The AI assistant has paused for this month",
-                body="Drafts and profile updates have stopped. Everything else is unaffected.",
+                title=Words(
+                    "The AI assistant has paused for this month",
+                    "توقف المساعد الذكي لهذا الشهر",
+                ),
+                body=Words(
+                    "Drafts and profile updates have stopped. Everything else is unaffected.",
+                    "توقفت المسودات وتحديثات الملفات. كل ما عداها يعمل كالمعتاد.",
+                ),
                 entity={"type": "tenant", "id": str(tenant_id)},
                 dedupe_key=f"budget:{tenant_id}:{today}",
             )
@@ -779,7 +786,10 @@ async def _rescore(
             tenant_id=lead["tenant_id"],
             user_id=lead["owner_id"],
             kind="lead_hot",
-            title=f"{lead['full_name'] or 'A customer'} is now a hot lead",
+            title=Words(
+                f"{someone(lead['full_name']).en} is now a hot lead",
+                f"{someone(lead['full_name']).ar} أصبح فرصة ساخنة",
+            ),
             entity={"type": "lead", "id": str(lead["id"])},
             dedupe_key=f"hot:{lead['id']}",
         )
@@ -1058,8 +1068,10 @@ async def _raise_the_task(
                 tenant_id=tenant_id,
                 user_id=lead["owner_id"],
                 kind="followup_ready",
-                title=written.reason[:120],
-                body=lead["full_name"],
+                # The model's own line to the team, which S4 writes in English
+                # whoever reads it: given as it is, and said to be.
+                title=same(written.reason[:120]),
+                body=same(lead["full_name"]) if lead["full_name"] else None,
                 entity={"type": "task", "id": str(task_id)},
                 dedupe_key=f"followup:{task_id}",
             )
