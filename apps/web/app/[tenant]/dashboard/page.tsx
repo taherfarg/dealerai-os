@@ -38,7 +38,8 @@ export default function DashboardPage({ params }: { params: Promise<{ tenant: st
   if (me.data && !allowed) {
     return (
       <div className="mx-auto max-w-md p-6 text-sm">
-        <p>{t("dashboard.forManagers")}</p>
+        <h1 className="text-lg font-semibold">{t("nav.dashboard")}</h1>
+        <p className="mt-2">{t("dashboard.forManagers")}</p>
         <Link href={`/${tenant}/today`} className="mt-2 inline-block underline">
           {t("dashboard.openMyDay")}
         </Link>
