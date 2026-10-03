@@ -12,8 +12,8 @@ week S5 connects the real number, two reps start the pilot and the eight success
 [00](../00-prd.md) §7 are measured on Pollux.
 
 **How this plan is split.** S7 is five pieces of work that can each be shipped and demonstrated on
-their own, so it is five parts. Parts A, B and C are planned in full below. The rest follow this
-project's convention from [09](../09-implementation-plan.md): each is written at pickup, appended to
+their own, so it is five parts. Parts A to D are planned in full below. Part E follows this
+project's convention from [09](../09-implementation-plan.md): written at pickup, appended to
 this file under its own heading, with its own exit run.
 
 | Part | What | Exit | Needs |
@@ -29,9 +29,11 @@ these are the owner's, and Parts D and E wait on them:
 
 | For | Step |
 |---|---|
-| D | Decide Q1: keep the Supabase project in Tokyo or move it to Mumbai before real customer data |
-| D | Supabase → Authentication: custom SMTP (the built-in sender rate-limits at once — the gap in [../../README.md](../../README.md)), the site URL and redirect URLs for staging |
+| D | Create the Supabase project. The one the docs named is gone (found while planning Part D), so Q1 is answered by where the new one is made: Mumbai, as [00](../00-prd.md) §12 proposed |
+| D | Pick where the API and the worker run — a container host with a region beside the database — and Vercel for the web app |
+| D | Supabase → Authentication: custom SMTP (the built-in sender rate-limits at once — the gap in [../../README.md](../../README.md)), the site URL and redirect URL, the two email templates |
 | D | Google Cloud: an OAuth client; Supabase → Providers → Google with its id and secret |
+| D | The staging day: the secrets, the migrations, a first sign-in, two phones — [10](../10-staging.md) |
 | E | Meta verification and app review, then S5 |
 
 ---
@@ -4552,5 +4554,1769 @@ drift.
    other two were filled; the preview read "Bonjour Karim, le prix de Toyota Hilux 2.8 est
    maintenant AED 128,000."; and the row was there as a `template`, queued. A note for colleagues
    could still be written.
+
+---
+
+# Part D — Playwright suite and staging
+
+**Goal:** a change to the Sales module cannot reach `main` without a browser having walked the
+paths every slice ended on — signing in, answering a customer from a draft, a lead made and moved,
+a follow-up sent, the manager's morning — as a salesperson, a manager and the owner, in both
+languages, on a phone and on a desk. And everything staging needs from the code is in the
+repository, so that the day the founder has a Supabase project and a host, the API, the worker and
+the web app run there and a real person signs in.
+
+**How this part was planned.** By trying first. The hosted project's address was asked for its
+signing keys; a second development server was started beside the first; the seed was read for what
+it needs from outside this machine; Supabase's own guide was read for how it signs and how it
+confirms an email today. The table below is what that found, and two findings changed the shape of
+the part: the project the docs name is gone, so staging begins with making one; and the suite
+cannot share a developer's stack, so it brings its own.
+
+**Architecture:** three ideas.
+(1) *The suite owns its stack* — its own database (`dealerai_e2e`) on the same Postgres, its own
+API on :8100 and its own web server on :3100, started by Playwright with every setting spelled out
+and the model key blank. A run never empties the workspace somebody is looking at, never buys
+anything, and meets the same thing on a laptop and in CI. Every test begins from the seed.
+(2) *Tests say what the app says* — they find a control by its role and by the words in the app's
+own catalogue (`messages/en.ts`, `ar.ts`), so the same test runs in both languages and a change of
+wording does not break it. Assertions are structural: what is on the page, in what order, under
+which heading — never a picture.
+(3) *Staging is the same code, told the truth about where it is* — a session is verified against
+the keys the project publishes, as a project made today signs; a configuration that would fail on
+its first request refuses to start, naming the variable; and one image runs as the API or as the
+worker.
+
+**Tech stack:** `@playwright/test` (new, development only) · `axe-core` (declared — it was already
+installed, under the lint config) · Next.js 16 · FastAPI · PyJWT with keys from a JWKS · Docker ·
+GitHub Actions.
+
+**Before you start:**
+
+- Docker Desktop running and the database up. Where Windows has reserved port 54332 (this machine,
+  since Part C), the container is on 54432: run the suite with `E2E_DB_PORT=54432`.
+- `npx playwright install chromium`, once.
+- **Stop any `next dev` in this checkout before a run.** Next 16 refuses a second one in the same
+  folder. An API on :8000 can stay: the suite's is on :8100.
+- The backend suite still runs against the scratch database (`dealerai_test`).
+- Read [07](../07-frontend.md) §11–§12, [08](../08-screens.md) §14, [01](../01-architecture.md)
+  §6–§7, and "Deploying the schema to Supabase" in [../../README.md](../../README.md).
+- Never run `prettier` over the message catalogues.
+- As in S3–S6 and Parts A–C: backend modules and configuration are given whole; a spec file is
+  given as its tests' names and what each asserts.
+
+**Found while reading and trying** — fixed in the tasks named:
+
+| Found | Why it matters | Task |
+|---|---|---|
+| The hosted project the docs name (`fqajkmjrwbthmpendojj`, Tokyo) is gone: its address no longer resolves, and it is not among the projects of the connected Supabase account | Staging has no database, no Auth and no Storage to run against. A project has to be made — which answers Q1 for nothing: there is no data to move, so it is made where it should be | The founder's track; D14 says how |
+| A Supabase project made today signs its users' tokens with a private key and publishes the public half. The API verifies HS256 with a shared secret, and nothing else | Every real token would be refused: nobody could sign in on staging. Part A flagged it as a risk; the project being new makes it certain | D10 |
+| The seed stops with `MissingAPIKey` after the workspace is written: the policies' vectors are bought from the model | CI has no key, so CI cannot seed, so nothing can run there end to end | D1 |
+| The local sign-in is compiled out of a production build, and Next 16 refuses a second `next dev` in one checkout | The suite has to run against a development server, and it cannot run beside a developer's own | D3 |
+| The suite has to reseed between tests; a developer's stack has a real model key and a workspace somebody may be looking at | Pointed at that, a run empties their workspace and can spend money | D2, D3 |
+| A sign-up's confirmation link works only in the browser that asked for it: it comes back with a one-time code, and the other half is kept in that browser | A salesperson signs up in the installed app and opens the email in the mail app's own browser: "that link has expired". Supabase's guide for a server-rendered app sends a token hash instead, which opens anywhere | D13 |
+| There is no way back from a forgotten password | Part A left it for this part | D13 |
+| Nothing says whether a deployment's settings are fit to serve: `WEB_ORIGINS` defaults to localhost, the signing secret to the one printed in the Supabase CLI's documentation, and a transaction-pooler DSN starts and then cannot LISTEN | Each is a first-day failure that shows as a blank screen, a quiet 401 or a silent inbox | D11 |
+| `/internal/health` reports the database only, though [01](../01-architecture.md) §8 promises the queue | A stopped worker is invisible. Staging "runs the worker" only if something can say so | D11 |
+| There is no image, and nothing that builds one | "Same image, `worker` entrypoint" ([../../01-system-architecture.md](../../01-system-architecture.md) §10) has never been built | D12 |
+| The server reaches Storage with the public key and "RLS-backed policies" that no migration creates — and no policy could tell the server from anybody else holding that key | Customer media cannot be private that way. Not needed to sign in; needed before staging receives its first voice note | Not here: see below |
+| [../../README.md](../../README.md) names the dead project, 301 tests and Postgres 15 | It is the first page somebody new reads | D14 |
+
+## What Part D does not build
+
+| Item | Why, and when |
+|---|---|
+| The server's way into Storage | It needs a decision first: Storage's S3 keys (the server's own, good for Storage and nothing else) or the project's secret key (which is `service_role` by another name, and the rule against it stands). Until then staging has text and no media. Before Meta's test number sends its first voice note: S5's first task |
+| The worker in the suite's stack | What the worker does — ingest, statuses, notifications, push, drafts — is the backend suite's. Here the browser and the API are under test, and a live update needs only Postgres. On staging, the health check and a task falling due say whether it runs |
+| WebKit and Firefox | One engine on every pull request. Safari on an iPhone is checked by hand on staging, with the push |
+| Screenshot comparisons | [07](../07-frontend.md) §11: the fonts differ between machines |
+| A host's own file (`fly.toml`, a Vercel project) | The founder picks the host. The image and [10](../10-staging.md) are what any of them needs; the host's file is written on the day, with the deploy that proves it |
+| Building the image in CI | When deploys are automatic. Until then a broken image is found at the next deploy, by the person deploying |
+| A real sign-in inside the suite | It would put an account's password in CI. A person signs in on staging (D15) |
+| A second stack, so tests run side by side | One workspace, one worker. When a run passes fifteen minutes |
+| The backend suite's own database | Its own task, already flagged. `migrate --create` (D2) is the piece it was missing |
+
+## The founder's track, as it stands
+
+The table at the top of this file was written before the project was found gone. What Part D's
+second exit now waits on, in order — each is a dashboard and a decision, none is code:
+
+| # | Step | Why it is the founder's |
+|---|---|---|
+| 1 | Create the Supabase project, in Mumbai (`ap-south-1`) unless Supabase lists a region nearer the UAE by then — [00](../00-prd.md) §12 Q1 proposed Mumbai while the project was empty, and now there is nothing to move | An account, a bill and where customer data lives |
+| 2 | Pick where the API and the worker run: a container host with a region beside the database, that keeps a process awake and lets a response stay open. Vercel for the web app, as [../../01-system-architecture.md](../../01-system-architecture.md) §10 says | An account and a bill |
+| 3 | Supabase → Authentication: the site URL and the redirect URL, the two email templates, custom SMTP, and Google with an OAuth client | Dashboards, and a sender's reputation |
+| 4 | The secrets, into the host: the database password for `dealerai_app`, a signing secret, the model key, the push key | Nobody else may hold them |
+| 5 | The staging day (D15): migrate, deploy, `npm run smoke`, sign in, two phones | The first real sign-in is theirs |
+
+[10](../10-staging.md) is the page that walks all five.
+
+## File structure
+
+| File | Responsibility |
+|---|---|
+| `apps/api/src/dealerai/scripts/seed_sales.py` | **Modify.** A seed with no model key |
+| `apps/api/src/dealerai/scripts/migrate.py` | **Modify.** `--create`: the database a local DSN names |
+| `apps/web/playwright.config.ts` | **Create.** The projects, and the two servers the suite starts |
+| `apps/web/e2e/stack.ts` | **Create.** The suite's ports, database and every setting of its API |
+| `apps/web/e2e/fixtures.ts` | **Create.** A fresh workspace per test, the reader's language, signing in, the app's own words |
+| `apps/web/e2e/{shell,journey,visibility,live,joining,screens}.e2e.ts` | **Create.** The paths |
+| `apps/web/next.config.ts` | **Modify.** No development badge over the phone's navigation while the suite runs |
+| `apps/web/package.json`, `package.json`, `apps/web/.gitignore`, `apps/web/eslint.config.mjs` | **Modify.** `npm run e2e`; `@playwright/test`, `axe-core`; reports ignored |
+| `.github/workflows/ci.yml` | **Modify.** The `e2e` job |
+| `apps/api/src/dealerai/core/security.py`, `deps.py` | **Modify.** Tokens verified against the project's published keys |
+| `apps/api/src/dealerai/config.py`, `main.py`, `worker.py`, `db/session.py` | **Modify.** A deployment that refuses to start wrong; the queue in the health check |
+| `apps/api/Dockerfile`, `.dockerignore` | **Create.** One image, two processes |
+| `apps/api/src/dealerai/scripts/smoke.py` | **Create.** `npm run smoke`: is this deployment fit to use |
+| `apps/web/app/auth/callback/route.ts` | **Modify.** An email link that opens in any browser |
+| `apps/web/app/(auth)/{forgot-password,reset-password}/page.tsx`, `components/auth/{ForgotPassword,ResetPassword}Form.tsx` | **Create.** A forgotten password |
+| `docs/sales/10-staging.md` | **Create.** The staging day, step by step |
+| `.env.staging.example`, `docs/README.md`, `docs/sales/{07-frontend,01-architecture,README}.md` | **Modify.** What is true now |
+
+---
+
+## Task D1: The seed needs no model key
+
+**Files:**
+- Modify: `apps/api/src/dealerai/scripts/seed_sales.py`
+- Test: `apps/api/tests/test_seed_sales.py`
+
+- [ ] **Step 1: Write the failing test** — in `tests/test_seed_sales.py`:
+
+```python
+async def test_the_seed_runs_with_no_model_key(db: None, monkeypatch: pytest.MonkeyPatch) -> None:
+    """CI's end-to-end job has Postgres and nothing else. The workspace must
+    seed there, policies and all, without buying a vector."""
+    from dealerai.ai import embeddings, gateway
+
+    # The real embedder, and nothing it could reach a model with.
+    monkeypatch.setattr(seed_sales, "embed", embeddings.embed)
+    monkeypatch.setattr(get_settings(), "google_api_key", "")
+    monkeypatch.setattr(gateway, "_client", None)
+    monkeypatch.setattr(gateway, "_loop_clients", {})
+
+    assert await seed() == 0
+    async with tenant_session(TENANT) as conn:
+        policies = await conn.fetch(
+            """select d.status, count(c.id) as chunks, count(c.embedding) as embedded
+                 from documents d left join doc_chunks c on c.document_id = d.id
+                group by d.id"""
+        )
+    assert len(policies) == 3
+    assert all(row["status"] == "ready" and row["chunks"] > 0 for row in policies)
+    assert all(row["embedded"] == 0 for row in policies), "a made-up vector would answer questions"
+```
+
+(`offline_seed`, which the module already uses, points the object store at a temporary folder;
+this test puts the real embedder back over its fake.)
+
+- [ ] **Step 2: Run it and see it fail**
+
+Run: `uv run pytest tests/test_seed_sales.py -q` (from `apps/api`, against the scratch database)
+Expected: FAIL — `MissingAPIKey: GOOGLE_API_KEY is not set`.
+
+- [ ] **Step 3: The seed** — in `seed()`, around the one call that leaves this machine:
+
+```python
+        try:
+            vectors = await embed(
+                [content for _, content in document_chunks], tenant_id=TENANT, kind="document"
+            )
+        except MissingAPIKey:
+            # No key, no vectors. The policies are listed and can be read; retrieval,
+            # which needs the same key to embed the question, finds nothing in them
+            # until the workspace is seeded again with one. Never a made-up vector:
+            # that would answer every question with whichever passage came first.
+            vectors = []
+            print("no GOOGLE_API_KEY: the policies are seeded without embeddings")
+        finally:
+            if opened:
+                await close_pool()
+        async with conn.transaction():
+            embedded = zip(document_chunks, vectors, strict=True) if vectors else ()
+            for (chunk_id, _), vector in embedded:
+                await conn.execute(
+                    "update doc_chunks set embedding = $2::vector where id = $1",
+                    chunk_id,
+                    literal(vector),
+                )
+```
+
+with `from ..ai.gateway import MissingAPIKey` beside the other imports. The documents become
+`ready` either way, as before.
+
+- [ ] **Step 4: Run the checks**
+
+Run: `uv run pytest tests/test_seed_sales.py tests/test_dev_session.py tests/test_import_contracts.py -q`
+Expected: PASS.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add apps/api/src/dealerai/scripts/seed_sales.py apps/api/tests/test_seed_sales.py
+git commit -m "feat(api): the seed runs with no model key"
+```
+
+---
+
+## Task D2: A database made on request
+
+**Files:**
+- Modify: `apps/api/src/dealerai/scripts/migrate.py`
+- Test: `apps/api/tests/test_migrate.py` (new)
+
+- [ ] **Step 1: Write the failing tests**
+
+```python
+"""The migration runner makes the database it is pointed at — on a laptop, and nowhere else."""
+
+from __future__ import annotations
+
+from uuid import uuid4
+
+import asyncpg
+import pytest
+
+from dealerai.config import get_settings
+from dealerai.scripts import migrate
+
+
+async def test_create_makes_the_database_a_dsn_names_and_only_once(su: asyncpg.Connection) -> None:
+    name = f"dealerai_tmp_{uuid4().hex[:8]}"
+    dsn = f"{get_settings().migration_dsn.rsplit('/', 1)[0]}/{name}"
+    try:
+        await migrate.ensure_database(dsn)
+        await migrate.ensure_database(dsn)  # there already: nothing to do, and no error
+        assert await su.fetchval("select count(*) from pg_database where datname = $1", name) == 1
+    finally:
+        await su.execute(f'drop database if exists "{name}"')
+
+
+async def test_create_is_refused_anywhere_but_a_laptop(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(get_settings(), "env", "staging")
+    assert await migrate.run(create=True) == 1
+    assert "refusing" in capsys.readouterr().out
+```
+
+- [ ] **Step 2: Run them and see them fail**
+
+Run: `uv run pytest tests/test_migrate.py -q`
+Expected: FAIL — `ensure_database` does not exist; `run()` takes no argument.
+
+- [ ] **Step 3: The runner**
+
+```python
+from urllib.parse import urlsplit, urlunsplit
+
+
+async def ensure_database(dsn: str) -> None:
+    """Create the database a DSN names, when the server does not have it yet.
+
+    For a laptop and CI, where a second database — the end-to-end suite's — is
+    a name and nothing more. A hosted project's database is made by the host.
+    """
+    parts = urlsplit(dsn)
+    name = parts.path.lstrip("/")
+    conn = await asyncpg.connect(urlunsplit(parts._replace(path="/postgres")))
+    try:
+        if not await conn.fetchval("select 1 from pg_database where datname = $1", name):
+            # A name cannot be a parameter. This one is ours, from our own
+            # configuration; quoted all the same.
+            quoted = name.replace('"', '""')
+            await conn.execute(f'create database "{quoted}"')
+            print(f"create database {name}")
+    finally:
+        await conn.close()
+
+
+async def run(*, create: bool = False) -> int:
+    settings = get_settings()
+    if create:
+        if not settings.is_local:
+            print(f"refusing --create: ENV is {settings.env!r}, expected 'local'")
+            return 1
+        await ensure_database(settings.migration_dsn)
+    ...
+```
+
+and in `main()`: `parser.add_argument("--create", action="store_true", help="make the database
+first, if it is not there. Local only.")`, passed as `run(create=args.create)`.
+
+- [ ] **Step 4: Run the checks**
+
+Run: `uv run pytest tests/test_migrate.py -q && uv run ruff check . && uv run mypy src`
+Expected: PASS.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add apps/api/src/dealerai/scripts/migrate.py apps/api/tests/test_migrate.py
+git commit -m "feat(api): migrate --create makes a local database that is not there yet"
+```
+
+---
+
+## Task D3: The suite's own stack, and the shell
+
+**Files:**
+- Create: `apps/web/playwright.config.ts`, `apps/web/e2e/stack.ts`, `apps/web/e2e/fixtures.ts`,
+  `apps/web/e2e/shell.e2e.ts`
+- Modify: `apps/web/package.json`, `package.json`, `apps/web/next.config.ts`,
+  `apps/web/.gitignore`, `apps/web/eslint.config.mjs`
+
+- [ ] **Step 1: The runner, as a development dependency**
+
+```bash
+npm install --save-dev --workspace web @playwright/test axe-core
+npx playwright install chromium
+```
+
+`axe-core` adds nothing to download — the lint config already brought it — but the suite now
+depends on it, so it is named. Scripts: `"e2e": "playwright test"` in `apps/web/package.json`, and
+`"e2e": "npm run e2e --workspace web"` at the root. Not part of `npm run check`: it needs a stack
+and minutes, and CI runs it as a job of its own.
+
+The files are named `*.e2e.ts`, which Vitest's own pattern (`*.test.*`, `*.spec.*`) does not
+match, so `npm run test` never tries to run them.
+
+- [ ] **Step 2: The stack** — `apps/web/e2e/stack.ts`:
+
+```ts
+/**
+ * The end-to-end suite's own stack: its own database, its own API and its own
+ * web server. A run never empties the workspace somebody is looking at, never
+ * buys anything from a model, and meets the same thing on a laptop and in CI.
+ */
+import path from "node:path";
+
+// Windows sometimes reserves the range that holds 54332; the container is then
+// started on another port, and the suite is told which.
+const DB_PORT = process.env.E2E_DB_PORT ?? "54332";
+const DATABASE = "dealerai_e2e";
+
+export const API_URL = "http://localhost:8100";
+export const WEB_URL = "http://localhost:3100";
+export const API_DIR = path.resolve(__dirname, "../../api");
+
+/** Every setting the suite's API reads, spelled out: nothing is left to a developer's .env. */
+export const API_ENV = {
+  ENV: "local",
+  LOG_LEVEL: "warning",
+  DATABASE_URL: `postgresql://dealerai_app:dealerai_app@localhost:${DB_PORT}/${DATABASE}`,
+  MIGRATION_DATABASE_URL: `postgresql://postgres:postgres@localhost:${DB_PORT}/${DATABASE}`,
+  // Blank on purpose: no run buys anything, and no draft appears that the seed did not write.
+  GOOGLE_API_KEY: "",
+  SUPABASE_URL: "",
+  SUPABASE_ANON_KEY: "",
+  // The Supabase CLI's well-known local secret, as in .env.example and ci.yml.
+  SUPABASE_JWT_SECRET: "super-secret-jwt-token-with-at-least-32-characters-long",
+  WEB_ORIGINS: WEB_URL,
+  STORAGE_DIR: ".storage/e2e",
+  VAPID_PRIVATE_KEY: "",
+};
+
+export const WEB_ENV = {
+  NEXT_PUBLIC_DEV_AUTH: "1",
+  NEXT_PUBLIC_API_URL: API_URL,
+  // Placeholders, as in CI's build: with the local sign-in on, nothing calls Supabase.
+  NEXT_PUBLIC_SUPABASE_URL: "https://placeholder.supabase.co",
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: "placeholder-anon-key",
+  E2E: "1",
+};
+```
+
+- [ ] **Step 3: The configuration** — `apps/web/playwright.config.ts`:
+
+```ts
+import { defineConfig } from "@playwright/test";
+import type { Options } from "./e2e/fixtures";
+import { API_DIR, API_ENV, API_URL, WEB_ENV, WEB_URL } from "./e2e/stack";
+
+const phone = { viewport: { width: 360, height: 780 }, isMobile: true, hasTouch: true };
+const desk = { viewport: { width: 1440, height: 900 } };
+const JOURNEY = /journey\.e2e\.ts/;
+
+export default defineConfig<Options>({
+  testDir: "./e2e",
+  testMatch: "**/*.e2e.ts",
+  // One workspace in one database, put back before each test: two tests at once
+  // would pull it out from under each other.
+  // ponytail: one worker. A stack per worker when a run passes fifteen minutes.
+  workers: 1,
+  fullyParallel: false,
+  forbidOnly: Boolean(process.env.CI),
+  retries: process.env.CI ? 1 : 0,
+  timeout: 60_000,
+  expect: { timeout: 10_000 },
+  reporter: process.env.CI ? [["github"], ["html", { open: "never" }]] : [["list"]],
+  use: { baseURL: WEB_URL, trace: "retain-on-failure" },
+  projects: [
+    // The day's work in every combination (docs/sales/07-frontend.md § 11).
+    { name: "journey-en-360", testMatch: JOURNEY, use: { ...phone, language: "en" } },
+    { name: "journey-en-1440", testMatch: JOURNEY, use: { ...desk, language: "en" } },
+    { name: "journey-ar-360", testMatch: JOURNEY, use: { ...phone, language: "ar" } },
+    { name: "journey-ar-1440", testMatch: JOURNEY, use: { ...desk, language: "ar" } },
+    // Everything else at the two ends: English on a desk, and Arabic on a phone,
+    // which is where a layout breaks first. Who sees what, and what arrives
+    // live, do not change with the language.
+    { name: "en-1440", testIgnore: JOURNEY, use: { ...desk, language: "en" } },
+    {
+      name: "ar-360",
+      testIgnore: [JOURNEY, /(visibility|live)\.e2e\.ts/],
+      use: { ...phone, language: "ar" },
+    },
+  ],
+  webServer: [
+    {
+      // Its database is made and migrated before the API opens a pool on it.
+      command:
+        "uv run python -m dealerai.scripts.migrate --create && uv run uvicorn dealerai.main:app --port 8100",
+      cwd: API_DIR,
+      env: API_ENV,
+      url: `${API_URL}/internal/health`,
+      reuseExistingServer: !process.env.CI,
+      timeout: 180_000,
+    },
+    {
+      // A development server, because the local sign-in is compiled out of a
+      // production build (lib/dev-auth.ts) — and that lock stays.
+      command: "npx next dev --port 3100",
+      env: WEB_ENV,
+      url: `${WEB_URL}/dev-login`,
+      reuseExistingServer: !process.env.CI,
+      timeout: 180_000,
+    },
+  ],
+});
+```
+
+and in `next.config.ts`, the one thing a development server puts on the page that is not the app:
+
+```ts
+const nextConfig: NextConfig = {
+  // Next's development badge sits on the first link of the phone's navigation
+  // bar, and the end-to-end suite presses that link (e2e/stack.ts sets E2E).
+  devIndicators: process.env.E2E === "1" ? false : undefined,
+};
+```
+
+- [ ] **Step 4: The fixtures** — `apps/web/e2e/fixtures.ts`:
+
+```ts
+import { execFileSync } from "node:child_process";
+import { expect, test as base, type BrowserContext, type Page } from "@playwright/test";
+// By their paths, not through "@/": these two files import nothing but each other.
+import { ar } from "../messages/ar";
+import { en } from "../messages/en";
+import { API_DIR, API_ENV, WEB_URL } from "./stack";
+
+export type Language = "en" | "ar";
+export type Key = keyof typeof en;
+export type Say = (key: Key) => string;
+export type Options = { language: Language };
+
+const WORDS = { en, ar } as const;
+
+export const WORKSPACE = "/pollux-motors";
+
+/** The seeded five (apps/api/src/dealerai/scripts/seed_sales.py). */
+export const PEOPLE = {
+  owner: "Khalid Al Suwaidi",
+  manager: "Sara Mansour",
+  ahmed: "Ahmed Nasser", // sales, Local sales
+  mohamed: "Mohamed Riad", // sales, Local sales
+  salem: "Salem Bousaid", // sales, Export
+} as const;
+
+/** The workspace as `npm run db:seed` leaves it, in the suite's own database. */
+export function reseed(): void {
+  execFileSync("uv", ["run", "python", "-m", "dealerai.scripts.seed_sales"], {
+    cwd: API_DIR,
+    env: { ...process.env, ...API_ENV },
+    stdio: ["ignore", "ignore", "inherit"],
+  });
+}
+
+/** The reader's language is a cookie the app reads on the server. */
+export async function reads(context: BrowserContext, language: Language): Promise<void> {
+  await context.addCookies([{ name: "locale", value: language, url: WEB_URL }]);
+}
+
+/** Through the local sign-in page, as a person would. */
+export async function signInAs(page: Page, person: string, next = `${WORKSPACE}/inbox`) {
+  await page.goto(`/dev-login?next=${encodeURIComponent(next)}`);
+  await page.getByRole("button", { name: person }).click();
+  await page.waitForURL((url) => url.pathname + url.search === next);
+}
+
+const SECTIONS = {
+  "nav.inbox": "/inbox",
+  "nav.today": "/today",
+  "nav.customers": "/customers",
+  "nav.pipeline": "/pipeline",
+  "nav.tasks": "/tasks",
+  "nav.dashboard": "/dashboard",
+  "nav.settings": "/settings",
+} as const;
+
+/** By the navigation where the navigation has it. A phone's bar holds five, and
+ *  a salesperson's has no dashboard: the rest by its address. */
+export async function visit(page: Page, say: Say, section: keyof typeof SECTIONS) {
+  const link = page
+    .getByRole("navigation", { name: say("nav.main") })
+    .getByRole("link", { name: say(section) });
+  if (await link.count()) await link.click();
+  else await page.goto(`${WORKSPACE}${SECTIONS[section]}`);
+  await page.waitForURL((url) => url.pathname.startsWith(`${WORKSPACE}${SECTIONS[section]}`));
+}
+
+/** Nothing on this page is wider than the screen it is on. */
+export async function fits(page: Page): Promise<void> {
+  const [content, screen] = await page.evaluate(() => [
+    document.documentElement.scrollWidth,
+    document.documentElement.clientWidth,
+  ]);
+  expect(content, "the page scrolls sideways").toBeLessThanOrEqual(screen);
+}
+
+type Fixtures = { say: Say; phone: boolean; freshWorkspace: void };
+
+export const test = base.extend<Fixtures & Options>({
+  language: ["en", { option: true }],
+  context: async ({ context, language }, run) => {
+    await reads(context, language);
+    await run(context);
+  },
+  say: async ({ language }, run) => {
+    await run((key) => WORDS[language][key]);
+  },
+  // Tailwind's `md`: below it the navigation is the bar at the foot of the screen.
+  phone: async ({ viewport }, run) => {
+    await run((viewport?.width ?? 1440) < 768);
+  },
+  // Every test starts from the seed, whatever the one before it did.
+  // eslint-disable-next-line no-empty-pattern -- Playwright reads the pattern for what to build
+  freshWorkspace: [async ({}, run) => {
+    reseed();
+    await run();
+  }, { auto: true }],
+});
+
+export { expect };
+```
+
+(The second argument is `run`, not Playwright's usual `use`: the React lint rules take any call to
+`use(…)` for the hook.)
+
+- [ ] **Step 5: The first paths** — `apps/web/e2e/shell.e2e.ts` ([08](../08-screens.md) §1, and
+  S0's exit: the shell opens as any seeded person):
+
+- "each of the seeded five opens the inbox, in the reader's language and direction" — for each
+  person: sign in; the address is the inbox; `<html>` has the language's `lang` and `dir`; there
+  is exactly one `h1`; the navigation's links are the catalogue's words; the page fits.
+- "the dashboard is offered to those who run the team, and to nobody else" — on a desk the
+  navigation has `nav.dashboard` for the owner and the manager and not for a salesperson; on a
+  phone, and by its address for a salesperson anywhere, the page says `dashboard.forManagers` and
+  offers `dashboard.openMyDay`.
+- "signed out, an address inside the workspace leads to sign-in and back" — `/pollux-motors/customers`
+  with no session lands on `/dev-login` with `next`; choosing a person lands on Customers.
+- "the app can be installed by somebody signed out" — `/manifest.webmanifest` answers 200 with a
+  name, a `start_url`, `display: standalone` and icons whose addresses answer 200; `/sw.js`
+  answers 200 as JavaScript; `/offline.html` has a `main` and an `h1` (Part B's exit, kept).
+
+- [ ] **Step 6: Run it**
+
+Run: `E2E_DB_PORT=54432 npm run e2e -- shell` (with no other `next dev` running here)
+Expected: PASS — 4 tests in `en-1440`, 4 in `ar-360`; the first run also creates and migrates
+`dealerai_e2e`. Then `npm run check --workspace web`: PASS, with the new files type-checked and
+linted.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add apps/web/playwright.config.ts apps/web/e2e apps/web/next.config.ts apps/web/package.json \
+  apps/web/.gitignore apps/web/eslint.config.mjs package.json package-lock.json
+git commit -m "test(web): an end-to-end suite with a stack of its own, and the shell's paths"
+```
+
+---
+
+## Task D4: The day's work, as three people
+
+**Files:**
+- Create: `apps/web/e2e/journey.e2e.ts`
+
+[07](../07-frontend.md) §11's path — sign in, inbox, reply using a draft, create a lead, move a
+stage, send a follow-up, the manager's dashboard — once per role, and by the projects in both
+languages at 360 px and 1440 px: twelve runs. The seed decides who can do what: Omar Al Mazrouei
+(Ahmed's, waiting, with a draft ready), Priya Nair (Ahmed's, with no lead), Karim Benali (Salem's,
+his window closed, with a follow-up the copilot prepared as a template).
+
+- [ ] **Step 1: Write the three tests.** Each stop also asserts that the page fits its screen.
+
+"a salesperson's day" — as Ahmed Nasser, then Salem Bousaid for the follow-up:
+
+1. The inbox lists Omar, and says in words that he has waited too long.
+2. Omar's conversation opens. On a phone it takes the screen and offers `thread.back`; on a desk
+   the list stays beside it.
+3. The draft panel (`draft.title`) holds the seeded reply — it contains "AED 128,000" — and what
+   it is based on. `draft.send`: the log (`thread.messages`) has one more message, it is ours and
+   holds the draft's words; the draft panel is gone.
+4. Priya's conversation → `customer.details` → `customer.createLead`: the panel now shows
+   `customer.openLead`, and the button is gone.
+5. Pipeline: Priya's card is under the board's first stage, "New". `pipeline.moveTo` →
+   "Contacted": the card is under "Contacted", and still there after a reload.
+6. Tasks: "Call Omar about the passport copy" → `tasks.complete`: it is under `tasks.done`.
+   Then, signed in as Salem: the follow-up for Karim shows the message that would go ("Bonjour
+   Karim, le prix de Toyota Hilux 2.8 Diesel est maintenant AED 128,000.") and
+   `followup.windowClosed`; `followup.send`: the card is gone, and Karim's conversation has one
+   more message of ours.
+7. The dashboard, by its address: `dashboard.forManagers`.
+
+"a manager's day" — as Sara Mansour: 1–5 as above from the inbox's `inbox.tabs.team`; 6. Tasks →
+`tasks.team` → Karim's follow-up → `followup.send`; 7. the dashboard has `dashboard.waiting`,
+`dashboard.team` and `dashboard.pipeline`; James Whitfield, whom nobody has taken, is waiting
+there, and Omar — just answered — is not.
+
+"the owner's day" — as Khalid Al Suwaidi: as the manager, from `inbox.tabs.all`; then Settings →
+the team section lists all five people.
+
+- [ ] **Step 2: Run them, fix what the app needs to be found by** — a control with no role or
+  name is the app's fault, not the test's: give it one (an `aria-label` from the catalogue, a
+  heading) rather than reach for a CSS path. `data-lead`, `data-stage`, `data-task` and
+  `data-kind` are already there for what has no words of its own.
+
+Run: `E2E_DB_PORT=54432 npm run e2e -- journey`
+Expected: PASS — 12.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add apps/web/e2e/journey.e2e.ts
+git commit -m "test(web): the day's work as a salesperson, a manager and the owner"
+```
+
+(with any component that gained a name, by its path).
+
+---
+
+## Task D5: Who sees whom
+
+**Files:**
+- Create: `apps/web/e2e/visibility.e2e.ts` (the `en-1440` project only)
+
+- [ ] **Step 1: Write the tests** ([07](../07-frontend.md) §11: "in the UI and by pasting the
+  URL"). Rashid Al Ketbi and Hessa Al Mansoori are Mohamed's, in Ahmed's own team; Karim is
+  Salem's, in the other; James is nobody's yet.
+
+- "a salesperson's inbox holds their own customers and their team's unassigned, and nobody
+  else's" — as Ahmed: Mine has Omar, Mona, Priya; Unassigned has James; no tab, and no search for
+  "Rashid" or "Karim", shows either.
+- "…and so do the customers list and the pipeline" — the same names present and absent.
+- "a colleague's conversation, pasted into the address bar, is not there" — as Mohamed, the
+  address of Rashid's conversation is read; as Ahmed, that address shows `thread.gone`, and
+  nothing Rashid wrote.
+- "a colleague's customer, pasted, is not there" — the same with the customer's record:
+  `customer.gone`.
+- "a manager sees both teams' customers, and the owner everybody's" — Sara and Khalid each find
+  Rashid and Karim.
+- "a salesperson has no dashboard and no team settings, whatever the address" —
+  `dashboard.forManagers`; and the team section's page says it is not theirs.
+
+- [ ] **Step 2: Run them**
+
+Run: `E2E_DB_PORT=54432 npm run e2e -- visibility`
+Expected: PASS — 6.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add apps/web/e2e/visibility.e2e.ts
+git commit -m "test(web): a salesperson cannot see a colleague's customer, by any road"
+```
+
+---
+
+## Task D6: A manager watching
+
+**Files:**
+- Create: `apps/web/e2e/live.e2e.ts` (the `en-1440` project only)
+
+- [ ] **Step 1: Write the test** (S2's exit; [07](../07-frontend.md) §12.4). Two people at once,
+  so two contexts: the second is made from `browser`, given its language with `reads()`.
+
+- "a manager sees a customer stop waiting, and the reply arrive, without touching the page" —
+  Sara has the dashboard open on one page, where Omar is waiting, and Omar's conversation open on
+  another. Ahmed, elsewhere, sends the draft. On Sara's pages, with no reload and no click: the
+  conversation gains the reply, and the dashboard's waiting list loses Omar.
+
+- [ ] **Step 2: Run it**
+
+Run: `E2E_DB_PORT=54432 npm run e2e -- live`
+Expected: PASS — 1. (No worker runs: the reply is a row, the row's commit notifies, and the API
+tells every open stream that may see it.)
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add apps/web/e2e/live.e2e.ts
+git commit -m "test(web): what a salesperson does reaches a manager's screen by itself"
+```
+
+---
+
+## Task D7: Joining
+
+**Files:**
+- Create: `apps/web/e2e/joining.e2e.ts`
+
+- [ ] **Step 1: Write the tests** (Part A's exit, [08](../08-screens.md) §14 — "in both languages,
+  locally", which is why Part A taught the local sign-in to make somebody new):
+
+- "the owner invites a salesperson into a team; she joins with that address and lands in the
+  inbox as that" — Khalid: Settings → team → `invite.title`: her address, the salesperson's role,
+  the Local sales team → `invite.create` → the link is read from the page. In a second, signed-out
+  context the link shows `accept.invitedTo` with the workspace's name and the role; she signs in
+  as somebody new with that address and a name; `accept.join`; she is in the inbox, and
+  `inbox.tabs.unassigned` shows James — which only a member of Local sales sees. Back on Khalid's
+  page, reloaded, she is listed with her name, her role and her team.
+- "an invitation is for one address: somebody else is told so, and offered the way out" — the
+  same link, opened by Ahmed: `accept.forEmail` with the invited address, `accept.signedInAs`
+  with his, `accept.signOut`; no `accept.join`.
+- "an address that is not an invitation says so" — `/accept-invite?token=nonsense`:
+  `accept.invalid`, under a heading.
+- "somebody with no workspace makes one, and is in it" — somebody new, signed in, is sent to
+  `onboarding.title`; a name and an address of its own (made unique per run: the suite's database
+  outlives a run); `onboarding.create`; they are in that workspace's inbox, which is empty and
+  says so (`inbox.empty`).
+
+- [ ] **Step 2: Run them**
+
+Run: `E2E_DB_PORT=54432 npm run e2e -- joining`
+Expected: PASS — 4 in each of the two projects.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add apps/web/e2e/joining.e2e.ts
+git commit -m "test(web): an invitation, accepted by the person it was for, in both languages"
+```
+
+---
+
+## Task D8: A path through every screen, and the checker on every page
+
+**Files:**
+- Create: `apps/web/e2e/screens.e2e.ts`
+
+[07](../07-frontend.md) §12.7: one end-to-end path through each screen. The journey, the shell and
+joining already walk the inbox, the composer's draft, the customer panel's lead, the board, the
+follow-up, the dashboard and §14. These are the rest, and Part C's result kept: what the audit
+measured once by hand is asserted on every pull request.
+
+- [ ] **Step 1: Write the tests**
+
+- "an unassigned customer is taken, and found again by their number" (§2) — as Ahmed: James, under
+  Unassigned → `thread.assignToMe` → `thread.assignedToYou`; he is under Mine; searching "0104"
+  finds him.
+- "a note for colleagues is marked as one; a shortcut fills the box in the customer's language"
+  (§3, §4) — in Omar's conversation: a note is in the log as a note, not as a message of ours;
+  `/pr` offers "Today's price", and choosing it puts the Arabic reply, with "Omar"'s first name,
+  in the box.
+- "with the window closed the box gives way to a template, which sends" (§4) — as Salem, Karim:
+  no reply box; the picker offers French first; `price_update` has "Karim" in its first blank;
+  Send is off until the other two are filled; the log gains a template.
+- "the customer panel says what is known, and on a phone it is a dialog that Escape closes" (§5)
+  — `customer.whatWeKnow` with Omar's seeded answers; on a phone it is a `dialog`, Escape closes
+  it and focus is back on the button that opened it.
+- "the customers list finds somebody by their number, and their record has its four tabs" (§6,
+  §7) — "0101" finds Omar; the record has Timeline, Leads, Tasks and Profile, each showing
+  something of his.
+- "the owner erases a customer only after typing their name" (§6) — the button stays off until
+  the name is typed; afterwards the customer is not in the list.
+- "a lead's drawer says why it scored, and marking it lost asks why" (§8) — the drawer is a
+  dialog with `lead.why` and the reasons in words; moving a lead to "Lost" asks `lead.lostReason`
+  and will not go on without one.
+- "a task is added, done, and brought back" (§9) — `tasks.add` → it is under Today →
+  `tasks.complete` → under Done → `tasks.undo` → under Today.
+- "My day greets by name and lists who is waiting" (§10) — `today.hello` with "Ahmed"; Omar under
+  `today.waitingOnYou`.
+- "the manager hands a waiting customer to somebody from the dashboard" (§11) — James →
+  `dashboard.reassign` → Mohamed; James's row then names him.
+- "the bell opens, and Escape closes it and gives focus back" (§12).
+- "every settings section opens under its own heading, for the owner; a salesperson is told which
+  are not theirs" (§13) — channels, team, routing, pipelines, quick replies, knowledge, AI,
+  notifications: one `h1` each. The three seeded policies are listed as ready.
+- "a stage that holds a lead is not removed, and the refusal is in the reader's language" (§13,
+  Part C) — the sentence on the page is the Arabic one in the Arabic project and the English one
+  in the English.
+- "a quick reply written in settings is offered in the composer" (§13 → §4).
+- "no page fails the checker, lacks its one heading, or scrolls sideways" — for each of
+  `[person, address]` — the inbox, a conversation, My day, Customers, a record, the pipeline,
+  Tasks, the dashboard, each settings section, and the pages outside a workspace: `axe-core`
+  (loaded from `node_modules` with `page.addScriptTag`) finds no violation; there is exactly one
+  `h1`; `fits(page)`. One test, marked `test.slow()`.
+
+- [ ] **Step 2: Run them, and fix what they find.** The audit was at 375 px; this is 360 px and
+  1440 px, and the desk has never been put to the checker. A finding is fixed in the component, as
+  in Part C; one that is deliberate is listed in the test with its reason.
+
+Run: `E2E_DB_PORT=54432 npm run e2e -- screens`
+Expected: PASS — 15 in each of the two projects.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add apps/web/e2e/screens.e2e.ts
+git commit -m "test(web): a path through every screen, and the checker on every page"
+```
+
+(with any component fixed, by its path).
+
+---
+
+## Task D9: On every pull request
+
+**Files:**
+- Modify: `.github/workflows/ci.yml`
+
+- [ ] **Step 1: The job** — after `contract`:
+
+```yaml
+  # The paths every slice ended on, walked by a browser against the real API and
+  # a seeded database (docs/sales/07-frontend.md § 11). The stack's settings are
+  # in apps/web/e2e/stack.ts, not here, so a laptop and CI run the same thing.
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      db:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: dealerai
+        ports:
+          - 54332:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d dealerai"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Install API
+        working-directory: apps/api
+        run: uv sync --all-extras --dev
+
+      - name: Install Chromium
+        working-directory: apps/web
+        run: npx playwright install --with-deps chromium
+
+      - name: End to end
+        run: npm run e2e
+
+      # What the browser saw, step by step, for a failure nobody can reproduce.
+      # The workspace in it is the seed's: no real customer is in a trace.
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright
+          path: |
+            apps/web/playwright-report
+            apps/web/test-results
+          retention-days: 7
+```
+
+- [ ] **Step 2: Run it as CI will**
+
+Run: `CI=1 E2E_DB_PORT=54432 npm run e2e` (nothing of the suite's left running: with `CI` set it
+starts its own servers and will not reuse one)
+Expected: PASS — the whole suite, with the report written to `apps/web/playwright-report`.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add .github/workflows/ci.yml
+git commit -m "ci: the end-to-end suite runs on every pull request"
+```
+
+The job is proven on GitHub when the branch is pushed — which waits to be asked for.
+
+---
+
+## Task D10: A session signed by the project's own key
+
+**Files:**
+- Modify: `apps/api/src/dealerai/core/security.py`, `apps/api/src/dealerai/deps.py`,
+  `apps/api/tests/test_dev_session.py` (three `await`s)
+- Test: `apps/api/tests/test_security.py` (new)
+
+- [ ] **Step 1: Write the failing tests** — no database; a key pair made in the test stands for
+  the project's, and `security._download` — the one function that leaves the machine — is
+  replaced:
+
+```python
+PROJECT = "https://abcdefghijklmnop.supabase.co"
+
+
+@pytest.fixture
+def project(monkeypatch: pytest.MonkeyPatch) -> Project:
+    """A Supabase project, as far as the API can tell: a key it signs with, and
+    the address where it publishes the public half."""
+    monkeypatch.setattr(get_settings(), "supabase_url", PROJECT)
+    monkeypatch.setattr(security, "_keys", security._Keys({}, float("-inf")))
+    it = Project()
+    monkeypatch.setattr(security, "_download", it.download)
+    return it
+```
+
+`Project` holds an EC P-256 private key and a `kid`, counts its downloads, can `rotate()` to a new
+key, can be made unreachable (`down = True` raises `httpx.ConnectError`), and `token(**changes)`
+signs Supabase's claims (`sub`, `aud: authenticated`, `iss: {PROJECT}/auth/v1`, `exp`, `email`)
+with ES256 and the `kid` in the header.
+
+- "a token the project signed is accepted, and its keys are asked for once" — two tokens, one
+  download; the user's id and address come back.
+- "a key id nobody published is refused, and asking again is rationed" — two tokens with a
+  made-up `kid`: `Unauthenticated` twice, one download.
+- "a rotation is picked up without a restart" — after `rotate()`, and with the last download more
+  than a minute old, a token under the new key is accepted.
+- "the wrong audience, the wrong issuer, an expired token, a token with no subject" — each
+  `Unauthenticated`, and none says which.
+- "a token signed by somebody else's key under our key's id is refused".
+- "outside this laptop, a shared-secret token is refused" — `ENV=staging`, an HS256 token signed
+  with the configured secret: `Unauthenticated`. With `ENV=local` the same token is accepted, as
+  the whole suite relies on.
+- "the public key is not a shared secret" — an HS256 token whose secret is the published key's
+  PEM is refused in both environments.
+- "with no keys and no way to get them it is a 503, not a 401" — `AuthUnavailable`: a browser
+  told 401 signs its user out.
+- "an outage keeps the keys already held" — a download succeeds, the project goes down, the copy
+  goes stale: tokens are still accepted.
+- "outside this laptop with no project address, it is a 503 that names the variable".
+
+- [ ] **Step 2: Run them and see them fail**
+
+Run: `uv run pytest tests/test_security.py -q`
+Expected: FAIL — `security._Keys` does not exist.
+
+- [ ] **Step 3: The verifier** — `core/security.py`, its top half whole (`mint_test_token` stays
+  as it is):
+
+```python
+"""JWT verification for the browser path.
+
+A Supabase project signs its users' tokens with a private key and publishes the
+public half at {SUPABASE_URL}/auth/v1/.well-known/jwks.json — ES256, or RS256 if
+the project chose it. The API verifies them itself against a copy of those keys
+rather than calling out to GoTrue on every request — a network hop per request,
+on the critical path of every customer reply, to re-check a signature we can
+check here.
+
+HS256 under the shared secret is how this laptop signs (routes/dev.py, the
+tests), and it is accepted only when ENV=local: anywhere else, nothing this
+process holds may be enough to make somebody's session.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import time
+from dataclasses import dataclass
+from typing import Any
+from uuid import UUID
+
+import httpx
+import jwt
+import structlog
+
+from ..config import get_settings
+from .errors import AppError
+
+log = structlog.get_logger()
+
+#: How long a copy of the project's keys is trusted. Supabase's own edge keeps
+#: the set for ten minutes, so asking sooner learns nothing.
+KEYS_TTL = 600.0
+#: How often a token naming a key we do not hold may send us back to ask. A
+#: rotation looks like that — and so does anybody typing a made-up key id.
+KEYS_RETRY = 60.0
+ASYMMETRIC = ("ES256", "RS256")
+
+
+class Unauthenticated(AppError):
+    status = 401
+    slug = "unauthenticated"
+    title = "Missing or invalid credentials"
+
+
+class AuthUnavailable(AppError):
+    status = 503
+    slug = "auth-unavailable"
+    title = "Auth is not configured"
+
+
+@dataclass(frozen=True, slots=True)
+class AuthedUser:
+    id: UUID
+    email: str | None
+    claims: dict[str, Any]
+
+
+@dataclass(frozen=True, slots=True)
+class _Keys:
+    by_id: dict[str, jwt.PyJWK]
+    fetched_at: float
+
+
+_keys = _Keys({}, float("-inf"))
+_asking = asyncio.Lock()
+
+
+def _issuer() -> str:
+    url = get_settings().supabase_url
+    if not url:
+        raise AuthUnavailable("SUPABASE_URL is not set")
+    return f"{url.rstrip('/')}/auth/v1"
+
+
+async def _download(url: str) -> dict[str, Any]:
+    async with httpx.AsyncClient(timeout=5) as client:
+        response = await client.get(url)
+    response.raise_for_status()
+    body: dict[str, Any] = response.json()
+    return body
+
+
+async def _refresh() -> None:
+    global _keys
+    try:
+        found = jwt.PyJWKSet.from_dict(await _download(f"{_issuer()}/.well-known/jwks.json"))
+        _keys = _Keys({key.key_id: key for key in found.keys if key.key_id}, time.monotonic())
+    except (httpx.HTTPError, jwt.PyJWKSetError, ValueError) as exc:
+        # Keep what we hold: a project out of reach for a minute must not sign
+        # everybody out. The time is still moved on, so the next try is rationed.
+        log.warning("signing_keys_unavailable", error=type(exc).__name__)
+        _keys = _Keys(_keys.by_id, time.monotonic())
+
+
+async def _signing_key(kid: str) -> jwt.PyJWK:
+    age = time.monotonic() - _keys.fetched_at
+    if age > KEYS_TTL or (kid not in _keys.by_id and age > KEYS_RETRY):
+        async with _asking:
+            # Whoever held the lock may have just asked.
+            if time.monotonic() - _keys.fetched_at > KEYS_RETRY:
+                await _refresh()
+    if not _keys.by_id:
+        raise AuthUnavailable("the project's signing keys could not be read")
+    key = _keys.by_id.get(kid)
+    if key is None:
+        raise Unauthenticated("invalid token")
+    return key
+
+
+async def decode_supabase_jwt(token: str) -> AuthedUser:
+    settings = get_settings()
+    checks: dict[str, Any] = {
+        # Supabase sets aud="authenticated" on user tokens. Verifying it stops
+        # an anon or service token being accepted as a user.
+        "audience": "authenticated",
+        "options": {"require": ["sub", "exp"]},
+    }
+    try:
+        header = jwt.get_unverified_header(token)
+        algorithm = header.get("alg")
+        if algorithm == "HS256" and settings.is_local:
+            if not settings.supabase_jwt_secret:
+                raise AuthUnavailable("SUPABASE_JWT_SECRET is not set")
+            claims = jwt.decode(
+                token, settings.supabase_jwt_secret, algorithms=["HS256"], **checks
+            )
+        elif algorithm in ASYMMETRIC:
+            issuer = _issuer()
+            key = await _signing_key(str(header.get("kid", "")))
+            # The key says how it signs, not the token: a token may claim any
+            # algorithm it likes.
+            claims = jwt.decode(
+                token, key.key, algorithms=[key.algorithm_name], issuer=issuer, **checks
+            )
+        else:
+            raise Unauthenticated("invalid token")
+    except jwt.ExpiredSignatureError as exc:
+        raise Unauthenticated("token has expired") from exc
+    except jwt.InvalidTokenError as exc:
+        # Deliberately vague to the caller: which check failed is a probing aid.
+        raise Unauthenticated("invalid token") from exc
+
+    try:
+        user_id = UUID(str(claims["sub"]))
+    except (KeyError, ValueError) as exc:
+        raise Unauthenticated("token subject is not a user id") from exc
+
+    return AuthedUser(id=user_id, email=claims.get("email"), claims=claims)
+```
+
+`deps.current_user` awaits it; so do the three calls in `tests/test_dev_session.py`. The secret
+keeps its two other jobs — invitation links and media links — which is why it stays a setting
+everywhere (D11 says so where it is declared).
+
+- [ ] **Step 4: Run the checks**
+
+Run: `uv run pytest tests/test_security.py tests/test_dev_session.py tests/test_me_and_team.py tests/test_refusals_in_arabic.py -q && uv run ruff check . && uv run mypy src`
+Expected: PASS — the refusals' contract test included: it reads every `raise` in a route, and
+these are in `core/`.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add apps/api/src/dealerai/core/security.py apps/api/src/dealerai/deps.py \
+  apps/api/tests/test_security.py apps/api/tests/test_dev_session.py
+git commit -m "feat(api): a session is verified against the keys its project publishes"
+```
+
+---
+
+## Task D11: A deployment that will not start wrong, and a health check that knows the queue
+
+**Files:**
+- Modify: `apps/api/src/dealerai/config.py`, `apps/api/src/dealerai/main.py`,
+  `apps/api/src/dealerai/worker.py`, `apps/api/src/dealerai/db/session.py`, `.env.example`
+  (comments only)
+- Test: `apps/api/tests/test_config.py`, `apps/api/tests/test_health.py`
+
+- [ ] **Step 1: Write the failing tests**
+
+In `tests/test_config.py`, with a helper `staging(**changes)` that builds a `Settings` fit to
+serve (`env="staging"`, a session-pooler DSN, a project address, a 40-character secret, a real web
+origin) and changes one thing:
+
+- "a laptop has nothing to answer for" — `Settings(env="local", …).deploy_problems() == []`.
+- "a deployment that is fit to serve has no problems".
+- "each way of being unfit is named by its variable" — parametrised: no `SUPABASE_URL`; the
+  secret unset, shorter than 32 characters, or the Supabase CLI's published one; `WEB_ORIGINS`
+  left at localhost; `STORAGE_DIR` set; a DSN on `:6543`; a push key with the placeholder
+  subject. Each yields exactly one problem, and it begins with the variable's name.
+- "the API will not be built from an unfit configuration" — `create_app()` with
+  `dealerai.main.get_settings` returning one raises `RuntimeError` naming `WEB_ORIGINS`.
+
+In `tests/test_health.py`:
+
+- "the health check says how far behind the worker is" — with a pending event whose `run_after`
+  was two minutes ago, `queue.waiting >= 1` and `queue.oldest_seconds >= 120`; an event not yet
+  due is not counted.
+
+- [ ] **Step 2: Run them and see them fail**
+
+Run: `uv run pytest tests/test_config.py tests/test_health.py -q`
+Expected: FAIL — `deploy_problems` does not exist; `queue` is not in the body.
+
+- [ ] **Step 3: The settings** — in `config.py`:
+
+```python
+#: The Supabase CLI's local secret. It is printed in its documentation, so it
+#: must never sign anything anywhere real.
+LOCAL_JWT_SECRET = "super-secret-jwt-token-with-at-least-32-characters-long"
+LOCAL_WEB_ORIGINS = "http://localhost:3000"
+```
+
+`web_origins: str = LOCAL_WEB_ORIGINS`, the comment on `supabase_jwt_secret` rewritten — "On a
+laptop this signs sessions (routes/dev.py). Everywhere, it signs invitation links and media links:
+outside a laptop, sessions are verified against the project's published keys (core/security.py)" —
+and on `Settings`:
+
+```python
+    def deploy_problems(self) -> list[str]:
+        """Why this configuration must not serve anybody, each by its variable.
+
+        Empty on a laptop. Everywhere else, every entry is a first-day failure
+        that would otherwise show up as a blank screen, a quiet 401 or an inbox
+        that never updates.
+        """
+        if self.is_local:
+            return []
+        problems: list[str] = []
+        if not self.supabase_url:
+            problems.append(
+                "SUPABASE_URL is not set: sessions are verified against the keys the "
+                "project publishes there"
+            )
+        secret = self.supabase_jwt_secret or ""
+        if len(secret) < 32 or secret == LOCAL_JWT_SECRET:
+            problems.append(
+                "SUPABASE_JWT_SECRET must be this deployment's own secret, 32 characters "
+                "or more: it signs invitation links and media links, and the local one is "
+                "in the Supabase CLI's documentation"
+            )
+        if self.web_origins == LOCAL_WEB_ORIGINS:
+            problems.append(
+                "WEB_ORIGINS still names localhost: the browser refuses every call from "
+                "the deployed web app until its origin is listed"
+            )
+        if self.storage_dir:
+            problems.append("STORAGE_DIR is for a laptop: leave it unset")
+        if ":6543/" in self.database_url:
+            problems.append(
+                "DATABASE_URL points at the transaction pooler (:6543): the API holds a "
+                "LISTEN connection, which needs the session pooler (:5432)"
+            )
+        if self.vapid_private_key and self.vapid_subject.endswith("@dealerai.local"):
+            problems.append(
+                "VAPID_SUBJECT is the placeholder: a push service refuses a sender it "
+                "cannot write to"
+            )
+        return problems
+
+
+def assert_deployable(settings: Settings) -> None:
+    """Called by the API and the worker as they start; never by a script."""
+    problems = settings.deploy_problems()
+    if problems:
+        raise RuntimeError(
+            f"refusing to start with ENV={settings.env}:\n  - " + "\n  - ".join(problems)
+        )
+```
+
+`create_app()` calls `assert_deployable(settings)` first, and `worker.main()` after
+`get_settings()`. Not the migration runner: `npm run db:migrate:staging` loads a file that has a
+database address and nothing else, on purpose.
+
+- [ ] **Step 4: The queue** — `db/session.py`:
+
+```python
+async def healthcheck() -> dict[str, Any]:
+    async with system_session() as conn:
+        # What is due and not yet taken. With a worker running this is nothing,
+        # or seconds old; with none it only grows — which is how anybody outside
+        # the process can tell (docs/sales/01-architecture.md § 8).
+        row = await conn.fetchrow(
+            """select count(*) as waiting,
+                      coalesce(extract(epoch from now() - min(run_after)), 0)::int as oldest
+                 from events
+                where status = 'pending' and run_after <= now()"""
+        )
+    return {
+        "database": "ok",
+        "queue": {"waiting": row["waiting"], "oldest_seconds": row["oldest"]},
+    }
+```
+
+- [ ] **Step 5: Run the checks**
+
+Run: `uv run pytest tests/test_config.py tests/test_health.py -q && uv run ruff check . && uv run mypy src`
+Expected: PASS.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add apps/api/src/dealerai/config.py apps/api/src/dealerai/main.py \
+  apps/api/src/dealerai/worker.py apps/api/src/dealerai/db/session.py .env.example \
+  apps/api/tests/test_config.py apps/api/tests/test_health.py
+git commit -m "feat(api): an unfit deployment refuses to start, and health reports the queue"
+```
+
+---
+
+## Task D12: One image, and a way to ask whether a deployment is fit
+
+**Files:**
+- Create: `apps/api/Dockerfile`, `.dockerignore`, `apps/api/src/dealerai/scripts/smoke.py`
+- Modify: `package.json` (`"smoke"`)
+- Test: `apps/api/tests/test_smoke.py` (new)
+
+- [ ] **Step 1: Write the failing tests** — the smoke check against an `httpx.MockTransport`
+  that answers as a good deployment does:
+
+- "a deployment that is fit passes, and says what it checked" — exit code 0, one `ok` line per
+  check.
+- "an API that thinks it is a laptop fails" — health answers `env: local`: exit code 1, and the
+  line names it.
+- "a local sign-in left reachable fails" — `/internal/dev/people` answers 200.
+- "a web origin the API does not allow fails" — the preflight has no allow-origin header.
+- "a project that publishes no keys fails, and says what to do".
+
+- [ ] **Step 2: Run them and see them fail**
+
+Run: `uv run pytest tests/test_smoke.py -q`
+Expected: FAIL — no such module.
+
+- [ ] **Step 3: The check** — `scripts/smoke.py`:
+
+```python
+"""Is this deployment fit to be used?
+
+    npm run smoke -- --api https://… [--web https://…] [--supabase https://….supabase.co]
+
+Read-only: every request is a GET or a preflight, and none carries a credential.
+Run from a laptop after a deploy (docs/sales/10-staging.md), it says by name
+what is wrong before a person finds out by signing in.
+"""
+
+from __future__ import annotations
+
+import argparse
+import sys
+from collections.abc import Sequence
+
+import httpx
+
+#: Seconds something may have waited for the worker before it is called behind.
+WORKER_BEHIND_AFTER = 300
+
+
+class Report:
+    def __init__(self) -> None:
+        self.failed = 0
+
+    def check(self, name: str, ok: bool, otherwise: str = "") -> None:
+        print(f"{'ok  ' if ok else 'FAIL'}  {name}" + (f" — {otherwise}" if not ok else ""))
+        self.failed += not ok
+
+
+def check_api(client: httpx.Client, report: Report, api: str, web: str | None) -> None:
+    health = client.get(f"{api}/internal/health")
+    body = health.json() if health.status_code == 200 else {}
+    report.check(
+        "the API answers and reaches its database",
+        body.get("database") == "ok",
+        f"{health.status_code} from /internal/health",
+    )
+    report.check(
+        "it knows it is not a laptop",
+        body.get("env") in {"staging", "production"},
+        f"ENV is {body.get('env')!r}",
+    )
+    queue = body.get("queue") or {}
+    report.check(
+        "nothing has waited five minutes for the worker",
+        queue.get("oldest_seconds", WORKER_BEHIND_AFTER) < WORKER_BEHIND_AFTER,
+        f"{queue.get('waiting')} waiting, the oldest for {queue.get('oldest_seconds')} s: "
+        "is the worker running?",
+    )
+    report.check(
+        "the local sign-in is not there",
+        client.get(f"{api}/internal/dev/people").status_code == 404,
+        "/internal/dev/people answered: ENV is local somewhere",
+    )
+    report.check(
+        "the API's own documentation is not public",
+        client.get(f"{api}/docs").status_code == 404,
+        "/docs answered",
+    )
+    me = client.get(f"{api}/v1/me")
+    report.check(
+        "nobody is let in without a session",
+        me.status_code == 401 and "problem+json" in me.headers.get("content-type", ""),
+        f"{me.status_code} from /v1/me",
+    )
+    if web:
+        preflight = client.options(
+            f"{api}/v1/me",
+            headers={
+                "Origin": web,
+                "Access-Control-Request-Method": "GET",
+                "Access-Control-Request-Headers": "authorization,x-tenant-id",
+            },
+        )
+        report.check(
+            "the web app's origin may call the API",
+            preflight.headers.get("access-control-allow-origin") == web,
+            f"WEB_ORIGINS does not list {web}",
+        )
+
+
+def check_web(client: httpx.Client, report: Report, web: str) -> None:
+    login = client.get(f"{web}/login")
+    report.check(
+        "the sign-in page is served",
+        login.status_code == 200 and "<form" in login.text,
+        f"{login.status_code} from /login",
+    )
+    inside = client.get(f"{web}/a-workspace/inbox")
+    report.check(
+        "a page inside a workspace sends somebody signed out to sign in",
+        inside.is_redirect and "/login" in inside.headers.get("location", ""),
+        f"{inside.status_code} from a workspace's inbox",
+    )
+    dev = client.get(f"{web}/dev-login")
+    report.check(
+        "the local sign-in page is behind the real one",
+        dev.is_redirect and "/login" in dev.headers.get("location", ""),
+        "/dev-login is open: NEXT_PUBLIC_DEV_AUTH is set in this build",
+    )
+    manifest = client.get(f"{web}/manifest.webmanifest")
+    report.check(
+        "the app can be installed",
+        manifest.status_code == 200 and bool(manifest.json().get("start_url")),
+        f"{manifest.status_code} from /manifest.webmanifest",
+    )
+
+
+def check_project(client: httpx.Client, report: Report, supabase: str) -> None:
+    answer = client.get(f"{supabase}/auth/v1/.well-known/jwks.json")
+    keys = answer.json().get("keys", []) if answer.status_code == 200 else []
+    report.check(
+        "the project publishes the keys it signs with",
+        bool(keys),
+        "none: it still signs with a shared secret, which the API refuses outside a "
+        "laptop. Supabase → Project settings → JWT keys → migrate to signing keys",
+    )
+
+
+def main(argv: Sequence[str] | None = None, transport: httpx.BaseTransport | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Is this deployment fit to be used?")
+    parser.add_argument("--api", required=True)
+    parser.add_argument("--web")
+    parser.add_argument("--supabase")
+    args = parser.parse_args(argv)
+    report = Report()
+    with httpx.Client(timeout=15, transport=transport) as client:
+        check_api(client, report, args.api.rstrip("/"), args.web and args.web.rstrip("/"))
+        if args.web:
+            check_web(client, report, args.web.rstrip("/"))
+        if args.supabase:
+            check_project(client, report, args.supabase.rstrip("/"))
+    print("fit to use" if not report.failed else f"{report.failed} thing(s) to fix")
+    return 1 if report.failed else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+```
+
+and `"smoke": "cd apps/api && uv run python -m dealerai.scripts.smoke"` at the root.
+
+- [ ] **Step 4: The image** — `apps/api/Dockerfile`, built from the repository's root:
+
+```dockerfile
+# One image, two processes (docs/01-system-architecture.md § 10):
+#   the API     uvicorn dealerai.main:app --host 0.0.0.0 --port 8000   (the default)
+#   the worker  python -m dealerai.worker
+#
+#   docker build -f apps/api/Dockerfile -t dealerai-api .
+#
+# Not in it: a browser. Marketing's compositor renders with Chromium, and the
+# Sales module never does; `playwright install --with-deps chromium` goes here
+# the day that module is deployed.
+FROM python:3.12-slim
+
+COPY --from=ghcr.io/astral-sh/uv:0.12 /uv /usr/local/bin/uv
+ENV UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy \
+    PYTHONUNBUFFERED=1 \
+    PATH="/app/apps/api/.venv/bin:$PATH"
+
+WORKDIR /app/apps/api
+
+# What it depends on first, so a change to the code does not install it all again.
+COPY apps/api/pyproject.toml apps/api/uv.lock ./
+RUN uv sync --frozen --no-dev --no-install-project
+
+COPY apps/api/src ./src
+RUN uv sync --frozen --no-dev
+
+# config.repo_root() walks up to the first package.json.
+COPY package.json /app/package.json
+
+USER nobody
+EXPOSE 8000
+CMD ["uvicorn", "dealerai.main:app", "--host", "0.0.0.0", "--port", "8000"]
+```
+
+and `.dockerignore`, which lets in what the image is made of and nothing else — so no `.env`, no
+`.storage` and no customer's file can be in a build's context, whatever a laptop holds:
+
+```
+*
+!package.json
+!apps/api/pyproject.toml
+!apps/api/uv.lock
+!apps/api/src
+**/__pycache__
+```
+
+- [ ] **Step 5: Run the checks, then the image as staging would**
+
+Run: `uv run pytest tests/test_smoke.py -q && uv run ruff check . && uv run mypy src`
+Expected: PASS.
+
+Then, against the suite's database on this machine (a secret made on the spot, never written
+down):
+
+```bash
+docker build -f apps/api/Dockerfile -t dealerai-api .
+DB=postgresql://dealerai_app:dealerai_app@host.docker.internal:54432/dealerai_e2e
+
+# Refuses, by name:
+docker run --rm -e ENV=staging -e DATABASE_URL=$DB dealerai-api
+
+# Serves:
+docker run --rm -d --name dealerai-staging -p 8200:8000 -e ENV=staging -e DATABASE_URL=$DB \
+  -e SUPABASE_URL=https://example.supabase.co -e SUPABASE_JWT_SECRET=$(openssl rand -hex 24) \
+  -e WEB_ORIGINS=http://localhost:3200 dealerai-api
+npm run smoke -- --api http://localhost:8200 --web http://localhost:3200
+
+# The same image, working:
+docker run --rm -e ENV=staging -e DATABASE_URL=$DB -e SUPABASE_URL=https://example.supabase.co \
+  -e SUPABASE_JWT_SECRET=$(openssl rand -hex 24) -e WEB_ORIGINS=http://localhost:3200 \
+  dealerai-api python -m dealerai.worker
+```
+
+Expected: the first exits naming `SUPABASE_URL`, `SUPABASE_JWT_SECRET` and `WEB_ORIGINS`; the
+second serves, and the smoke check passes (its web half against a production build on :3200:
+`npm run build --workspace web`, then `npx next start --port 3200`, with the placeholders CI's
+build uses); a token from the local sign-in gets 401 from it; the worker logs `worker_started`
+with `env=staging`.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add apps/api/Dockerfile .dockerignore apps/api/src/dealerai/scripts/smoke.py \
+  apps/api/tests/test_smoke.py package.json
+git commit -m "feat: one image for the API and the worker, and a check that a deployment is fit"
+```
+
+---
+
+## Task D13: An email link that opens anywhere, and a way back from a forgotten password
+
+**Files:**
+- Modify: `apps/web/app/auth/callback/route.ts`, `apps/web/components/auth/LoginForm.tsx`,
+  `apps/web/proxy.ts`, `apps/web/messages/{en,ar}.ts`
+- Create: `apps/web/app/(auth)/forgot-password/page.tsx`,
+  `apps/web/app/(auth)/reset-password/page.tsx`,
+  `apps/web/components/auth/ForgotPasswordForm.tsx`, `ResetPasswordForm.tsx`
+- Test: `apps/web/app/auth/callback/route.test.ts`, `components/auth/ForgotPasswordForm.test.tsx`,
+  `ResetPasswordForm.test.tsx`, `LoginForm.test.tsx`, `proxy.test.ts`
+
+None of this can be seen working here: a laptop has no Supabase Auth. It is tested against a
+stand-in for the client, as Part A's forms are, and proven on the staging day (D15).
+
+- [ ] **Step 1: Write the failing tests**
+
+`route.test.ts`, with `@/lib/supabase/server` replaced:
+
+- "a token hash becomes a session in whichever browser opened the link" —
+  `?token_hash=abc&type=email&next=/accept-invite?token=t` calls
+  `verifyOtp({ token_hash: "abc", type: "email" })` and redirects to that `next`.
+- "a recovery link lands on the new-password page" — `type=recovery`, `next=/reset-password`.
+- "a one-time code still works" — Google, and a project whose templates were not edited.
+- "a type the app never asks for is refused" — `type=invite`: no call, `/login?error=link`.
+- "a refused link goes to sign-in, saying so, and keeping `next`".
+- "`next` cannot leave the site".
+
+`ForgotPasswordForm.test.tsx`:
+
+- "asks for a link back to the new-password page" — `resetPasswordForEmail(address, { redirectTo:
+  "<origin>/auth/callback?next=%2Freset-password" })`.
+- "says the same thing whether or not the address has an account" — a success and an error from
+  the client both show `auth.linkSent`, and nothing else.
+- "labels itself in Arabic".
+
+`ResetPasswordForm.test.tsx`:
+
+- "saves the new password and goes on" — `updateUser({ password })`, then `/`.
+- "refuses fewer than eight characters before asking".
+- "says so when it was not saved, in the reader's language".
+
+`LoginForm.test.tsx`: "offers the way back from a forgotten password". `proxy.test.ts`:
+"`/forgot-password` is open to somebody signed out; `/reset-password` is not".
+
+- [ ] **Step 2: Run them and see them fail**
+
+Run: `npm run test --workspace web -- auth proxy`
+Expected: FAIL.
+
+- [ ] **Step 3: The route** — whole:
+
+```ts
+import { NextResponse, type NextRequest } from "next/server";
+import { safeNext } from "@/lib/auth/next";
+import { createClient } from "@/lib/supabase/server";
+
+// What the project's two edited templates send (docs/sales/10-staging.md § 3).
+const EMAIL_LINKS = ["email", "recovery"] as const;
+type EmailLink = (typeof EMAIL_LINKS)[number];
+
+/**
+ * Where Supabase sends somebody back, with something that becomes the session
+ * cookie here.
+ *
+ * An email link carries a token hash: it opens in any browser, which matters
+ * to somebody who signed up in the installed app and reads their mail in the
+ * mail app's own. Google — and an email from a template nobody edited — come
+ * back with a one-time code instead, which only the browser that asked can
+ * redeem.
+ */
+export async function GET(request: NextRequest) {
+  const { origin, searchParams } = request.nextUrl;
+  const next = safeNext(searchParams.get("next"));
+  const tokenHash = searchParams.get("token_hash");
+  const type = searchParams.get("type");
+  const code = searchParams.get("code");
+  const supabase = await createClient();
+
+  let ok = false;
+  if (tokenHash && EMAIL_LINKS.includes(type as EmailLink)) {
+    const { error } = await supabase.auth.verifyOtp({
+      token_hash: tokenHash,
+      type: type as EmailLink,
+    });
+    ok = !error;
+  } else if (code) {
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    ok = !error;
+  }
+  if (ok) return NextResponse.redirect(`${origin}${next}`);
+  // Expired, already used, or a code opened in another browser from the one that asked.
+  return NextResponse.redirect(`${origin}/login?error=link&next=${encodeURIComponent(next)}`);
+}
+```
+
+The forms already ask for `…/auth/callback?next=…` as the address to come back to, so nothing in
+them changes: an edited template appends `&token_hash=…&type=…` to that same address
+([10](../10-staging.md) §3), and an unedited one keeps working as it does today.
+
+- [ ] **Step 4: The two pages.** `ForgotPasswordForm`: one field, `auth.sendLink`, and after
+  sending — whatever the answer — `auth.linkSent`: "If that address has an account, a link is on
+  its way to it." It must not say which, for the reason the sign-in form does not.
+  `ResetPasswordForm`: one field (`autoComplete="new-password"`, eight characters, as sign-up),
+  `auth.savePassword`; on success `router.push("/")` and `refresh()`; on failure `auth.resetFailed`.
+  The page is behind the gate — the recovery link signed them in — so opened cold it leads to
+  sign-in. `LoginForm` gains a link, `auth.forgot`, under the password. `PUBLIC_PATHS` gains
+  `/forgot-password`. Strings, in both catalogues: `auth.forgot`, `auth.forgotTitle`,
+  `auth.forgotIntro`, `auth.sendLink`, `auth.linkSent`, `auth.resetTitle`, `auth.newPassword`,
+  `auth.savePassword`, `auth.resetFailed`, `auth.backToSignIn`.
+
+- [ ] **Step 5: Run the checks**
+
+Run: `npm run check --workspace web`
+Expected: PASS.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add apps/web/app/auth/callback apps/web/app/\(auth\)/forgot-password \
+  apps/web/app/\(auth\)/reset-password apps/web/components/auth apps/web/proxy.ts \
+  apps/web/proxy.test.ts apps/web/messages/en.ts apps/web/messages/ar.ts
+git commit -m "feat(web): an email link that opens in any browser, and a forgotten password"
+```
+
+---
+
+## Task D14: The staging day, written down
+
+**Files:**
+- Create: `docs/sales/10-staging.md`
+- Modify: `.env.staging.example`, `docs/README.md`, `docs/sales/07-frontend.md` (§11),
+  `docs/sales/01-architecture.md` (§6, §8), `docs/sales/README.md`
+
+- [ ] **Step 1: `10-staging.md`** — who does what, in the order it has to happen, each step with
+  how to tell it worked:
+
+1. **What staging is** — the API, the worker and the web app, against a Supabase project of its
+   own; no customers until S5 connects a number.
+2. **The project** (founder) — create it; the region; note the address. Then, from a laptop:
+   `.env.staging` with the session pooler's address, `npm run db:migrate:staging`, the one SQL
+   statement that gives `dealerai_app` its password, and the security advisor read once.
+3. **Authentication** (founder) — site URL and the redirect URL (`https://<web>/auth/callback`);
+   the two templates, with the exact line each needs:
+   `{{ .RedirectTo }}&token_hash={{ .TokenHash }}&type=email` for *Confirm signup*,
+   `…&type=recovery` for *Reset password*; custom SMTP; Google, with an OAuth client whose
+   redirect is the project's own callback. How to tell: the JWKS address answers with a key.
+4. **The API and the worker** (founder chooses the host) — what any host must give: the image,
+   run twice, once with each command; a region beside the database; a process that is never put
+   to sleep; a response that may stay open; `/internal/health` as its check. Every variable, what
+   it is for and where its value comes from — and that a wrong one is named at start.
+5. **The web app** — Vercel, root `apps/web`; its three variables; never `NEXT_PUBLIC_DEV_AUTH`.
+6. **Is it fit** — `npm run smoke -- --api … --web … --supabase …`, line by line.
+7. **The first sign-in, and the two phones** — the checklist D15 runs: sign up, the email, the
+   link opened on a phone, the first workspace, an invitation accepted by a second person, a task
+   falling due and the bell (the worker), installing on Android and on an iPhone, a push arriving
+   on each, and the inbox walked with TalkBack and with VoiceOver.
+8. **What staging cannot do yet** — media (the decision above), WhatsApp (S5), seeded data (the
+   seed refuses anywhere but a laptop, and should).
+
+- [ ] **Step 2: What is true now, in the other docs**
+
+- `.env.staging.example`: `<project-ref>` and `<region>` where the dead project's were.
+- `docs/README.md`: the status table — the project (none, until [10](sales/10-staging.md) §2),
+  the known gap (a real sign-in: still never exercised, and now what it waits on), Postgres 17 in
+  the local snippet, the test counts.
+- `07-frontend.md` §11: the end-to-end row as built — how to run it, what its stack is, the
+  projects, and that the worker is not in it.
+- `01-architecture.md` §6: the image, the two commands, the refusal at start; §8: the queue in
+  the health check, as built.
+- `docs/sales/README.md`: the Code row.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add docs/sales/10-staging.md .env.staging.example docs/README.md docs/sales/07-frontend.md \
+  docs/sales/01-architecture.md docs/sales/README.md
+git commit -m "docs(sales): the staging day, step by step, and what is true of the project now"
+```
+
+---
+
+## Task D15: The whole check, the suite on GitHub, and the staging day
+
+- [ ] **Step 1: The whole check** — `npm run check` on the scratch database, `npm run
+  check:openapi`, and `CI=1 npm run e2e` from nothing running.
+- [ ] **Step 2: The suite on a pull request** — the branch pushed (when asked for), and the `e2e`
+  job read on GitHub: green, in how many minutes, with how many tests.
+- [ ] **Step 3: The review** — `## Part D review`, appended here: what the suite found in the app,
+  what differs from this plan, what is known and left, and the numbers.
+- [ ] **Step 4: The staging day** — with the founder, once steps 1–4 of their track are done:
+  [10](../10-staging.md) §2–§7, recorded under the review. Until then Part D's first exit is met
+  and its second waits, and the review says so.
+
+## Spec coverage (Part D)
+
+| Requirement | Task |
+|---|---|
+| [07](../07-frontend.md) §11 — sign in, inbox → reply using a draft → create a lead → move a stage → send a follow-up task → manager dashboard | D4 |
+| §11 — as owner, manager and salesperson, in English and Arabic, at 360 px and 1440 px | D3 (the projects), D4 |
+| §11 — a salesperson cannot see a colleague's customer, in the UI and by pasting the URL | D5 |
+| §11 — CI: … end-to-end … | D9 |
+| §11 — no screenshot comparisons; structural assertions | D3–D8 |
+| §12.2 — usable at 360 px, mirrored in Arabic | `fits()` at every stop; the `ar-360` project |
+| §12.3 — actions the role lacks are hidden, and the API refuses them anyway | D3, D5 (hidden); the backend's permission tests (refused) |
+| §12.4 — live updates arrive without a refresh | D6 |
+| §12.5 — keyboard reachable; icon buttons labelled | D8: the dialogs, and the checker on every page |
+| §12.7 — one end-to-end path through each screen | [08](../08-screens.md) §1 D3 · §2–§4 D4, D8 · §5–§7 D4, D8 · §8 D4, D8 · §9–§10 D4, D8 · §11 D4, D8 · §12–§13 D8 · §14 D7 |
+| S0's exit — the shell opens as any seeded person | D3 |
+| S2's exit — a salesperson answers while the manager watches | D6 |
+| S3's exit — a lead from new onward, with tasks, in the UI | D4, D8 |
+| S4's exit — drafts appear in the composer | D4 (the seeded draft; what writes one is the backend's and the evals') |
+| S6's exit — a manager's morning from the dashboard | D4, D8 |
+| Part A's exit — invited by a link, joined with the invited address, with the role and teams | D7 |
+| Part B — installable | D3; a push on a real phone: D15 |
+| Part C — the audit's result | D8, on every pull request |
+| Part A — "JWKS verification: Part D, if the hosted project signs asymmetrically" | D10 |
+| Part A — "Forgotten password: Part D" | D13 |
+| Parts B and C — real phones, a screen reader | D15, with the founder |
+| This part's exit — staging runs the API, the worker and the web app; a real sign-in completes | D10–D14 are the code's half; D15 with the founder's track |
+
+## Execution (Part D)
+
+Inline in this session, as Parts A–C were — no subagents unless asked. Checkpoints after D3 (the
+stack proves itself), D9 (the suite whole, and its job), D13 (what staging needs from the code),
+and D15.
 
 ---
