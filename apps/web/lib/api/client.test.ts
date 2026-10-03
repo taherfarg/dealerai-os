@@ -1,5 +1,28 @@
-import { describe, expect, it } from "vitest";
-import { ApiError, unwrap } from "./client";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { ApiError, createApiClient, unwrap } from "./client";
+
+vi.mock("@/lib/auth/token", () => ({ getBrowserAccessToken: async () => null }));
+
+describe("createApiClient", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    document.documentElement.lang = "";
+  });
+
+  it("says on every request what language its reader is using", async () => {
+    const fetch = vi.fn<(request: Request) => Promise<Response>>(
+      async () =>
+        new Response("{}", { status: 200, headers: { "Content-Type": "application/json" } }),
+    );
+    vi.stubGlobal("fetch", fetch);
+    // The language on screen, which is not always the browser's own.
+    document.documentElement.lang = "ar";
+
+    await createApiClient().GET("/v1/me", { params: { header: { "X-Tenant-Id": "tenant-1" } } });
+
+    expect(fetch.mock.calls[0][0].headers.get("Accept-Language")).toBe("ar");
+  });
+});
 
 describe("unwrap", () => {
   it("returns the data of a successful response", () => {

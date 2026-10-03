@@ -35,8 +35,9 @@ Added here:
 
 | Method | Route | Permission | Returns |
 |---|---|---|---|
-| GET | `/v1/me` | — | `Me`: user, tenant, role, scope, team ids, permissions, accepting_chats |
+| GET | `/v1/me` | — | `Me`: user, tenant, role, scope, team ids, permissions, accepting_chats, locale |
 | PATCH | `/v1/me` | — | `{accepting_chats}` → `Me` |
+| PUT | `/v1/me/locale` | — | `{locale: "en" \| "ar"}` → 204. The language this person has on screen, said by the browser whenever it is not the one the server has; what the server writes for them later — a notification, a push — is written in it |
 | GET | `/v1/members` | — | `Member[]` (name, role, teams, languages, availability, open conversations) |
 | PATCH | `/v1/members/{user_id}` | `settings.team` | role, teams, languages, accepting_chats |
 | POST | `/v1/tenants/{id}/invites` *existing* | `settings.team` | Invitation |
@@ -52,7 +53,8 @@ Added here:
              "logo_url": "https://…", "accent_color": "#4AA0FF"},
   "role": "sales", "scope": "own", "team_ids": ["…"],
   "permissions": ["inbox.send", "leads.mark_won_lost"],
-  "accepting_chats": true
+  "accepting_chats": true,
+  "locale": "en"
 }
 ```
 

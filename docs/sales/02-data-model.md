@@ -165,6 +165,7 @@ from several places and all of them pass through the table.
 | `messages` | `status` check adds `sending` ([03](03-whatsapp.md) §7); + `kind` (`message` · `note` · `event`), `type`, `origin` (`customer` · `inbox` · `phone_app` · `history` · `system` · `ai`), `author_user_id`, `transcript jsonb`, `location jsonb`, `template jsonb`, `reply_to_id`, `reactions jsonb`, `referral jsonb`, `pricing jsonb`, `event jsonb`, `delivered_at`, `read_at`. Unique external id becomes `(tenant_id, external_id)` | WhatsApp message ids are globally unique; history import and a live webhook can deliver the same id |
 | `leads` | **− `stage`, `next_action_at`** and the index on them; + `pipeline_id`, `stage_id` (not null), `stage_entered_at`, `team_id`, `score_signals jsonb` | Configurable pipelines. Stage history is `activities` with `kind = 'stage_change'` |
 | `v_lead_funnel` | Rewritten over `pipeline_stages.category` | It depended on the dropped `stage` column |
+| `profiles` | + `locale text not null default 'en'` (`en` · `ar`), written through `app.set_locale()` (0015) | The language a person reads the app in. The browser always knew; the server needs it for what it writes when nobody is there to ask — a notification and its push ([07](07-frontend.md) §6) |
 
 Nothing reads the dropped columns yet — the inbox and CRM code does not exist — which is what makes
 this the cheap moment to change them.

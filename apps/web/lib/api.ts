@@ -1,3 +1,4 @@
+import { cookies } from "next/headers";
 import { getAccessToken } from "@/lib/supabase/server";
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
@@ -37,6 +38,8 @@ export async function api<T>(
   headers.set("Content-Type", "application/json");
   if (token) headers.set("Authorization", `Bearer ${token}`);
   if (tenantId) headers.set("X-Tenant-Id", tenantId);
+  // What the API refuses, it refuses in the language on screen.
+  headers.set("Accept-Language", (await cookies()).get("locale")?.value ?? "en");
 
   const res = await fetch(`${BASE}${path}`, { ...init, headers, cache: "no-store" });
 

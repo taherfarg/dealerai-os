@@ -7,6 +7,7 @@ import {
   useQueryClient,
   type InfiniteData,
 } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { unwrap } from "./client";
 import { useTenantApi } from "./context";
 import { keys } from "./keys";
@@ -34,6 +35,32 @@ export function useMe() {
     queryKey: keys.me(tenantId),
     queryFn: async () => unwrap(await api.GET("/v1/me", { params: { header } })),
   });
+}
+
+/**
+ * Tells the server which language is on screen, whenever that is not the one
+ * it has for this person — so what it writes for them while they are away, a
+ * notification or a push, is in it. Said on a difference rather than on a
+ * click: that covers the toggle, a second device, and everybody who chose
+ * Arabic before the server kept it.
+ */
+export function useTellServerMyLanguage(locale: "en" | "ar") {
+  const { api, tenantId, header } = useTenantApi();
+  const queryClient = useQueryClient();
+  const known = useMe().data?.locale;
+  const { mutate } = useMutation({
+    mutationFn: async (said: "en" | "ar") =>
+      unwrap(await api.PUT("/v1/me/locale", { params: { header }, body: { locale: said } })),
+    // Remembered here, so it is said once and not again on the next render.
+    onSuccess: (_nothing, said) =>
+      queryClient.setQueryData(
+        keys.me(tenantId),
+        (me: components["schemas"]["MeOut"] | undefined) => me && { ...me, locale: said },
+      ),
+  });
+  useEffect(() => {
+    if (known && known !== locale) mutate(locale);
+  }, [known, locale, mutate]);
 }
 
 export type Member = components["schemas"]["dealerai__routes__team__MemberOut"];

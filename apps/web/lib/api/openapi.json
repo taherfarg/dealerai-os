@@ -2292,11 +2292,36 @@
         "title": "ManagerDashboard",
         "type": "object"
       },
+      "MeLocale": {
+        "properties": {
+          "locale": {
+            "enum": [
+              "en",
+              "ar"
+            ],
+            "title": "Locale",
+            "type": "string"
+          }
+        },
+        "required": [
+          "locale"
+        ],
+        "title": "MeLocale",
+        "type": "object"
+      },
       "MeOut": {
         "properties": {
           "accepting_chats": {
             "title": "Accepting Chats",
             "type": "boolean"
+          },
+          "locale": {
+            "enum": [
+              "en",
+              "ar"
+            ],
+            "title": "Locale",
+            "type": "string"
           },
           "permissions": {
             "items": {
@@ -2335,7 +2360,8 @@
           "scope",
           "team_ids",
           "permissions",
-          "accepting_chats"
+          "accepting_chats",
+          "locale"
         ],
         "title": "MeOut",
         "type": "object"
@@ -8957,6 +8983,53 @@
           }
         },
         "summary": "Patch Me",
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/v1/me/locale": {
+      "put": {
+        "description": "The browser says which language is on screen. Nobody sets anyone else's:\nthe id is the caller's own, never one from the request.",
+        "operationId": "put_my_locale_v1_me_locale_put",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MeLocale"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put My Locale",
         "tags": [
           "me"
         ]

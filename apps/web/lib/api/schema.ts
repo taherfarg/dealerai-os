@@ -705,6 +705,27 @@ export interface paths {
         patch: operations["patch_me_v1_me_patch"];
         trace?: never;
     };
+    "/v1/me/locale": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Put My Locale
+         * @description The browser says which language is on screen. Nobody sets anyone else's:
+         *     the id is the caller's own, never one from the request.
+         */
+        put: operations["put_my_locale_v1_me_locale_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/media/{token}": {
         parameters: {
             query?: never;
@@ -2217,10 +2238,23 @@ export interface components {
             /** Waiting */
             waiting: components["schemas"]["ConversationSummary"][];
         };
+        /** MeLocale */
+        MeLocale: {
+            /**
+             * Locale
+             * @enum {string}
+             */
+            locale: "en" | "ar";
+        };
         /** MeOut */
         MeOut: {
             /** Accepting Chats */
             accepting_chats: boolean;
+            /**
+             * Locale
+             * @enum {string}
+             */
+            locale: "en" | "ar";
             /** Permissions */
             permissions: string[];
             /** Role */
@@ -5032,6 +5066,39 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["MeOut"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_my_locale_v1_me_locale_put: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MeLocale"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
