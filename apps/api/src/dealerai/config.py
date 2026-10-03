@@ -13,6 +13,11 @@ from typing import Literal
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+#: The Supabase CLI's local secret. It is printed in that tool's documentation,
+#: so it must never sign anything anywhere real.
+LOCAL_JWT_SECRET = "super-secret-jwt-token-with-at-least-32-characters-long"
+LOCAL_WEB_ORIGINS = "http://localhost:3000"
+
 
 def repo_root() -> Path:
     """Walk up until package.json is found.
@@ -63,8 +68,10 @@ class Settings(BaseSettings):
     #: must never be reachable from a request path. See docs/03 § 2.
     supabase_anon_key: str | None = None
 
-    #: HS256 secret Supabase Auth signs user tokens with. Also signs invitation
-    #: links, so they are invalidated by the same rotation.
+    #: On a laptop this signs sessions (routes/dev.py). Everywhere, it signs
+    #: invitation links and media links — so outside a laptop it is this
+    #: deployment's own secret, and sessions are verified against the keys the
+    #: project publishes instead (core/security.py).
     supabase_jwt_secret: str | None = None
 
     #: Fernet keys for channels.credentials, comma-separated, newest first.
@@ -73,7 +80,7 @@ class Settings(BaseSettings):
 
     #: Browser origins allowed to call the API, comma-separated. The web app talks
     #: to the API directly since docs/sales/01-architecture.md § 2 A.
-    web_origins: str = "http://localhost:3000"
+    web_origins: str = LOCAL_WEB_ORIGINS
 
     #: Meta app secret. Every webhook body is verified against it
     #: (X-Hub-Signature-256); unset, every webhook is refused.
@@ -108,6 +115,60 @@ class Settings(BaseSettings):
     @property
     def is_local(self) -> bool:
         return self.env == "local"
+
+    def deploy_problems(self) -> list[str]:
+        """Why this configuration must not serve anybody, each by its variable.
+
+        Empty on a laptop. Everywhere else, every entry is a first-day failure
+        that would otherwise show up as a blank screen, a quiet 401 or an inbox
+        that never updates.
+        """
+        if self.is_local:
+            return []
+        problems: list[str] = []
+        if not self.supabase_url:
+            problems.append(
+                "SUPABASE_URL is not set: sessions are verified against the keys the "
+                "project publishes there"
+            )
+        secret = self.supabase_jwt_secret or ""
+        if len(secret) < 32 or secret == LOCAL_JWT_SECRET:
+            problems.append(
+                "SUPABASE_JWT_SECRET must be this deployment's own secret, 32 characters "
+                "or more: it signs invitation links and media links, and the local one is "
+                "in the Supabase CLI's documentation"
+            )
+        if self.web_origins == LOCAL_WEB_ORIGINS:
+            problems.append(
+                "WEB_ORIGINS still names localhost: the browser refuses every call from "
+                "the deployed web app until its origin is listed"
+            )
+        if self.storage_dir:
+            problems.append("STORAGE_DIR is for a laptop: leave it unset")
+        if ":6543/" in self.database_url:
+            problems.append(
+                "DATABASE_URL points at the transaction pooler (:6543): the API holds a "
+                "LISTEN connection, which needs the session pooler (:5432)"
+            )
+        if self.vapid_private_key and self.vapid_subject.endswith("@dealerai.local"):
+            problems.append(
+                "VAPID_SUBJECT is the placeholder: a push service refuses a sender it "
+                "cannot write to"
+            )
+        return problems
+
+
+def assert_deployable(settings: Settings) -> None:
+    """Called by the API and the worker as they start; never by a script.
+
+    The migration runner is pointed at staging with a file that holds a
+    database address and nothing else, on purpose.
+    """
+    problems = settings.deploy_problems()
+    if problems:
+        raise RuntimeError(
+            f"refusing to start with ENV={settings.env}:\n  - " + "\n  - ".join(problems)
+        )
 
 
 @lru_cache

@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from . import agents as _agents  # noqa: F401  registers the agents
 from . import tools as _tools  # noqa: F401  registers the agent tools
-from .config import get_settings
+from .config import assert_deployable, get_settings
 from .core.errors import install_error_handlers
 from .core.logging import configure_logging, install_request_context
 from .db import session
@@ -72,6 +72,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 def create_app() -> FastAPI:
     configure_logging()
     settings = get_settings()
+    assert_deployable(settings)
     app = FastAPI(
         title="DealerAI OS",
         version="0.0.0",
