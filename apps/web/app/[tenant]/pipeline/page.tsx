@@ -61,7 +61,9 @@ export default function PipelinePage({ params }: { params: Promise<{ tenant: str
         )}
         <input
           type="search"
-          value={filters.q}
+          // Its own text, not the address's: bound to the address it was put
+          // back between one letter and the next, and fast typing lost letters.
+          defaultValue={filters.q}
           placeholder={t("pipeline.search")}
           aria-label={t("pipeline.search")}
           onChange={(event) => setFilters({ q: event.target.value })}

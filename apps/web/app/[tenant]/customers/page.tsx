@@ -41,7 +41,9 @@ export default function CustomersPage({ params }: { params: Promise<{ tenant: st
       <div className="mt-3 flex flex-wrap gap-2">
         <input
           type="search"
-          value={filters.q}
+          // Its own text, not the address's: bound to the address it was put
+          // back between one letter and the next, and fast typing lost letters.
+          defaultValue={filters.q}
           placeholder={t("customers.search")}
           aria-label={t("customers.search")}
           onChange={(event) => setFilters({ q: event.target.value })}

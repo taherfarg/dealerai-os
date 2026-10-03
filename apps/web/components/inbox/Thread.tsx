@@ -80,10 +80,14 @@ export function Thread({ tenant, conversationId }: { tenant: string; conversatio
 
   if (conversation.isError) {
     const problem = conversation.error instanceof ApiError ? conversation.error.problem : null;
+    // "Not yours" and "not there" are one answer from the API, in a
+    // developer's words. The screen has its own sentence for it — and with no
+    // conversation to name, that sentence is this page's heading.
+    const gone = !problem || problem.status === 404;
     return (
-      <p className="p-6 text-sm text-red-600 dark:text-red-400">
-        {problem?.detail ?? problem?.title ?? t("thread.gone")}
-      </p>
+      <h1 className="p-6 text-sm font-normal text-red-600 dark:text-red-400">
+        {gone ? t("thread.gone") : (problem.detail ?? problem.title)}
+      </h1>
     );
   }
   if (!conversation.data) return <p className="text-muted p-6 text-sm">…</p>;

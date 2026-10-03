@@ -1,6 +1,6 @@
 "use client";
 
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 
 /**
  * Filters that live in the URL.
@@ -44,14 +44,19 @@ export function nextQuery<T extends Record<string, string>>(
 export function useFilters<T extends Record<string, string>>(
   defaults: T,
 ): readonly [T, (changes: Partial<T>) => void] {
-  const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
   const values = readFilters(defaults, new URLSearchParams(params.toString()));
   const set = (changes: Partial<T>) => {
-    const query = nextQuery(defaults, new URLSearchParams(params.toString()), changes);
-    // replace, not push: filtering is not something to press Back through.
-    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+    // From the address as it is now, not as it was when this was drawn: a
+    // change made a moment after another — a search typed straight after a tab
+    // was pressed, a letter after a letter — must build on it, not undo it.
+    const query = nextQuery(defaults, new URLSearchParams(window.location.search), changes);
+    // The History API, which Next keeps in step with useSearchParams: a filter
+    // is read in the browser, so there is nothing to ask the server for, and
+    // the address changes at once. replace, not push: filtering is not
+    // something to press Back through.
+    window.history.replaceState(null, "", query ? `${pathname}?${query}` : pathname);
   };
   return [values, set] as const;
 }

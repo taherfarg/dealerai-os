@@ -1,6 +1,6 @@
 "use client";
 
-import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useParams, usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useRef } from "react";
 import { ApiError } from "@/lib/api/client";
 import { useConversationCounts, useConversations, useMe, type ConversationView } from "@/lib/api/hooks";
@@ -26,7 +26,6 @@ const TAB_KEYS = {
  */
 export function ConversationList() {
   const t = useT();
-  const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
   const { tenant, conversationId } = useParams<{ tenant: string; conversationId?: string }>();
@@ -45,10 +44,13 @@ export function ConversationList() {
   const rows = conversations.data?.pages.flatMap((page) => page.data) ?? [];
 
   const setParam = (key: string, value: string) => {
-    const next = new URLSearchParams(params.toString());
+    // From the address as it is now, and written at once (lib/filters.ts says
+    // why): the search is sent a moment after it is typed, and by then a tab
+    // may have been pressed.
+    const next = new URLSearchParams(window.location.search);
     if (value && value !== "open") next.set(key, value);
     else next.delete(key);
-    router.replace(`${pathname}?${next.toString()}`);
+    window.history.replaceState(null, "", `${pathname}?${next.toString()}`);
   };
 
   // Infinite scroll: load the next page when the end of the list comes into view.

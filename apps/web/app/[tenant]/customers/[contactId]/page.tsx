@@ -55,9 +55,16 @@ export default function CustomerPage({
     const keepId = problem?.errors?.[0]?.keep_id;
     return (
       <div className="p-6 text-sm">
-        <p className="text-red-600 dark:text-red-400">
-          {keepId ? t("customer.merged") : (problem?.detail ?? t("customer.gone"))}
-        </p>
+        {/* The page's heading: there is no customer to name. And for "not
+            yours" or "not there" — one answer from the API, in a developer's
+            words — the screen's own sentence. */}
+        <h1 className="font-normal text-red-600 dark:text-red-400">
+          {keepId
+            ? t("customer.merged")
+            : !problem || problem.status === 404
+              ? t("customer.gone")
+              : (problem.detail ?? t("customer.gone"))}
+        </h1>
         {keepId && (
           <Link href={`/${tenant}/customers/${keepId}`} className="mt-2 inline-block underline">
             {t("customer.full")}
