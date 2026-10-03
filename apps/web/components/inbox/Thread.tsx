@@ -287,6 +287,7 @@ export function Thread({ tenant, conversationId }: { tenant: string; conversatio
       <Composer
         key={draftToEdit ? `${draftToEdit.id ?? "followup"}:${draftToEdit.text}` : "plain"}
         conversationId={conversationId}
+        channelId={row.channel?.id}
         windowOpen={windowOpen}
         disabled={row.status !== "open"}
         draftToEdit={draftToEdit}
