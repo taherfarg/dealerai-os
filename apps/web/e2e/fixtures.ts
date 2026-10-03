@@ -44,6 +44,20 @@ export async function signInAs(page: Page, person: string, next = `${WORKSPACE}/
   await page.waitForURL((url) => url.pathname + url.search === next);
 }
 
+/**
+ * An address inside the workspace, typed in — and ready to be used.
+ *
+ * The server draws the page before the browser has made it work: a tab pressed
+ * in that gap does nothing, and a choice made in it is put back. The first
+ * thing the app does once it is running is ask who is signed in, so that
+ * answer is the sign that it can be pressed.
+ */
+export async function arrive(page: Page, path: string) {
+  const running = page.waitForResponse((response) => new URL(response.url()).pathname === "/v1/me");
+  await page.goto(`${WORKSPACE}${path}`);
+  await running;
+}
+
 const SECTIONS = {
   "nav.inbox": "/inbox",
   "nav.today": "/today",
@@ -61,7 +75,7 @@ export async function visit(page: Page, say: Say, section: keyof typeof SECTIONS
     .getByRole("navigation", { name: say("nav.main") })
     .getByRole("link", { name: say(section) });
   if (await link.count()) await link.click();
-  else await page.goto(`${WORKSPACE}${SECTIONS[section]}`);
+  else await arrive(page, SECTIONS[section]);
   await page.waitForURL((url) => url.pathname.startsWith(`${WORKSPACE}${SECTIONS[section]}`));
 }
 

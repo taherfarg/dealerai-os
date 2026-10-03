@@ -2,7 +2,7 @@
  * The shell (docs/sales/08-screens.md § 1), and S0's exit: it opens as any
  * seeded person, in their language, with the navigation their role has.
  */
-import { PEOPLE, WORKSPACE, expect, fits, signInAs, test } from "./fixtures";
+import { PEOPLE, WORKSPACE, arrive, expect, fits, signInAs, test } from "./fixtures";
 
 test("each of the seeded five opens the inbox, in the reader's language and direction", async ({
   page,
@@ -37,13 +37,13 @@ test("the dashboard is offered to those who run the team, and to nobody else", a
     await signInAs(page, person);
     // A phone's bar holds five destinations, and the dashboard is not one of them.
     await expect(offered, person).toHaveCount(phone ? 0 : 1);
-    await page.goto(`${WORKSPACE}/dashboard`);
+    await arrive(page, "/dashboard");
     await expect(page.getByRole("heading", { name: say("dashboard.waiting") })).toBeVisible();
   }
 
   await signInAs(page, PEOPLE.ahmed);
   await expect(offered).toHaveCount(0);
-  await page.goto(`${WORKSPACE}/dashboard`);
+  await arrive(page, "/dashboard");
   await expect(page.getByText(say("dashboard.forManagers"))).toBeVisible();
   await page.getByRole("link", { name: say("dashboard.openMyDay") }).click();
   await page.waitForURL((url) => url.pathname === `${WORKSPACE}/today`);

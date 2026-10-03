@@ -48,6 +48,16 @@ export default defineConfig<Options>({
       timeout: 180_000,
     },
     {
+      // The worker sends what the inbox queues, through the local stand-in for
+      // WhatsApp. Until it has, a customer who was answered is still waiting —
+      // which is the product being right, and why the suite cannot do without it.
+      command: "uv run python -m dealerai.worker",
+      cwd: API_DIR,
+      env: { ...API_ENV, LOG_LEVEL: "info", PYTHONUNBUFFERED: "1" },
+      wait: { stdout: /worker_started/ },
+      timeout: 60_000,
+    },
+    {
       // A development server, because the local sign-in is compiled out of a
       // production build (lib/dev-auth.ts) — and that lock stays.
       command: "npx next dev --port 3100",
