@@ -9,7 +9,7 @@ const DARK = "@media (prefers-color-scheme: dark)";
 /** `--name: #rrggbb`, as written, by name. */
 function values(css: string): Record<string, string> {
   return Object.fromEntries(
-    [...css.matchAll(/--([a-z-]+):\s*(#[0-9a-f]{6})\b/g)].map(
+    [...css.matchAll(/--([a-z0-9-]+):\s*(#[0-9a-f]{6})\b/g)].map(
       (found) => [found[1], found[2]] as const,
     ),
   );
@@ -68,6 +68,8 @@ const PAIRS: readonly (readonly [text: string, fill: string])[] = [
   ["info", "info-soft"],
   ["hot", "background"],
   ["hot", "hot-soft"],
+  // An avatar's initials on its own tint.
+  ...Array.from({ length: 7 }, (_, n) => [`tint-${n}-ink`, `tint-${n}`] as const),
 ];
 
 /** The pairs somebody could not read, said so a person can fix them. */

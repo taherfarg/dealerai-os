@@ -36,6 +36,22 @@
   --info-soft: #d7ebff;
   --hot: #8a3b0c;
   --hot-soft: #ffe2cf;
+
+  /* Seven tints for avatars, one chosen from a person's name ([11] § 3.6). */
+  --tint-0: #ffe2cf;
+  --tint-0-ink: #8a3b0c;
+  --tint-1: #e6defc;
+  --tint-1-ink: #4a2f9e;
+  --tint-2: #d7ebff;
+  --tint-2-ink: #0c4a80;
+  --tint-3: #ffdfe6;
+  --tint-3-ink: #8f1f3c;
+  --tint-4: #d9f2e4;
+  --tint-4-ink: #0b5c40;
+  --tint-5: #fdefc4;
+  --tint-5-ink: #6e4a00;
+  --tint-6: #dcf1f4;
+  --tint-6-ink: #0e5560;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -60,6 +76,21 @@
     --info-soft: #0e2a44;
     --hot: #ffb48a;
     --hot-soft: #3d1d0a;
+
+    --tint-0: #4a2410;
+    --tint-0-ink: #ffc9a6;
+    --tint-1: #2e2460;
+    --tint-1-ink: #cfc4ff;
+    --tint-2: #10304f;
+    --tint-2-ink: #b5d8ff;
+    --tint-3: #4d1626;
+    --tint-3-ink: #ffc2d0;
+    --tint-4: #12382b;
+    --tint-4-ink: #9fe6c5;
+    --tint-5: #40300a;
+    --tint-5-ink: #f7dc8f;
+    --tint-6: #0f3840;
+    --tint-6-ink: #a9e3ec;
   }
 }
 
@@ -82,6 +113,20 @@
   --color-info-soft: var(--info-soft);
   --color-hot: var(--hot);
   --color-hot-soft: var(--hot-soft);
+  --color-tint-0: var(--tint-0);
+  --color-tint-0-ink: var(--tint-0-ink);
+  --color-tint-1: var(--tint-1);
+  --color-tint-1-ink: var(--tint-1-ink);
+  --color-tint-2: var(--tint-2);
+  --color-tint-2-ink: var(--tint-2-ink);
+  --color-tint-3: var(--tint-3);
+  --color-tint-3-ink: var(--tint-3-ink);
+  --color-tint-4: var(--tint-4);
+  --color-tint-4-ink: var(--tint-4-ink);
+  --color-tint-5: var(--tint-5);
+  --color-tint-5-ink: var(--tint-5-ink);
+  --color-tint-6: var(--tint-6);
+  --color-tint-6-ink: var(--tint-6-ink);
   /* What went well is said in the accent's own green. */
   --color-success: var(--accent-ink);
 }
@@ -91,6 +136,36 @@
 @theme {
   --radius-md: 0.75rem;
   --radius-lg: 1.125rem;
+}
+
+@layer components {
+  /* A round button that holds one icon and has a name ([11] § 3.4). */
+  .icon-btn {
+    position: relative;
+    display: inline-grid;
+    place-items: center;
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+    border-radius: 9999px;
+  }
+  .icon-btn:hover {
+    background: var(--surface);
+  }
+
+  /* A count, on the corner of what it counts. */
+  .badge {
+    display: inline-grid;
+    place-items: center;
+    min-width: 1.125rem;
+    height: 1.125rem;
+    padding-inline: 0.3125rem;
+    border-radius: 9999px;
+    background: var(--accent);
+    color: var(--on-accent);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    line-height: 1;
+  }
 }
 
 body {
