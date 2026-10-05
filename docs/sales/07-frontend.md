@@ -196,13 +196,35 @@ Escape and the arrows; shortcuts are for somebody who works the inbox from a des
 |---|---|
 | Unit (Vitest) | Money and date formatting, relative times, the window countdown, edit-ratio maths, query-key builders |
 | Component (Testing Library) | Composer refuses free text with a closed window and opens the template picker · draft panel records sent, edited and discarded · role-gated actions hidden · message bubble per type |
-| End-to-end (Playwright) | Against the local stack with seeded data: sign in, inbox → reply using a draft → create a lead → move a stage → send a follow-up task → manager dashboard. Run as owner, manager and salesperson, in English and Arabic, at 360px and 1440px |
-| Visibility | The end-to-end suite asserts a salesperson cannot see a colleague's customer, in the UI and by pasting the URL |
+| End-to-end (Playwright) | `apps/web/e2e`, against a stack of its own with seeded data. The day's work — sign in, inbox → reply using a draft → create a lead → move a stage → send a follow-up task → manager dashboard — as owner, manager and salesperson, in English and Arabic, at 360px and 1440px. Then, in English on a desk and in Arabic on a phone: the shell, joining, a path through every other screen, and `axe-core`, one top heading and no sideways scroll on every page |
+| Visibility | The end-to-end suite asserts a salesperson cannot see a colleague's customer — in a list, in a search, and by pasting the URL of their conversation or their record |
+| Live | Two people at once: what a salesperson does reaches a manager's open pages without a reload |
 | CI | typecheck · `check:rtl` · lint · unit · component · end-to-end · OpenAPI drift |
 
 No screenshot comparisons: fonts differ between a developer's Windows machine and CI, so a pixel
 diff would measure the font stack, not the layout (the lesson from the creative templates in
 DealerAI OS T3.5). Structural assertions instead.
+
+**Running the end-to-end suite.** Docker up; `npx playwright install chromium`, once; no other
+`next dev` in this checkout, because Next refuses a second; then `npm run e2e` — with
+`E2E_DB_PORT=54432` on a machine where Windows has taken the usual port. It makes and migrates a
+database of its own (`dealerai_e2e`), starts an API on :8100, the worker, and a development web
+server on :3100, and puts the seeded workspace back before every test. So a run never empties a
+workspace somebody is looking at, and — the model key being blank — never buys anything. The
+stack's every setting is in `e2e/stack.ts`; CI's `e2e` job runs the same thing.
+
+- **A development server, not a build**: the local sign-in is compiled out of a production build
+  ([01](01-architecture.md) §7), and that lock is not loosened for a test.
+- **The worker is in it**: a customer who has been answered is still waiting until the reply has
+  actually been sent, and only the worker sends.
+- **A test says what the app says**: it finds a control by its role and by the words in
+  `messages/en.ts` and `ar.ts`, so one test runs in both languages and a change of wording does
+  not break it. What has no words of its own has a `data-` hook (`data-lead`, `data-stage`,
+  `data-task`, `data-kind`, `data-sla`).
+- **An address typed in is waited for** (`arrive()`): the server draws a page before the browser
+  has made it work, and a tab pressed in that gap does nothing.
+- **Not in it**: a real sign-in (staging's, [10](10-staging.md) §7), Safari and Firefox, and what
+  the worker does with a model.
 
 ---
 
