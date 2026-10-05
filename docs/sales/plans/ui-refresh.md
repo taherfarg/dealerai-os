@@ -1870,3 +1870,110 @@ panel's link to the pipeline is still the only one.
 | The fields inside *What we know* are as they were | 4, with the customer's own page |
 | A sent message's ticks are still characters | When somebody minds |
 | The flag is two letters wherever Windows draws it | Not ours to fix; a phone draws the flag |
+
+---
+
+# Step 4 — Every page on the canvas, and the customer screens
+
+**Goal:** no page is a white rectangle from edge to edge any more, and no button or field in the
+app is written out by hand. Customers, a customer's own page, the pipeline, tasks and My day are
+drawn with the same avatars, pills and cards as the inbox.
+
+**How this step was planned.** By counting again.
+
+| What was looked at | What it found |
+|---|---|
+| Every class string with `min-h-11`, `bg-surface` or a bordered corner, outside what steps 2 and 3 redrew | 182 of them in 108 spellings. Forty spellings are plainly a field, a filled button or a quiet one, written out 105 times in 44 files |
+| The pass for those, run without writing | 105 changes in 44 files. One string is a button in two files and an input in a third (`dev-login`): that file is put right by hand |
+| How a page is put on the screen | Every page draws straight onto `<main>`, and its panels are the soft fill. Putting each page on the mint canvas panel by panel is a hundred small decisions; putting the page itself on one white sheet is one, and the soft panels inside it stay right |
+| The inbox | It draws its own panels edge to edge, so it must not get the sheet. The sheet steps aside for it with `has-[>[data-inbox]]:contents` |
+| The tests of `CustomerRow`, `LeadCard`, `StatTile` | None names a colour or a shape |
+
+**Decisions made here.**
+
+- **The page is a sheet.** On a desk `<main>` is the canvas and every page but the inbox sits on
+  one white sheet with the 18 px corner. On a phone the sheet is the whole screen, as now: there
+  is no room for a margin worth having.
+- **A dialog is white**, like the sheet, and what a pointer is over is the soft fill — everywhere,
+  in one word-for-word change.
+- **`.card` is still not written.** The sheet is one element and says its own classes; nothing
+  else needs the name yet.
+
+## What Step 4 does not build
+
+| Item | Why, and when |
+|---|---|
+| The dashboard's tiles, the settings' navigation, the sign-in pages' layout | Step 5. Their buttons and fields change here, with everybody else's |
+| The fields inside *What we know* | Still their own small machine |
+| Dragging a lead | It works as it did |
+
+## File structure
+
+| File | Responsibility |
+|---|---|
+| `apps/web/app/globals.css` | **Modify.** `btn-danger` |
+| `apps/web/components/Shell.tsx`, `app/[tenant]/inbox/layout.tsx` | **Modify.** The sheet; the inbox outside it |
+| `apps/web/components/Modal.tsx` | **Modify.** White |
+| 44 files under `apps/web/app` and `apps/web/components` | **Modify,** by the pass: whole class strings to `field`, `btn`, `icon-btn` |
+| `apps/web/components/crm/CustomerRow.tsx`, `LeadCard.tsx`, `BoardColumn.tsx` | **Modify.** Avatars, band pills, cards |
+| `apps/web/app/[tenant]/customers/page.tsx`, `customers/[contactId]/page.tsx`, `pipeline/page.tsx` | **Modify.** The soft search; the customer's header |
+
+---
+
+## Task P1: The sheet
+
+- [ ] `globals.css`: `.btn-danger` — the danger's own colour filled, the page's colour on it, a
+  pair the palette's test already holds.
+- [ ] `Shell.tsx`: `<main>` is `bg-ground min-w-0 md:p-4`, and inside it one element holds the
+  page: `bg-background min-h-full p-4 pb-28 has-[>[data-inbox]]:contents md:rounded-[1.125rem]
+  md:p-6`.
+- [ ] `inbox/layout.tsx`: its root is `data-inbox`, and takes back only what `<main>` now gives:
+  `md:-m-4`.
+- [ ] `Modal.tsx`: `bg-surface` becomes `bg-background`.
+
+## Task P2: The pass
+
+- [ ] Saved outside the repository as `controls.mjs`, made as step 1's was: a list of whole class
+  strings, each with what it becomes, run dry and then for real. What it turns into what:
+
+| Written out as | Becomes |
+|---|---|
+| `min-h-11 rounded-md border border-border px-2 …` and its fourteen relatives | `field`, keeping any width, margin or text size of its own |
+| `bg-accent min-h-11 rounded-md px-… font-medium text-on-accent …`, eight spellings | `btn btn-primary` |
+| `min-h-11 rounded-md bg-danger … text-background …` | `btn btn-danger` |
+| `hover:bg-background min-h-11 rounded-md px-3 …`, eight spellings; `"min-h-11 px-3"` and `"min-h-11 px-3 text-sm"` | `btn` or `btn btn-quiet` |
+| `hover:bg-background min-h-11 min-w-11 rounded-md …` | `icon-btn` |
+| `hover:bg-background`, wherever it is left | `hover:bg-surface` |
+
+Expected, dry: `105 changes in 44 files`. Then `dev-login`'s two inputs, which the pass took for
+buttons, are `field`.
+
+## Task P3: The customer screens
+
+- [ ] **`CustomerRow`**: the avatar with the flag, the name given no country; the band as `pill`
+  from `band.ts`; *asked not to be messaged* as `pill pill-danger`.
+- [ ] **`LeadCard`**: a white card with the 18 px corner on its soft column; a small avatar; the
+  band and score as a pill. **`BoardColumn`**: the soft fill, the same corner.
+- [ ] **Customers**: the search is `field field-soft`. **A customer's page**: a large avatar
+  beside the name.
+
+## Task P4: The whole check, the suite, and the look
+
+- [ ] `npm run check:web`; `npm run build`; `E2E_DB_PORT=54432 npm run e2e` — 65 passed.
+- [ ] The photographs: Customers, a customer, Pipeline, Tasks, My day — a desk in English, a phone
+  in Arabic, one of them dark; and the dashboard and a settings form, to see what the pass did to
+  screens this step did not otherwise touch.
+- [ ] `## Step 4 review`, here; where it stands, in [11](../11-ui-refresh.md).
+
+## Spec coverage (Step 4)
+
+| Requirement | Task |
+|---|---|
+| [11](../11-ui-refresh.md) §3.4 — every repeated control behind one class | P2 |
+| §5.2 — content on `ground`, with white cards | P1: one sheet a page, on a desk |
+| §5.2 — Customers, the customer's page, Pipeline, Tasks, My day | P2, P3 |
+| §5.4 — a dialog | P1 |
+
+## Execution (Step 4)
+
+Inline, straight on from step 3.
