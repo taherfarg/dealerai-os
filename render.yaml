@@ -2,7 +2,7 @@
 # worker in one container, in Singapore beside staging's database.
 #
 # Written on 2026-10-05, when the owner asked for a host without a monthly
-# charge, and not yet deployed: the field names were read from Render's
+# charge and chose this one, and not yet deployed: the field names were read from Render's
 # Blueprint reference that day, and the first deploy is what proves them. The
 # container itself was run as Render will run it — `python -m dealerai.both`,
 # PORT=10000 — and is known to work.

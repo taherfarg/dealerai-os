@@ -6470,8 +6470,9 @@ share a container — `python -m dealerai.both`, the worker a child that is star
 ends — and [`render.yaml`](../../../render.yaml) describes the service. Run here as Render will
 run it: the API served, the worker was killed and came back in five seconds, 137 MB for the pair,
 and the container stopped cleanly. The start-up check gained two refusals on the way, for what a
-host's form can do that a file cannot: leave `WEB_ORIGINS` or `DATABASE_URL` blank. Whether
-staging goes there is the owner's to say; Fly stays the host for whatever must not sleep.
+host's form can do that a file cannot: leave `WEB_ORIGINS` or `DATABASE_URL` blank. The owner
+said yes to it the same day: staging goes to Render, and Fly stays the host for whatever must
+not sleep.
 
 **And on GitHub:** the `e2e` job ran and passed on pull request #2 that day — four checks green.
 The review above says it had not yet run there; it has now.
