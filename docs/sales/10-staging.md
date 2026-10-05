@@ -14,19 +14,20 @@ Nothing here has been done yet. The code's half was built and checked on a lapto
 
 ---
 
-## 1. What has to be decided
+## 1. What has been decided, and what has not
 
-| Decision | What is known |
+| Decision | Where it stands |
 |---|---|
-| **Where the Supabase project lives** | The project earlier docs named is gone, so nothing has to be moved. [00](00-prd.md) §12 Q1 proposed Mumbai (`ap-south-1`): from the UAE, Tokyo added 150–200 ms to every request. If Supabase lists a region nearer the Gulf by now, that one |
-| **Where the API and the worker run** | Any host that runs a container image, in a region beside the database, and that (a) never puts a process to sleep — a webhook has to be answered, and the worker has no visitors to wake it — and (b) lets a response stay open, which is how a screen hears about a new message. [../01-system-architecture.md](../01-system-architecture.md) §10 named Fly.io or Railway. Fly has regions in Mumbai and Tokyo both |
+| **Where the Supabase project lives** | **Mumbai (`ap-south-1`) — decided 2026-10-05.** The project earlier docs named is gone, so nothing has to be moved; [00](00-prd.md) §12 Q1 proposed Mumbai because Tokyo added 150–200 ms to every request from the UAE, and Supabase offers no region nearer the Gulf |
+| **Where the API and the worker run** | **Fly.io, in Mumbai (`bom`) — decided 2026-10-05.** What any host had to give: a container image run twice, in a region beside the database, a process that is never put to sleep — a webhook has to be answered, and the worker has no visitors to wake it — and a response that may stay open, which is how a screen hears about a new message. [`fly.toml`](../../fly.toml) says all of that; §4 is the commands |
 | **Where the web app runs** | Vercel, as the architecture says |
-| **Who sends the email** | Supabase's own sender is for trying things: a few emails an hour, to the project's own team. A real sender is an account with an email service (Resend, Postmark, Amazon SES, …) and a domain it may send from |
+| **Who sends the email** | **Not decided.** Supabase's own sender is for trying things: a few emails an hour, to the project's own team. A real sender is an account with an email service (Resend, Postmark, Amazon SES, …) and a domain it may send from. Until there is one, §7 can be walked by the project's own team and nobody else |
 
 ## 2. The project (founder, then one command)
 
-1. Create the Supabase project in the chosen region. Note its address,
-   `https://<project-ref>.supabase.co`.
+1. Create the Supabase project in Mumbai (`ap-south-1`). Note its address,
+   `https://<project-ref>.supabase.co`. On the organisation's plan a project is a monthly
+   charge of its own — 10 US dollars when this was written.
 2. Copy `.env.staging.example` to `.env.staging` and fill in the **session pooler** address, with
    the database password, from the project's *Connect* panel. The file is gitignored.
 3. Apply the schema, from a laptop:
@@ -75,9 +76,10 @@ half there, and that is the only kind of session the API accepts outside a lapto
 means the project still signs with a shared secret: migrate it to signing keys in its JWT
 settings. (`npm run smoke` checks this.)
 
-## 4. The API and the worker (founder picks the host)
+## 4. The API and the worker (Fly.io)
 
-One image, built from the repository's root, run twice:
+One image, built from the repository's root, run twice. Fly builds it itself from
+[`fly.toml`](../../fly.toml); to build it by hand:
 
 ```bash
 docker build -f apps/api/Dockerfile -t dealerai-api .
@@ -117,6 +119,44 @@ below). Never: `STORAGE_DIR`, `MIGRATION_DATABASE_URL`.
 address, a secret that is short or is the one from Supabase's documentation, `WEB_ORIGINS` still
 naming localhost, the transaction pooler (`:6543`) where the session pooler belongs. Read the
 first lines of the log.
+
+### On Fly.io
+
+`fly.toml` has not been deployed yet: its keys were read from Fly's reference on the day Fly was
+chosen, and the first deploy is what proves them. In a terminal of your own — the account, the
+card and the sign-in are yours:
+
+```bash
+pwsh -Command "iwr https://fly.io/install.ps1 -useb | iex"    # Fly's command-line tool, once
+fly auth login                                                 # opens a browser
+fly apps create dealerai-staging                               # or a name that is free: put it in fly.toml
+```
+
+Then the settings in the table above — all but `ENV` and `LOG_LEVEL`, which are in `fly.toml`.
+`fly secrets import` reads `NAME=VALUE` lines from the keyboard, so nothing is in a command line,
+a history or a chat. Paste the lines, then end the input (Ctrl+Z and Enter on Windows, Ctrl+D
+elsewhere):
+
+```bash
+fly secrets import --stage
+```
+
+A secret that is made rather than copied need never be seen at all:
+
+```bash
+echo "SUPABASE_JWT_SECRET=$(openssl rand -hex 32)" | fly secrets import --stage
+```
+
+Then build and start it — one machine for each of the two processes:
+
+```bash
+fly deploy --ha=false
+fly scale count api=1 worker=1     # if it made more
+fly logs                           # a wrong setting is named in the first lines
+```
+
+The API is then at `https://<app>.fly.dev`: that is `<api>` everywhere on this page, and what
+`NEXT_PUBLIC_API_URL` is set to in §5.
 
 *How to tell:* `https://<api>/internal/health` answers
 `{"status":"ok","env":"staging","database":"ok","queue":{"waiting":0,"oldest_seconds":0}}`.

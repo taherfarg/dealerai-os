@@ -1,0 +1,58 @@
+# Staging on Fly.io: the API and the worker, one image, two process groups
+# (docs/sales/10-staging.md § 4). The web app is Vercel's.
+#
+#   fly deploy --ha=false        # from the repository's root
+#
+# Written on 2026-10-05, when Fly.io was chosen, and not yet deployed: the keys
+# were read from Fly's reference that day, and the first `fly deploy` is what
+# proves them.
+#
+# No secret is in this file, and no address that is not known yet. Everything
+# else the processes need — DATABASE_URL, SUPABASE_URL, SUPABASE_JWT_SECRET,
+# WEB_ORIGINS, GOOGLE_API_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT — is set with
+# `fly secrets import`, which reads it from the keyboard or a pipe. A process
+# that is missing one says which, in its first lines, and does not start.
+
+# The name is the owner's to choose, and has to be free on Fly.
+app = "dealerai-staging"
+
+# Mumbai, beside the Supabase project (ap-south-1).
+primary_region = "bom"
+
+[build]
+  dockerfile = "apps/api/Dockerfile"
+
+[env]
+  ENV = "staging"
+  LOG_LEVEL = "info"
+
+# Each takes the place of the image's CMD.
+[processes]
+  api = "uvicorn dealerai.main:app --host 0.0.0.0 --port 8000"
+  worker = "python -m dealerai.worker"
+
+[http_service]
+  processes = ["api"]
+  internal_port = 8000
+  force_https = true
+  # Never asleep. A webhook has to be answered at once; a screen holds a
+  # response open to hear about a new message; and nothing would wake it for
+  # either. The worker has no service at all, so nothing stops it.
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    method = "GET"
+    path = "/internal/health"
+    interval = "15s"
+    timeout = "5s"
+    grace_period = "20s"
+
+# Both processes. Measured in this image with nothing to do: the API holds
+# about 90 MB and the worker about 70 MB. The rest is room for what has not
+# been measured — a document being read, a voice note on its way to the model.
+# A knob, not a finding: turn it when staging has had real work.
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

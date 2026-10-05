@@ -186,7 +186,7 @@ WhatsApp quality rating drops · template rejections · reps reverting to the ph
 | Phone number hidden (usernames) splits a customer in two | Medium | BSUID-first identity; manual merge with audit |
 | Arabic dialect or Darija voice notes mis-transcribed | Medium | Transcript shown beside the audio; drafts cite it; 50-note spot check before rollout |
 | Visibility RLS slows large lists | Medium | Visible owners computed once per query; owner-column indexes; measured on seeded volume |
-| Supabase in Tokyo adds 150–200 ms per request from the UAE | Medium | Q1 below — recreate in Mumbai while the project is empty |
+| Supabase in Tokyo adds 150–200 ms per request from the UAE | Medium | Q1 below — answered: the new project is made in Mumbai |
 | Template spend outside the window grows | Low | Follow-ups prefer the open window; marketing templates only with consent; costs visible per category |
 
 ---
@@ -195,7 +195,7 @@ WhatsApp quality rating drops · template rejections · reps reverting to the ph
 
 | # | Question | Needed by | Owner |
 |---|---|---|---|
-| Q1 | Recreate the Supabase project in Mumbai (ap-south-1) before real customer data? | Before the pilot | Founder |
+| Q1 | ~~Recreate the Supabase project in Mumbai (ap-south-1) before real customer data?~~ **Answered 2026-10-05: Mumbai.** The first project was found gone, so there is nothing to move: a new one is made there, and the API and the worker run beside it on Fly.io ([10](10-staging.md) §1) | — | Founder |
 | Q2 | Which two salespeople pilot first? | Week 11 | Founder |
 | Q3 | Default Arabic register for UAE customers: mirror the customer, or Gulf-leaning formal? | Week 7 (drafts) | Founder + sales team |
 | Q4 | When does the SaaS company exist, so the Tech Provider can move to it? | Phase 3 | Founder |

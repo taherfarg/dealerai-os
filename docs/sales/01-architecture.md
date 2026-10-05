@@ -219,7 +219,7 @@ must pass. Instagram and Messenger (Phase 2) are new files against the same suit
 
 | Component | Change |
 |---|---|
-| `api` | Must support long-lived streaming responses (Fly.io / Railway, not serverless). One extra Postgres connection per process for LISTEN, on the session pooler. One image, `apps/api/Dockerfile`, which serves the API by default. Outside a laptop it refuses to start with settings that would fail on the first request, naming each (`config.deploy_problems`) |
+| `api` | Must support long-lived streaming responses — Fly.io, in Mumbai, as decided on 2026-10-05 ([`fly.toml`](../../fly.toml)); not serverless. One extra Postgres connection per process for LISTEN, on the session pooler. One image, `apps/api/Dockerfile`, which serves the API by default. Outside a laptop it refuses to start with settings that would fail on the first request, naming each (`config.deploy_problems`) |
 | `worker` | Media download, transcription and push added; no new system packages. The same image, with `python -m dealerai.worker`, and the same refusal |
 | `web` | Vercel; `NEXT_PUBLIC_API_URL`; PWA manifest and service worker |
 | Supabase | A new project: the first one is gone, which answers Q1 ([00](00-prd.md) §12) by where the new one is made. Sessions are verified against the keys it publishes (`core/security.py`). Storage for message media is not set up, and needs a decision first ([10](10-staging.md) §8) |

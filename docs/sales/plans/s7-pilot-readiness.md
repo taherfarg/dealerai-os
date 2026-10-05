@@ -6429,4 +6429,13 @@ CSS; `npm run check:openapi` — no drift; `CI=1 npm run e2e` — 65 passed.
    staging; the same test's forged, expired, misaddressed and unsigned tokens refused; a laptop's
    token refused there and accepted here.
 
+**Decided on 2026-10-05, after this review:** the Supabase project is made in Mumbai
+(`ap-south-1`), and the API and the worker run on Fly.io beside it (`bom`). That put a host's own
+file within reach — [`fly.toml`](../../../fly.toml): two process groups from the one image, never
+asleep, `/internal/health` as the check — and the commands in [10](../10-staging.md) §4. It has
+not been deployed: the first `fly deploy` is what proves it. The machines' memory is set from a
+measurement (the API holds about 90 MB with nothing to do, the worker about 70) and a margin that
+is a guess. Still open on the founder's track: making the project, the Fly account, who sends the
+email, and the Google client.
+
 ---
