@@ -8,8 +8,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "The dealership's customers, in one inbox.",
     start_url: "/",
     display: "standalone",
-    background_color: "#0a2540",
-    theme_color: "#0a2540",
+    background_color: "#0f7a55",
+    theme_color: "#0f7a55",
     icons: [
       { src: "/icon/192", sizes: "192x192", type: "image/png" },
       { src: "/icon/512", sizes: "512x512", type: "image/png" },
