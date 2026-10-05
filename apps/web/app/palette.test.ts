@@ -39,12 +39,14 @@ function contrast(one: string, other: string): number {
  */
 const PAIRS: readonly (readonly [text: string, fill: string])[] = [
   ["foreground", "background"],
+  ["foreground", "ground"],
   ["foreground", "surface"],
   ["foreground", "accent-soft"],
   ["foreground", "warning-soft"],
   ["foreground", "info-soft"],
   ["foreground", "danger-soft"],
   ["muted", "background"],
+  ["muted", "ground"],
   ["muted", "surface"],
   ["muted", "accent-soft"],
   ["muted", "warning-soft"],
