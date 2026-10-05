@@ -89,7 +89,7 @@ export function TemplatePicker({
         <select
           value={chosen?.id ?? ""}
           onChange={(event) => pick(event.target.value)}
-          className="min-h-11 rounded-md border border-black/10 bg-transparent px-2 text-sm dark:border-white/15"
+          className="min-h-11 rounded-md border border-border bg-transparent px-2 text-sm"
         >
           <option value="">{t("template.pick")}</option>
           {offered.map((template) => (
@@ -114,7 +114,7 @@ export function TemplatePicker({
                 onChange={(event) =>
                   setValues(values.map((old, at) => (at === index ? event.target.value : old)))
                 }
-                className="min-h-11 min-w-0 flex-1 rounded-md border border-black/10 px-3 text-sm dark:border-white/15"
+                className="min-h-11 min-w-0 flex-1 rounded-md border border-border px-3 text-sm"
                 dir="auto"
               />
             </label>
@@ -127,7 +127,7 @@ export function TemplatePicker({
             </span>
             <Auto
               as="p"
-              className="bg-accent max-w-[80%] self-end whitespace-pre-wrap rounded-lg px-3 py-2 text-sm text-black"
+              className="bg-accent max-w-[80%] self-end whitespace-pre-wrap rounded-lg px-3 py-2 text-sm text-on-accent"
             >
               {filled(chosen.body, values)}
             </Auto>
@@ -148,7 +148,7 @@ export function TemplatePicker({
                 },
               )
             }
-            className="bg-accent min-h-11 self-end rounded-md px-4 text-sm font-medium text-black disabled:opacity-50"
+            className="bg-accent min-h-11 self-end rounded-md px-4 text-sm font-medium text-on-accent disabled:opacity-50"
           >
             {t("template.send")}
           </button>
@@ -156,7 +156,7 @@ export function TemplatePicker({
       )}
 
       {send.isError && (
-        <p role="alert" className="text-xs text-red-600 dark:text-red-400">
+        <p role="alert" className="text-xs text-danger">
           {send.error instanceof ApiError
             ? (send.error.problem.detail ?? send.error.problem.title)
             : t("thread.sendFailed")}

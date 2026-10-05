@@ -9,7 +9,7 @@ import { useT } from "@/lib/i18n-client";
 type Editable = { id?: string; name: string; category: Stage["category"] };
 
 const CATEGORIES = ["open", "won", "lost"] as const;
-const FIELD = "min-h-11 rounded-md border border-black/10 px-2 dark:border-white/15";
+const FIELD = "min-h-11 rounded-md border border-border px-2";
 
 /**
  * One board's stages, as they will be saved, in order. The PUT replaces the
@@ -118,7 +118,7 @@ export function StageEditor({ pipeline }: { pipeline: Pipeline }) {
               type="button"
               disabled={replace.isPending || stages.some((stage) => !stage.name.trim())}
               onClick={() => replace.mutate(stages, { onSuccess: () => setDraft(null) })}
-              className="bg-accent min-h-11 rounded-md px-4 text-sm font-medium text-black disabled:opacity-50"
+              className="bg-accent min-h-11 rounded-md px-4 text-sm font-medium text-on-accent disabled:opacity-50"
             >
               {t("common.save")}
             </button>
@@ -126,7 +126,7 @@ export function StageEditor({ pipeline }: { pipeline: Pipeline }) {
         )}
       </div>
       {replace.isError && (
-        <p role="alert" className="mt-1 text-xs text-red-600 dark:text-red-400">
+        <p role="alert" className="mt-1 text-xs text-danger">
           {replace.error instanceof ApiError
             ? (replace.error.problem.detail ?? replace.error.problem.title)
             : t("settings.saveFailed")}

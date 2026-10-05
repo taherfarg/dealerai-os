@@ -29,7 +29,7 @@ function WaitingRow({
     .sort((a, b) => Number(b.accepting_chats) - Number(a.accepting_chats));
 
   return (
-    <li className="flex flex-wrap items-center gap-2 border-b border-black/5 py-2 dark:border-white/10">
+    <li className="flex flex-wrap items-center gap-2 border-b border-border py-2">
       {/* min-w-24: who is waiting is the row's point, and on a phone the rest
           of the row used to squeeze it to nothing. What does not fit beside
           the name goes to the next line. */}
@@ -54,7 +54,7 @@ function WaitingRow({
           value=""
           disabled={assign.isPending}
           onChange={(event) => event.target.value && assign.mutate(event.target.value)}
-          className="min-h-11 rounded-md border border-black/10 px-2 text-sm dark:border-white/15"
+          className="min-h-11 rounded-md border border-border px-2 text-sm"
         >
           <option value="">{t("dashboard.reassign")}</option>
           {colleagues.map((member) => (

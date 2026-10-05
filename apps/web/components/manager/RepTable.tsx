@@ -8,9 +8,9 @@ import { useLocale, useT } from "@/lib/i18n-client";
 import { tone } from "./StatTile";
 
 const TONE_TEXT = {
-  ok: "text-green-700 dark:text-green-400",
-  warn: "text-amber-700 dark:text-amber-400",
-  bad: "text-red-700 dark:text-red-400",
+  ok: "text-success",
+  warn: "text-warning",
+  bad: "text-danger",
 } as const;
 
 function Median({ seconds, target }: { seconds: number | null; target: number }) {
@@ -108,7 +108,7 @@ export function RepTable({
         <tbody>
           {team.map((rep) => (
             <Fragment key={rep.user.id}>
-              <tr className="border-t border-black/5 text-center dark:border-white/10">
+              <tr className="border-t border-border text-center">
                 <td className="py-1 text-start">
                   <button
                     type="button"

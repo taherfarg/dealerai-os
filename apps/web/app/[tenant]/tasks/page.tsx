@@ -49,7 +49,7 @@ export default function TasksPage({ params }: { params: Promise<{ tenant: string
                 bucket === name
                   ? "bg-background font-medium"
                   : name === "overdue"
-                    ? "text-red-600 dark:text-red-400"
+                    ? "text-danger"
                     : "text-muted"
               }`}
             >
@@ -63,7 +63,7 @@ export default function TasksPage({ params }: { params: Promise<{ tenant: string
             value={filters.assignee}
             aria-label={t("tasks.team")}
             onChange={(event) => setFilters({ assignee: event.target.value })}
-            className="text-muted ms-auto min-h-11 rounded-md border border-black/10 px-2 text-sm dark:border-white/15"
+            className="text-muted ms-auto min-h-11 rounded-md border border-border px-2 text-sm"
           >
             <option value="me">{t("tasks.mine")}</option>
             <option value="team">{t("tasks.team")}</option>

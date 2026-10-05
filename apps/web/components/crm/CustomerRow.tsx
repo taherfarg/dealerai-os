@@ -7,9 +7,9 @@ import { formatRelative } from "@/lib/format";
 import { useLocale, useT } from "@/lib/i18n-client";
 
 const BAND_TONE: Record<string, string> = {
-  hot: "bg-red-500/15 text-red-700 dark:text-red-300",
-  warm: "bg-amber-500/15 text-amber-800 dark:text-amber-200",
-  cold: "bg-blue-500/10 text-blue-700 dark:text-blue-300",
+  hot: "bg-hot-soft text-hot",
+  warm: "bg-warning-soft text-warning",
+  cold: "bg-info-soft text-info",
 };
 
 /**
@@ -32,7 +32,7 @@ export function CustomerRow({
   return (
     <li data-band={customer.band ?? "none"} className={onSelect ? "flex items-stretch" : undefined}>
       {onSelect && (
-        <label className="flex min-h-11 min-w-11 items-center justify-center border-b border-black/5 dark:border-white/10">
+        <label className="flex min-h-11 min-w-11 items-center justify-center border-b border-border">
           <input
             type="checkbox"
             checked={selected}
@@ -43,14 +43,14 @@ export function CustomerRow({
       )}
       <Link
         href={href}
-        className={`hover:bg-background grid gap-x-3 gap-y-1 border-b border-black/5 px-3 py-3 md:grid-cols-[1fr_10rem_8rem_6rem_6rem] md:items-center dark:border-white/10 ${
+        className={`hover:bg-background grid gap-x-3 gap-y-1 border-b border-border px-3 py-3 md:grid-cols-[1fr_10rem_8rem_6rem_6rem] md:items-center ${
           onSelect ? "min-w-0 flex-1" : ""
         }`}
       >
         <span className="flex min-w-0 items-baseline gap-2 text-sm font-medium">
           <CustomerName country={customer.country} name={customer.name} />
           {customer.opted_out && (
-            <span className="shrink-0 rounded bg-red-500/15 px-1 text-[10px] uppercase text-red-700 dark:text-red-300">
+            <span className="shrink-0 rounded bg-danger-soft px-1 text-[10px] uppercase text-danger">
               {t("customer.optedOut")}
             </span>
           )}

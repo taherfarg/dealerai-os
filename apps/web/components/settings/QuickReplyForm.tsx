@@ -8,7 +8,7 @@ import { useT } from "@/lib/i18n-client";
 const LANGUAGES = ["ar", "en", "fr"] as const;
 /** The table's own check (0011): a slash and a lowercase word. */
 const SHORTCUT = /^\/[a-z0-9-]{1,30}$/;
-const FIELD = "min-h-11 rounded-md border border-black/10 px-2 dark:border-white/15";
+const FIELD = "min-h-11 rounded-md border border-border px-2";
 
 /** A new quick reply, or one being changed — saved whole, every language. */
 export function QuickReplyForm({
@@ -87,7 +87,7 @@ export function QuickReplyForm({
       ))}
       <p className="text-muted text-xs">{t("quick.nameHint")}</p>
       {save.isError && (
-        <p role="alert" className="text-xs text-red-600 dark:text-red-400">
+        <p role="alert" className="text-xs text-danger">
           {save.error instanceof ApiError
             ? (save.error.problem.detail ?? save.error.problem.title)
             : t("settings.saveFailed")}
@@ -100,7 +100,7 @@ export function QuickReplyForm({
         <button
           type="submit"
           disabled={!valid || save.isPending}
-          className="bg-accent min-h-11 rounded-md px-4 font-medium text-black disabled:opacity-50"
+          className="bg-accent min-h-11 rounded-md px-4 font-medium text-on-accent disabled:opacity-50"
         >
           {t("common.save")}
         </button>

@@ -47,14 +47,14 @@ export default function CustomersPage({ params }: { params: Promise<{ tenant: st
           placeholder={t("customers.search")}
           aria-label={t("customers.search")}
           onChange={(event) => setFilters({ q: event.target.value })}
-          className="min-h-11 flex-1 rounded-md border border-black/10 px-3 text-sm dark:border-white/15"
+          className="min-h-11 flex-1 rounded-md border border-border px-3 text-sm"
         />
         {canSeeOthers && (
           <select
             value={filters.owner_id}
             aria-label={t("customers.owner")}
             onChange={(event) => setFilters({ owner_id: event.target.value })}
-            className="min-h-11 rounded-md border border-black/10 px-2 text-sm dark:border-white/15"
+            className="min-h-11 rounded-md border border-border px-2 text-sm"
           >
             <option value="">{t("customers.anyOwner")}</option>
             {(members.data ?? []).map((member) => (
@@ -68,7 +68,7 @@ export default function CustomersPage({ params }: { params: Promise<{ tenant: st
           value={filters.band}
           aria-label={t("customers.band")}
           onChange={(event) => setFilters({ band: event.target.value })}
-          className="min-h-11 rounded-md border border-black/10 px-2 text-sm dark:border-white/15"
+          className="min-h-11 rounded-md border border-border px-2 text-sm"
         >
           <option value="">{t("customers.anyBand")}</option>
           {(["hot", "warm", "cold"] as const).map((band) => (

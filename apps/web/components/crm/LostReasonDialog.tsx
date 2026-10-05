@@ -31,7 +31,7 @@ export function LostReasonDialog({
         onKeyDown={(event) => {
           if (event.key === "Enter" && reason.trim()) onConfirm(reason.trim());
         }}
-        className="mt-3 min-h-11 w-full rounded-md border border-black/10 px-3 text-sm dark:border-white/15"
+        className="mt-3 min-h-11 w-full rounded-md border border-border px-3 text-sm"
       />
       <div className="mt-4 flex justify-end gap-2">
         <button type="button" onClick={onCancel} className="min-h-11 px-3 text-sm">
@@ -41,7 +41,7 @@ export function LostReasonDialog({
           type="button"
           disabled={!reason.trim()}
           onClick={() => onConfirm(reason.trim())}
-          className="bg-accent min-h-11 rounded-md px-4 text-sm font-medium text-black disabled:opacity-50"
+          className="bg-accent min-h-11 rounded-md px-4 text-sm font-medium text-on-accent disabled:opacity-50"
         >
           {t("lost.confirm")}
         </button>

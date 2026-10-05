@@ -78,7 +78,7 @@ export function ReassignDialog({
           type="button"
           disabled={!chosen || reassign.isPending}
           onClick={() => reassign.mutate(chosen, { onSuccess: onClose })}
-          className="bg-accent min-h-11 rounded-md px-4 text-sm font-medium text-black disabled:opacity-50"
+          className="bg-accent min-h-11 rounded-md px-4 text-sm font-medium text-on-accent disabled:opacity-50"
         >
           {t("reassign.confirm")}
         </button>

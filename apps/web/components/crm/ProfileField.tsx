@@ -93,7 +93,7 @@ export function ProfileField({
             defaultValue={String(field?.value ?? "")}
             onChange={(event) => save(event.target.value)}
             onBlur={() => setEditing(false)}
-            className="min-h-11 rounded-md border border-black/10 px-2 text-sm dark:border-white/15"
+            className="min-h-11 rounded-md border border-border px-2 text-sm"
             aria-label={t(`profile.${name}` as MessageKey)}
           >
             <option value="">{t("profile.unknown")}</option>
@@ -113,7 +113,7 @@ export function ProfileField({
               if (event.key === "Enter") save(event.currentTarget.value);
               if (event.key === "Escape") setEditing(false);
             }}
-            className="min-h-11 w-40 rounded-md border border-black/10 px-2 text-end text-sm dark:border-white/15"
+            className="min-h-11 w-40 rounded-md border border-border px-2 text-end text-sm"
           />
         )
       ) : (
@@ -135,7 +135,7 @@ export function ProfileField({
               // The mark stays small; what a thumb presses is the height of the row.
               className="inline-flex min-h-11 min-w-11 items-center justify-center disabled:opacity-60"
             >
-              <span className="rounded bg-blue-500/15 px-1 text-[10px] font-medium uppercase text-blue-700 dark:text-blue-300">
+              <span className="rounded bg-info-soft px-1 text-[10px] font-medium uppercase text-info">
                 {t("profile.fromAi")}
               </span>
             </button>

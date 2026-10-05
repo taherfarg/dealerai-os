@@ -37,7 +37,7 @@ export function HandOverBar({
         value={owner}
         aria-label={t("bulk.handOverTo")}
         onChange={(event) => setOwner(event.target.value)}
-        className="min-h-11 rounded-md border border-black/10 px-2 dark:border-white/15"
+        className="min-h-11 rounded-md border border-border px-2"
       >
         <option value="">{t("bulk.handOverTo")}</option>
         {colleagues.map((member) => (
@@ -62,7 +62,7 @@ export function HandOverBar({
             },
           );
         }}
-        className="bg-accent min-h-11 rounded-md px-4 font-medium text-black disabled:opacity-50"
+        className="bg-accent min-h-11 rounded-md px-4 font-medium text-on-accent disabled:opacity-50"
       >
         {t("bulk.handOver")}
       </button>
@@ -75,7 +75,7 @@ export function HandOverBar({
         {t("common.cancel")}
       </button>
       {failed.length > 0 && (
-        <p role="alert" className="w-full text-xs text-red-600 dark:text-red-400" dir="auto">
+        <p role="alert" className="w-full text-xs text-danger" dir="auto">
           {t("bulk.failed")} {failed.map((id) => names[id] ?? id).join("، ")}
         </p>
       )}

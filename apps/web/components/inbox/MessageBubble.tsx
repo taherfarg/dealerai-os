@@ -44,9 +44,14 @@ export function MessageBubble({
 
   const note = message.kind === "note";
   const ours = message.direction === "out";
-  // What is said quietly inside a bubble. Grey on the gold of a sent message
-  // is 2.3 to 1; the bubble's own black, lightened, stays above 4.5.
-  const quiet = ours && !note ? "text-black/70" : "text-muted";
+  const failed = message.status === "failed";
+  // A message of ours is the accent's green — unless it did not go. Red on
+  // that green is 1.4 to 1, and a message that failed must never pass for one
+  // that was sent.
+  const sent = ours && !note && !failed;
+  // What is said quietly inside a bubble. Grey on the green of a sent message
+  // cannot be read; the bubble's own white is 5.3 to 1.
+  const quiet = sent ? "text-on-accent" : "text-muted";
 
   return (
     <li
@@ -58,10 +63,12 @@ export function MessageBubble({
       <div
         className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
           note
-            ? "w-full border border-amber-300 bg-amber-50 text-amber-950 dark:border-amber-700/60 dark:bg-amber-950/40 dark:text-amber-100"
-            : ours
-              ? "bg-accent text-black"
-              : "bg-background"
+            ? "w-full border border-warning/40 bg-warning-soft text-foreground"
+            : sent
+              ? "bg-accent text-on-accent"
+              : failed
+                ? "bg-danger-soft text-foreground"
+                : "bg-background"
         }`}
       >
         {note && <p className="mb-1 text-xs font-semibold uppercase">{t("thread.note")}</p>}
@@ -102,7 +109,7 @@ export function MessageBubble({
           // checkable against what was actually said.
           <Auto
             as="p"
-            className={`${quiet} mt-1 border-s-2 border-black/10 ps-2 text-xs italic dark:border-white/20`}
+            className={`${quiet} mt-1 border-s-2 border-border ps-2 text-xs italic`}
           >
             {String(message.transcript.text)}
           </Auto>
@@ -120,7 +127,7 @@ export function MessageBubble({
         </div>
 
         {message.status === "failed" && (
-          <p className="mt-1 text-xs text-red-700 dark:text-red-300">
+          <p className="mt-1 text-xs text-danger">
             {t("thread.notDelivered")}
             {message.error?.message ? (
               <>

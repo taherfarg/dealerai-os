@@ -13,7 +13,7 @@ import { Auto } from "@/components/Bidi";
 import { useT } from "@/lib/i18n-client";
 import { readInvitation } from "@/lib/invitation";
 
-const BUTTON = "bg-brand min-h-11 rounded-md px-3 text-sm font-medium text-white disabled:opacity-60";
+const BUTTON = "bg-accent min-h-11 rounded-md px-3 text-sm font-medium text-on-accent disabled:opacity-60";
 const LINK = "border-border flex min-h-11 items-center justify-center rounded-md border px-3 text-sm";
 
 /**

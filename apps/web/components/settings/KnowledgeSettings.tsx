@@ -10,7 +10,7 @@ import { counted } from "@/lib/words";
 
 /** routes/documents.KINDS — what a dealership uploads by hand. */
 const KINDS = ["policy", "export_policy", "faq", "spec_sheet", "price_list", "other"] as const;
-const FIELD = "min-h-11 rounded-md border border-black/10 px-2 dark:border-white/15";
+const FIELD = "min-h-11 rounded-md border border-border px-2";
 
 /**
  * The dealership's own documents, which the copilot quotes (08-screens § 13).
@@ -55,7 +55,7 @@ export function KnowledgeSettings() {
         {/* A button of ours over the browser's own, which still does the
             choosing: its "No file chosen · Choose File" comes in the browser's
             language, not the reader's. */}
-        <label className="border-border hover:bg-background focus-within:outline-brand inline-flex min-h-11 cursor-pointer items-center gap-2 self-start rounded-md border px-3 focus-within:outline-2 focus-within:outline-offset-2">
+        <label className="border-border hover:bg-background focus-within:outline-accent-ink inline-flex min-h-11 cursor-pointer items-center gap-2 self-start rounded-md border px-3 focus-within:outline-2 focus-within:outline-offset-2">
           <input
             type="file"
             accept=".pdf,.docx,.txt"
@@ -89,13 +89,13 @@ export function KnowledgeSettings() {
           <button
             type="submit"
             disabled={!file || upload.isPending}
-            className="bg-accent min-h-11 rounded-md px-4 font-medium text-black disabled:opacity-50"
+            className="bg-accent min-h-11 rounded-md px-4 font-medium text-on-accent disabled:opacity-50"
           >
             {t("knowledge.upload")}
           </button>
         </div>
         {upload.isError && (
-          <p role="alert" className="text-xs text-red-600 dark:text-red-400">
+          <p role="alert" className="text-xs text-danger">
             {upload.error instanceof ApiError
               ? (upload.error.problem.detail ?? upload.error.problem.title)
               : t("settings.saveFailed")}
@@ -106,7 +106,7 @@ export function KnowledgeSettings() {
       {(documents.data ?? []).length === 0 && !documents.isLoading && (
         <p className="text-muted text-sm">{t("knowledge.empty")}</p>
       )}
-      <ul className="divide-y divide-black/5 text-sm dark:divide-white/10">
+      <ul className="divide-y divide-border text-sm">
         {(documents.data ?? []).map((document) => (
           <li key={document.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
             <span className="min-w-0 flex-1">
@@ -124,7 +124,7 @@ export function KnowledgeSettings() {
                   ` · ${counted(locale, document.chunk_count, "passages")}`}
               </span>
               {document.error && (
-                <span className="block text-xs text-red-600 dark:text-red-400">
+                <span className="block text-xs text-danger">
                   {document.error}
                 </span>
               )}
@@ -132,7 +132,7 @@ export function KnowledgeSettings() {
             <button
               type="button"
               onClick={() => remove.mutate(document.id)}
-              className="hover:bg-background min-h-11 rounded-md px-3 text-red-700 dark:text-red-400"
+              className="hover:bg-background min-h-11 rounded-md px-3 text-danger"
             >
               {t("knowledge.delete")}
             </button>

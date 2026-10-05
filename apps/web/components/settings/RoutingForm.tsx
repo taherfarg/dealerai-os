@@ -56,7 +56,7 @@ export function RoutingForm() {
   const rules = current.routing_rules ?? [];
   const teamList = teams.data ?? [];
   const edit = (next: Partial<Routing>) => setDraft({ ...current, ...next });
-  const field = "min-h-11 rounded-md border border-black/10 px-2 dark:border-white/15";
+  const field = "min-h-11 rounded-md border border-border px-2";
 
   return (
     <div className="flex flex-col gap-6">
@@ -164,7 +164,7 @@ export function RoutingForm() {
               type="button"
               disabled={!dirty || badDays(hours).length > 0 || save.isPending}
               onClick={() => save.mutate(patch, { onSuccess: () => setDraft(null) })}
-              className="bg-accent min-h-11 rounded-md px-4 text-sm font-medium text-black disabled:opacity-50"
+              className="bg-accent min-h-11 rounded-md px-4 text-sm font-medium text-on-accent disabled:opacity-50"
             >
               {t("common.save")}
             </button>

@@ -148,7 +148,7 @@ export function CreateWorkspace() {
       <button
         type="submit"
         disabled={busy || locales.length === 0}
-        className="bg-brand min-h-11 rounded-md px-3 text-sm font-medium text-white disabled:opacity-60"
+        className="bg-accent min-h-11 rounded-md px-3 text-sm font-medium text-on-accent disabled:opacity-60"
       >
         {t("onboarding.create")}
       </button>

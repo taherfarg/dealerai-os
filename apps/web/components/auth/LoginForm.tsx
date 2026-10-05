@@ -41,7 +41,7 @@ export function LoginForm() {
   return (
     <form onSubmit={onSubmit} className="flex w-full flex-col gap-4">
       <div>
-        <h1 className="text-brand text-2xl font-semibold tracking-tight">DealerAI OS</h1>
+        <h1 className="text-accent-ink text-2xl font-semibold tracking-tight">DealerAI OS</h1>
         <p className="text-muted mt-1 text-sm">{t("auth.signInTitle")}</p>
       </div>
 
@@ -88,7 +88,7 @@ export function LoginForm() {
       <button
         type="submit"
         disabled={busy}
-        className="bg-brand min-h-11 rounded-md px-3 text-sm font-medium text-white disabled:opacity-60"
+        className="bg-accent min-h-11 rounded-md px-3 text-sm font-medium text-on-accent disabled:opacity-60"
       >
         {busy ? t("auth.working") : t("auth.signIn")}
       </button>

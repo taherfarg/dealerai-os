@@ -41,7 +41,7 @@ export function NavLinks({
           >
             <span>{t(item.key)}</span>
             {badge > 0 && (
-              <span className="bg-accent min-w-5 rounded-full px-1.5 py-0.5 text-center text-xs font-medium text-black">
+              <span className="bg-accent min-w-5 rounded-full px-1.5 py-0.5 text-center text-xs font-medium text-on-accent">
                 {badge}
               </span>
             )}

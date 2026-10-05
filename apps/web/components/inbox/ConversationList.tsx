@@ -74,7 +74,7 @@ export function ConversationList() {
   return (
     <div className="flex h-full min-h-0 flex-col">
       <Heading className="sr-only">{t("nav.inbox")}</Heading>
-      <div className="border-b border-black/5 p-3 dark:border-white/10">
+      <div className="border-b border-border p-3">
         <div role="tablist" aria-label={t("nav.inbox")} className="flex gap-1">
           {allowed.map((candidate) => {
             const count = counts.data?.[candidate];
@@ -107,14 +107,14 @@ export function ConversationList() {
             window.clearTimeout(searchTimer.current);
             searchTimer.current = window.setTimeout(() => setParam("q", value), 300);
           }}
-          className="mt-2 min-h-11 w-full rounded-md border border-black/10 px-3 text-sm dark:border-white/15"
+          className="mt-2 min-h-11 w-full rounded-md border border-border px-3 text-sm"
         />
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         {conversations.isPending && <ListSkeleton />}
         {conversations.isError && (
-          <p className="p-4 text-sm text-red-600 dark:text-red-400">
+          <p className="p-4 text-sm text-danger">
             {conversations.error instanceof ApiError
               ? conversations.error.problem.detail ?? conversations.error.problem.title
               : t("inbox.retry")}
@@ -145,7 +145,7 @@ function ListSkeleton() {
   return (
     <ul aria-hidden className="animate-pulse">
       {[0, 1, 2, 3].map((row) => (
-        <li key={row} className="border-b border-black/5 px-3 py-4 dark:border-white/10">
+        <li key={row} className="border-b border-border px-3 py-4">
           <div className="bg-muted/20 h-4 w-1/3 rounded" />
           <div className="bg-muted/10 mt-2 h-3 w-2/3 rounded" />
         </li>

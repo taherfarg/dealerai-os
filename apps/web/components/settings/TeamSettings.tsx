@@ -94,7 +94,7 @@ function MemberRow({ member, teams }: { member: Member; teams: Team[] }) {
         </label>
       </div>
       {edit.isError && (
-        <p role="alert" className="text-xs text-red-600 dark:text-red-400">
+        <p role="alert" className="text-xs text-danger">
           {problem(edit.error, t("settings.saveFailed"))}
         </p>
       )}
@@ -129,12 +129,12 @@ function TeamRow({ team }: { team: Team }) {
         type="button"
         onClick={() => remove.mutate(team.id)}
         disabled={remove.isPending}
-        className="hover:bg-background min-h-11 rounded-md px-3 text-sm text-red-700 dark:text-red-400"
+        className="hover:bg-background min-h-11 rounded-md px-3 text-sm text-danger"
       >
         {t("team.deleteTeam")}
       </button>
       {failed && (
-        <p role="alert" className="w-full text-xs text-red-600 dark:text-red-400">
+        <p role="alert" className="w-full text-xs text-danger">
           {problem(failed, t("settings.saveFailed"))}
         </p>
       )}
@@ -191,12 +191,12 @@ export function TeamSettings() {
             aria-label={t("team.newTeam")}
             className={`${FIELD} flex-1 text-sm`}
           />
-          <button type="submit" className="bg-accent min-h-11 rounded-md px-4 text-sm font-medium text-black">
+          <button type="submit" className="bg-accent min-h-11 rounded-md px-4 text-sm font-medium text-on-accent">
             {t("team.add")}
           </button>
         </form>
         {create.isError && (
-          <p role="alert" className="text-xs text-red-600 dark:text-red-400">
+          <p role="alert" className="text-xs text-danger">
             {problem(create.error, t("settings.saveFailed"))}
           </p>
         )}

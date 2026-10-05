@@ -45,7 +45,7 @@ export function ScoreReasons({
                 </button>
               )}
             </span>
-            <Ltr className={reason.points < 0 ? "text-red-600 dark:text-red-400" : "text-muted"}>
+            <Ltr className={reason.points < 0 ? "text-danger" : "text-muted"}>
               {reason.points > 0 ? `+${reason.points}` : reason.points}
             </Ltr>
           </li>

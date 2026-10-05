@@ -48,7 +48,7 @@ export default function DashboardPage({ params }: { params: Promise<{ tenant: st
   }
   if (board.isError) {
     return (
-      <p role="alert" className="p-6 text-sm text-red-600 dark:text-red-400">
+      <p role="alert" className="p-6 text-sm text-danger">
         {board.error.message}
       </p>
     );
@@ -73,7 +73,7 @@ export default function DashboardPage({ params }: { params: Promise<{ tenant: st
             type="date"
             value={filters.date || board.data.date}
             onChange={(event) => setFilters({ date: event.target.value })}
-            className="min-h-11 rounded-md border border-black/10 px-2 text-sm dark:border-white/15"
+            className="min-h-11 rounded-md border border-border px-2 text-sm"
           />
         </label>
       </header>

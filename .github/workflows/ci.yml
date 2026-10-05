@@ -99,6 +99,7 @@ jobs:
         run: |
           npm run typecheck
           npm run check:rtl
+          npm run check:colours
           npm run lint
           npm run test
           npm run build

@@ -97,14 +97,14 @@ export function InviteForm() {
         <button
           type="submit"
           disabled={invite.isPending}
-          className="bg-accent min-h-11 self-start rounded-md px-4 text-sm font-medium text-black disabled:opacity-50"
+          className="bg-accent min-h-11 self-start rounded-md px-4 text-sm font-medium text-on-accent disabled:opacity-50"
         >
           {t("invite.create")}
         </button>
       </form>
 
       {invite.isError && (
-        <p role="alert" className="text-xs text-red-600 dark:text-red-400">
+        <p role="alert" className="text-xs text-danger">
           {problem(invite.error, t("settings.saveFailed"))}
         </p>
       )}

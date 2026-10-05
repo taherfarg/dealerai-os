@@ -39,7 +39,7 @@ export function ConversationRow({
       <Link
         href={href}
         aria-current={active ? "page" : undefined}
-        className={`block border-b border-black/5 px-3 py-3 transition-colors dark:border-white/10 ${
+        className={`block border-b border-border px-3 py-3 transition-colors ${
           active ? "bg-background" : "hover:bg-background"
         }`}
       >
@@ -84,7 +84,7 @@ export function ConversationRow({
           )}
           {unread > 0 && (
             <span
-              className="bg-accent ms-auto min-w-5 rounded-full px-1.5 py-0.5 text-center text-xs font-medium text-black"
+              className="bg-accent ms-auto min-w-5 rounded-full px-1.5 py-0.5 text-center text-xs font-medium text-on-accent"
               aria-label={t("inbox.unreadCount")}
             >
               {unread}

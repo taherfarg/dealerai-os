@@ -66,13 +66,13 @@ export function EraseDialog({
         <input
           value={typed}
           onChange={(event) => setTyped(event.target.value)}
-          className="min-h-11 rounded-md border border-black/10 px-2 text-sm dark:border-white/15"
+          className="min-h-11 rounded-md border border-border px-2 text-sm"
           dir="auto"
         />
       </label>
 
       {erase.isError && (
-        <p role="alert" className="mt-2 text-xs text-red-600 dark:text-red-400">
+        <p role="alert" className="mt-2 text-xs text-danger">
           {erase.error instanceof ApiError
             ? (erase.error.problem.detail ?? erase.error.problem.title)
             : t("settings.saveFailed")}
@@ -87,7 +87,7 @@ export function EraseDialog({
           type="button"
           disabled={!confirmed || erase.isPending}
           onClick={() => erase.mutate(undefined, { onSuccess: onErased })}
-          className="min-h-11 rounded-md bg-red-600 px-4 text-sm font-medium text-white disabled:opacity-50"
+          className="min-h-11 rounded-md bg-danger px-4 text-sm font-medium text-background disabled:opacity-50"
         >
           {t("erase.confirm")}
         </button>

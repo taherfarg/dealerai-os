@@ -57,7 +57,7 @@ export function NotificationsBell() {
       >
         <span aria-hidden>🔔</span>
         {unread > 0 && (
-          <span className="bg-accent absolute end-0 top-1 min-w-4 rounded-full px-1 text-[11px] font-medium leading-4 text-black">
+          <span className="bg-accent absolute end-0 top-1 min-w-4 rounded-full px-1 text-[11px] font-medium leading-4 text-on-accent">
             {unread}
           </span>
         )}

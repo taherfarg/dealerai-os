@@ -77,7 +77,7 @@ function DevLogin() {
           aria-label="Name"
           className="border-border min-h-11 rounded-md border px-3 text-sm"
         />
-        <button type="submit" className="bg-brand min-h-11 rounded-md px-3 text-sm font-medium text-white">
+        <button type="submit" className="bg-accent min-h-11 rounded-md px-3 text-sm font-medium text-on-accent">
           Sign in as them
         </button>
       </form>

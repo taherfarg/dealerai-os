@@ -55,7 +55,7 @@ export function Shell({
       </a>
       <aside className="border-border bg-surface flex flex-col gap-4 border-b p-4 md:border-b-0 md:border-e md:p-6">
         <div className="flex items-center justify-between gap-2">
-          <span className="text-brand text-lg font-semibold tracking-tight">DealerAI</span>
+          <span className="text-accent-ink text-lg font-semibold tracking-tight">DealerAI</span>
           <div className="flex items-center gap-1">
             <NotificationsBell />
             <LocaleToggle locale={locale} />

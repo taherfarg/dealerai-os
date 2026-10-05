@@ -85,7 +85,7 @@ export function Thread({ tenant, conversationId }: { tenant: string; conversatio
     // conversation to name, that sentence is this page's heading.
     const gone = !problem || problem.status === 404;
     return (
-      <h1 className="p-6 text-sm font-normal text-red-600 dark:text-red-400">
+      <h1 className="p-6 text-sm font-normal text-danger">
         {gone ? t("thread.gone") : (problem.detail ?? problem.title)}
       </h1>
     );
@@ -163,7 +163,7 @@ export function Thread({ tenant, conversationId }: { tenant: string; conversatio
 
   return (
     <div data-thread className="flex h-full min-h-0 flex-col">
-      <header className="border-b border-black/5 p-3 dark:border-white/10">
+      <header className="border-b border-border p-3">
         <div className="flex items-center gap-2">
           <Link
             href={`/${tenant}/inbox`}

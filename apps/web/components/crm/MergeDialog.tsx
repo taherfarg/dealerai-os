@@ -49,7 +49,7 @@ export function MergeDialog({
           type="search"
           value={search}
           onChange={(event) => setSearch(event.target.value)}
-          className="mt-1 min-h-11 w-full rounded-md border border-black/10 px-3 text-sm dark:border-white/15"
+          className="mt-1 min-h-11 w-full rounded-md border border-border px-3 text-sm"
         />
       </label>
 
@@ -95,7 +95,7 @@ export function MergeDialog({
         </div>
       )}
 
-      <p className="mt-3 rounded-md bg-amber-500/10 px-2 py-1 text-xs text-amber-800 dark:text-amber-200">
+      <p className="mt-3 rounded-md bg-warning-soft px-2 py-1 text-xs text-warning">
         {t("merge.warning")}
       </p>
 
@@ -118,7 +118,7 @@ export function MergeDialog({
               },
             )
           }
-          className="bg-accent min-h-11 rounded-md px-4 text-sm font-medium text-black disabled:opacity-50"
+          className="bg-accent min-h-11 rounded-md px-4 text-sm font-medium text-on-accent disabled:opacity-50"
         >
           {t("merge.confirm")}
         </button>

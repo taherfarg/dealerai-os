@@ -7,42 +7,83 @@
  * work and no `[dir=rtl] .foo { ... }` overrides to forget.
  */
 
+/*
+ * Every colour has a name here, with one value for light and one for dark
+ * ([11] § 3.1). No component writes a colour of its own: `npm run
+ * check:colours` refuses it, and app/palette.test.ts holds every pair that
+ * carries text to 4.5 to 1 in both.
+ */
 :root {
+  /* The browser's own parts follow the mode too: a select's list, a date's
+     calendar, a scrollbar. */
+  color-scheme: light dark;
+
   --background: #ffffff;
-  --foreground: #0a0a0a;
-  --muted: #6b7280;
-  --border: #e5e7eb;
-  --surface: #f9fafb;
-  --brand: #0a2540;
-  --accent: #c8a15a;
-  --danger: #b42318;
-  --success: #067647;
+  --surface: #f1f5f2;
+  --border: #e1e8e3;
+  --border-strong: #cfd9d2;
+  --foreground: #14201a;
+  --muted: #53615a;
+  --accent: #0f7a55;
+  --on-accent: #ffffff;
+  --accent-ink: #0b5c40;
+  --accent-soft: #dff3e8;
+  --danger: #a51d12;
+  --danger-soft: #fde7e4;
+  --warning: #7a4a00;
+  --warning-soft: #fff0cf;
+  --info: #0c4a80;
+  --info-soft: #d7ebff;
+  --hot: #8a3b0c;
+  --hot-soft: #ffe2cf;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-    --muted: #9ca3af;
-    --border: #262626;
-    --surface: #141414;
-    --brand: #7aa5d2;
-    --accent: #d8b876;
-    --danger: #f97066;
-    --success: #47cd89;
+    --background: #141c18;
+    --surface: #1c2620;
+    --border: #27332c;
+    --border-strong: #35443b;
+    --foreground: #e8efe9;
+    --muted: #9fb0a6;
+    /* The same green in both: white has to stay readable on it. What changes
+       is accent-ink, the green that is text. */
+    --accent: #0f7a55;
+    --on-accent: #ffffff;
+    --accent-ink: #6fdcb3;
+    --accent-soft: #12382b;
+    --danger: #ff9d94;
+    --danger-soft: #3b1512;
+    --warning: #f5c873;
+    --warning-soft: #3a2a08;
+    --info: #9ccbf5;
+    --info-soft: #0e2a44;
+    --hot: #ffb48a;
+    --hot-soft: #3d1d0a;
   }
 }
 
 @theme inline {
   --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
   --color-foreground: var(--foreground);
   --color-muted: var(--muted);
-  --color-border: var(--border);
-  --color-surface: var(--surface);
-  --color-brand: var(--brand);
   --color-accent: var(--accent);
+  --color-on-accent: var(--on-accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
   --color-danger: var(--danger);
-  --color-success: var(--success);
+  --color-danger-soft: var(--danger-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-hot: var(--hot);
+  --color-hot-soft: var(--hot-soft);
+  /* What went well is said in the accent's own green. */
+  --color-success: var(--accent-ink);
 }
 
 body {
@@ -57,9 +98,9 @@ body {
   line-height: 1.75;
 }
 
-/* One focus ring, the brand's, wherever the keyboard is ([07] § 10). */
+/* One focus ring, the accent's, wherever the keyboard is ([07] § 10). */
 :focus-visible {
-  outline: 2px solid var(--brand);
+  outline: 2px solid var(--accent-ink);
   outline-offset: 2px;
 }
 

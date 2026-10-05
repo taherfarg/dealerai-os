@@ -48,7 +48,7 @@ export function Timeline({ contactId }: { contactId: string }) {
 
   return (
     <div>
-      <ol className="divide-y divide-black/5 dark:divide-white/10">
+      <ol className="divide-y divide-border">
         {entries.map((entry) => {
           const { who, text } = line(entry, t);
           return (

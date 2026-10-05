@@ -12,9 +12,9 @@ import { useT } from "@/lib/i18n-client";
 import { word } from "@/lib/words";
 
 const QUALITY: Record<string, string> = {
-  green: "bg-green-500",
-  yellow: "bg-amber-500",
-  red: "bg-red-500",
+  green: "bg-success",
+  yellow: "bg-warning",
+  red: "bg-danger",
 };
 
 function Templates({ channel, canSync }: { channel: Channel; canSync: boolean }) {
@@ -39,7 +39,7 @@ function Templates({ channel, canSync }: { channel: Channel; canSync: boolean })
       {(templates.data ?? []).length === 0 ? (
         <p className="text-muted text-xs">{t("channels.noTemplates")}</p>
       ) : (
-        <ul className="divide-y divide-black/5 text-sm dark:divide-white/10">
+        <ul className="divide-y divide-border text-sm">
           {(templates.data ?? []).map((template) => (
             <li key={template.id} className="py-1">
               <div className="flex flex-wrap items-center justify-between gap-2">
@@ -52,7 +52,7 @@ function Templates({ channel, canSync }: { channel: Channel; canSync: boolean })
                 </span>
               </div>
               {template.rejected_reason && (
-                <p className="text-xs text-red-600 dark:text-red-400">{template.rejected_reason}</p>
+                <p className="text-xs text-danger">{template.rejected_reason}</p>
               )}
             </li>
           ))}

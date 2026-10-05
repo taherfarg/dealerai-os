@@ -68,7 +68,7 @@ export function TaskRow({
     <li
       data-task={task.id}
       data-overdue={overdue}
-      className="flex flex-wrap items-center gap-3 border-b border-black/5 py-2 dark:border-white/10"
+      className="flex flex-wrap items-center gap-3 border-b border-border py-2"
     >
       {/* The box is 16 px; the label round it is what a thumb presses. */}
       <label className="-ms-3 flex min-h-11 min-w-11 shrink-0 items-center justify-center">
@@ -90,7 +90,7 @@ export function TaskRow({
               an Arabic screen used to lose its first words. */}
           <Auto className={`min-w-0 truncate ${done ? "line-through" : ""}`}>{task.title}</Auto>
           {task.source === "ai" && (
-            <span className="shrink-0 rounded bg-blue-500/15 px-1 text-[10px] uppercase text-blue-700 dark:text-blue-300">
+            <span className="shrink-0 rounded bg-info-soft px-1 text-[10px] uppercase text-info">
               {t("tasks.ai")}
             </span>
           )}
@@ -114,7 +114,7 @@ export function TaskRow({
 
       <time
         dateTime={task.due_at}
-        className={`shrink-0 text-xs ${overdue ? "font-medium text-red-600 dark:text-red-400" : "text-muted"}`}
+        className={`shrink-0 text-xs ${overdue ? "font-medium text-danger" : "text-muted"}`}
       >
         {overdue && <span className="me-1">{t("tasks.overdue")}</span>}
         {formatDue(task.due_at, locale, new Date(clock))}
@@ -130,7 +130,7 @@ export function TaskRow({
             );
             if (chosen) onSnooze(chosen.at);
           }}
-          className="text-muted min-h-11 shrink-0 rounded-md border border-black/10 bg-transparent text-xs dark:border-white/15"
+          className="text-muted min-h-11 shrink-0 rounded-md border border-border bg-transparent text-xs"
         >
           <option value="">{t("tasks.snooze")}</option>
           {snoozeOptions(new Date(clock)).map((option) => (

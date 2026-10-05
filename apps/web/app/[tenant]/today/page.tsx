@@ -56,7 +56,7 @@ export default function TodayPage({ params }: { params: Promise<{ tenant: string
           {day.data?.waiting_on_you.length ? (
             <ul className="mt-2">
               {day.data.waiting_on_you.map((conversation) => (
-                <li key={conversation.id} className="border-b border-black/5 dark:border-white/10">
+                <li key={conversation.id} className="border-b border-border">
                   <Link
                     href={`/${tenant}/inbox/${conversation.id}`}
                     className="hover:bg-background flex min-h-11 items-center justify-between gap-2 py-2"
@@ -109,7 +109,7 @@ export default function TodayPage({ params }: { params: Promise<{ tenant: string
           {day.data?.hot_leads.length ? (
             <ul className="mt-2">
               {day.data.hot_leads.map((lead) => (
-                <li key={lead.id} className="border-b border-black/5 dark:border-white/10">
+                <li key={lead.id} className="border-b border-border">
                   <Link
                     href={`/${tenant}/pipeline?lead=${lead.id}`}
                     className="hover:bg-background flex min-h-11 flex-wrap items-center justify-between gap-2 py-2"

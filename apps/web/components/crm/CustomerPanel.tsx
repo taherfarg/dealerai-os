@@ -71,7 +71,7 @@ export function CustomerPanel({
       </header>
 
       {record.opted_out && (
-        <p className="rounded-md bg-red-500/10 px-2 py-1 text-xs text-red-700 dark:text-red-300">
+        <p className="rounded-md bg-danger-soft px-2 py-1 text-xs text-danger">
           {t("customer.optedOut")}
         </p>
       )}
@@ -90,7 +90,7 @@ export function CustomerPanel({
         <h3 className="text-muted mb-1 text-xs font-semibold uppercase tracking-wide">
           {t("customer.whatWeKnow")}
         </h3>
-        <div className="divide-y divide-black/5 dark:divide-white/10">
+        <div className="divide-y divide-border">
           {FIELDS.map((name) => (
             <ProfileField
               key={name}
@@ -112,7 +112,7 @@ export function CustomerPanel({
             href={`/${tenant}/pipeline?lead=${openLead.id}`}
             // A gap on the row, never a margin on one of its parts: a part with
             // its own direction has its own idea of which side is the start.
-            className="hover:bg-background flex flex-wrap items-baseline gap-x-2 gap-y-1 rounded-md border border-black/5 p-2 dark:border-white/10"
+            className="hover:bg-background flex flex-wrap items-baseline gap-x-2 gap-y-1 rounded-md border border-border p-2"
           >
             <Auto className="text-sm">{openLead.vehicle?.label ?? openLead.pipeline_name}</Auto>
             <Auto className="text-muted text-xs">{openLead.stage.name}</Auto>
@@ -128,7 +128,7 @@ export function CustomerPanel({
             type="button"
             disabled={createLead.isPending}
             onClick={() => createLead.mutate({ contact_id: contactId })}
-            className="hover:bg-background min-h-11 w-full rounded-md border border-dashed border-black/15 text-sm disabled:opacity-60 dark:border-white/20"
+            className="hover:bg-background min-h-11 w-full rounded-md border border-dashed border-border-strong text-sm disabled:opacity-60"
           >
             {t("customer.createLead")}
           </button>

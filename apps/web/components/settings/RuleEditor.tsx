@@ -33,7 +33,7 @@ export function RuleEditor({
   const t = useT();
   const languages = rule.languages ?? [];
   const countries = (rule.countries ?? []).join(", ");
-  const field = "min-h-11 rounded-md border border-black/10 px-2 dark:border-white/15";
+  const field = "min-h-11 rounded-md border border-border px-2";
 
   return (
     <li className="bg-surface border-border rounded-lg border p-3 text-sm">

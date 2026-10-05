@@ -50,7 +50,7 @@ export default function PipelinePage({ params }: { params: Promise<{ tenant: str
             value={board?.id ?? ""}
             aria-label={t("pipeline.title")}
             onChange={(event) => setFilters({ pipeline: event.target.value })}
-            className="min-h-11 rounded-md border border-black/10 px-2 text-sm dark:border-white/15"
+            className="min-h-11 rounded-md border border-border px-2 text-sm"
           >
             {boards.map((one) => (
               <option key={one.id} value={one.id}>
@@ -67,13 +67,13 @@ export default function PipelinePage({ params }: { params: Promise<{ tenant: str
           placeholder={t("pipeline.search")}
           aria-label={t("pipeline.search")}
           onChange={(event) => setFilters({ q: event.target.value })}
-          className="min-h-11 flex-1 rounded-md border border-black/10 px-3 text-sm dark:border-white/15"
+          className="min-h-11 flex-1 rounded-md border border-border px-3 text-sm"
         />
         <select
           value={filters.band}
           aria-label={t("customers.band")}
           onChange={(event) => setFilters({ band: event.target.value })}
-          className="min-h-11 rounded-md border border-black/10 px-2 text-sm dark:border-white/15"
+          className="min-h-11 rounded-md border border-border px-2 text-sm"
         >
           <option value="">{t("customers.anyBand")}</option>
           {(["hot", "warm", "cold"] as const).map((band) => (
@@ -87,7 +87,7 @@ export default function PipelinePage({ params }: { params: Promise<{ tenant: str
             value={filters.owner_id}
             aria-label={t("customers.owner")}
             onChange={(event) => setFilters({ owner_id: event.target.value })}
-            className="min-h-11 rounded-md border border-black/10 px-2 text-sm dark:border-white/15"
+            className="min-h-11 rounded-md border border-border px-2 text-sm"
           >
             <option value="">{t("pipeline.anyOwner")}</option>
             {(members.data ?? []).map((member) => (

@@ -18,7 +18,7 @@ import { changes } from "./changes";
 type Ai = Pick<SalesSettings, "drafts_enabled" | "arabic_register" | "follow_up_cadence_days">;
 
 const NEVER = ["send", "price", "promise", "reserved", "optOut"] as const;
-const FIELD = "min-h-11 rounded-md border border-black/10 px-2 dark:border-white/15";
+const FIELD = "min-h-11 rounded-md border border-border px-2";
 
 function percent(rate: number | null): string {
   return rate == null ? "—" : `${Math.round(rate * 100)}%`;
@@ -47,7 +47,7 @@ function AcceptanceTable({ acceptance }: { acceptance: Acceptance }) {
         {rows.map((row, index) => (
           <tr
             key={row.intent ?? `all-${index}`}
-            className={`border-t border-black/5 text-center dark:border-white/10 ${
+            className={`border-t border-border text-center ${
               index === 0 ? "font-semibold" : ""
             }`}
           >
@@ -213,7 +213,7 @@ export function AiSettings() {
               type="button"
               disabled={!dirty || save.isPending || cadence.some((days) => !(days >= 1))}
               onClick={() => save.mutate(patch, { onSuccess: () => setDraft(null) })}
-              className="bg-accent min-h-11 rounded-md px-4 text-sm font-medium text-black disabled:opacity-50"
+              className="bg-accent min-h-11 rounded-md px-4 text-sm font-medium text-on-accent disabled:opacity-50"
             >
               {t("common.save")}
             </button>

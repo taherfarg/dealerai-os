@@ -26,7 +26,7 @@ import {
   watchDevice,
 } from "@/lib/push";
 
-const BUTTON = "bg-accent min-h-11 self-start rounded-md px-4 text-sm font-medium text-black";
+const BUTTON = "bg-accent min-h-11 self-start rounded-md px-4 text-sm font-medium text-on-accent";
 const QUIET = "border-border min-h-11 rounded-md border px-3 text-sm";
 
 /** What this browser can do never changes while the page is open. */
@@ -118,7 +118,7 @@ export function NotificationSettings() {
           )
         )}
         {trouble && (
-          <p role="alert" className="text-xs text-red-600 dark:text-red-400">
+          <p role="alert" className="text-xs text-danger">
             {trouble}
           </p>
         )}

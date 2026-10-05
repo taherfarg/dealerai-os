@@ -10,9 +10,9 @@ export function tone(seconds: number | null | undefined, target: number): Tone |
 }
 
 const EDGE: Record<Tone, string> = {
-  ok: "border-s-4 border-s-green-500",
-  warn: "border-s-4 border-s-amber-500",
-  bad: "border-s-4 border-s-red-500",
+  ok: "border-s-4 border-s-success",
+  warn: "border-s-4 border-s-warning",
+  bad: "border-s-4 border-s-danger",
 };
 
 /**

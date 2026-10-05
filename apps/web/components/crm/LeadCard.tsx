@@ -8,9 +8,9 @@ import { useLocale, useT } from "@/lib/i18n-client";
 import { counted } from "@/lib/words";
 
 const BAND_TONE: Record<string, string> = {
-  hot: "bg-red-500/15 text-red-700 dark:text-red-300",
-  warm: "bg-amber-500/15 text-amber-800 dark:text-amber-200",
-  cold: "bg-blue-500/10 text-blue-700 dark:text-blue-300",
+  hot: "bg-hot-soft text-hot",
+  warm: "bg-warning-soft text-warning",
+  cold: "bg-info-soft text-info",
 };
 
 /**
@@ -89,7 +89,7 @@ export function LeadCard({
         aria-label={t("pipeline.moveTo")}
         value={lead.stage.id}
         onChange={(event) => onMove(event.target.value)}
-        className="text-muted mt-2 min-h-11 w-full rounded-md border border-black/10 bg-transparent text-xs dark:border-white/15"
+        className="text-muted mt-2 min-h-11 w-full rounded-md border border-border bg-transparent text-xs"
       >
         {stages.map((stage) => (
           <option key={stage.id} value={stage.id}>

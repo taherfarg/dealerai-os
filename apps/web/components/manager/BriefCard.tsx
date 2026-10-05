@@ -43,7 +43,7 @@ export function BriefCard({
       {brief.items.length === 0 ? (
         <p className="text-muted mt-1 text-sm">{t("brief.nothing")}</p>
       ) : (
-        <ul className="mt-1 divide-y divide-black/5 dark:divide-white/10">
+        <ul className="mt-1 divide-y divide-border">
           {brief.items.map((item) => (
             <li key={`${item.kind}:${item.id}`}>
               <Link

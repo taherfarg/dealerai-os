@@ -54,7 +54,7 @@ export function LeadDrawer({
             <select
               value={lead.data.stage.id}
               onChange={(event) => onMove(leadId, event.target.value)}
-              className="mt-1 min-h-11 w-full rounded-md border border-black/10 bg-transparent text-sm dark:border-white/15"
+              className="mt-1 min-h-11 w-full rounded-md border border-border bg-transparent text-sm"
             >
               {stages.map((stage) => (
                 <option key={stage.id} value={stage.id}>

@@ -9,7 +9,8 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "check:rtl": "node scripts/check-logical-css.mjs",
-    "check": "npm run typecheck && npm run check:rtl && npm run lint && npm run test",
+    "check:colours": "node scripts/check-colours.mjs",
+    "check": "npm run typecheck && npm run check:rtl && npm run check:colours && npm run lint && npm run test",
     "test": "vitest run",
     "e2e": "playwright test"
   },

@@ -58,7 +58,7 @@ export default function CustomerPage({
         {/* The page's heading: there is no customer to name. And for "not
             yours" or "not there" — one answer from the API, in a developer's
             words — the screen's own sentence. */}
-        <h1 className="font-normal text-red-600 dark:text-red-400">
+        <h1 className="font-normal text-danger">
           {keepId
             ? t("customer.merged")
             : !problem || problem.status === 404
@@ -97,7 +97,7 @@ export default function CustomerPage({
           <p className="text-muted mt-1 text-xs">
             {record.owner?.name ?? t("customers.nobody")}
             {record.opted_out && (
-              <span className="ms-2 rounded bg-red-500/15 px-1 text-red-700 dark:text-red-300">
+              <span className="ms-2 rounded bg-danger-soft px-1 text-danger">
                 {t("customer.optedOut")}
               </span>
             )}
@@ -138,7 +138,7 @@ export default function CustomerPage({
             <button
               type="button"
               onClick={() => setDialog("erase")}
-              className="hover:bg-background min-h-11 rounded-md px-3 text-sm text-red-700 dark:text-red-400"
+              className="hover:bg-background min-h-11 rounded-md px-3 text-sm text-danger"
             >
               {t("customer.erase")}
             </button>
@@ -148,7 +148,7 @@ export default function CustomerPage({
 
       <div
         role="tablist"
-        className="mt-4 flex gap-1 overflow-x-auto border-b border-black/5 dark:border-white/10"
+        className="mt-4 flex gap-1 overflow-x-auto border-b border-border"
       >
         {TABS.map((name) => (
           <button
@@ -173,7 +173,7 @@ export default function CustomerPage({
           (record.leads.length === 0 ? (
             <p className="text-muted text-sm">{t("customer.noLeads")}</p>
           ) : (
-            <ul className="divide-y divide-black/5 dark:divide-white/10">
+            <ul className="divide-y divide-border">
               {record.leads.map((lead) => (
                 <li key={lead.id} className="py-1">
                   <Link
@@ -198,7 +198,7 @@ export default function CustomerPage({
           (theirTasks.length === 0 ? (
             <p className="text-muted text-sm">{t("customer.noTasks")}</p>
           ) : (
-            <ul className="divide-y divide-black/5 dark:divide-white/10">
+            <ul className="divide-y divide-border">
               {theirTasks.map((task) => (
                 <li key={task.id} className="flex justify-between gap-2 py-2 text-sm">
                   <Auto>{task.title}</Auto>
@@ -211,7 +211,7 @@ export default function CustomerPage({
           ))}
 
         {tab.tab === "profile" && (
-          <div className="max-w-md divide-y divide-black/5 dark:divide-white/10">
+          <div className="max-w-md divide-y divide-border">
             {FIELDS.map((name) => (
               <ProfileField
                 key={name}

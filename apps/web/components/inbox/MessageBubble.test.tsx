@@ -83,13 +83,30 @@ describe("MessageBubble", () => {
     expect(screen.getByRole("button", { name: /try again/i })).toBeDefined();
   });
 
-  it("writes a sent message's time and ticks so they can be read on the gold", () => {
-    // Grey on the accent colour is 2.3 to 1. The bubble's own black, lightened,
-    // is above 4.5.
+  it("does not draw a message that failed the way it draws one that went", () => {
+    // Red on the green of a sent bubble is 1.4 to 1: the one line that matters
+    // on a failed message could not be read. The bubble itself says it failed.
+    show({
+      direction: "out",
+      origin: "inbox",
+      status: "failed",
+      error: { code: "131047", message: "Window closed" },
+    });
+    const bubble = screen.getByText(/not delivered/i).parentElement as HTMLElement;
+    expect(bubble.className).toContain("bg-danger-soft");
+    expect(bubble.className).not.toContain("bg-accent");
+    // What is said quietly inside it is the grey that can be read on that.
+    expect((bubble.querySelector("time")?.parentElement as HTMLElement).className).toContain(
+      "text-muted",
+    );
+  });
+
+  it("writes a sent message's time and ticks so they can be read on the green", () => {
+    // Grey on the accent cannot be read at all. The bubble's own white is 5.3 to 1.
     show({ direction: "out", origin: "inbox", status: "read" });
     const meta = screen.getByText("✓✓").parentElement as HTMLElement;
     expect(meta.className).not.toContain("text-muted");
-    expect(meta.className).toContain("text-black/70");
+    expect(meta.className).toContain("text-on-accent");
   });
 
   it("keeps the quiet grey for a message that arrived, on its white", () => {

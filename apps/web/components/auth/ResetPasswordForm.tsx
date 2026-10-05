@@ -38,7 +38,7 @@ export function ResetPasswordForm() {
 
   return (
     <form onSubmit={onSubmit} className="flex w-full flex-col gap-4">
-      <h1 className="text-brand text-2xl font-semibold tracking-tight">{t("auth.resetTitle")}</h1>
+      <h1 className="text-accent-ink text-2xl font-semibold tracking-tight">{t("auth.resetTitle")}</h1>
 
       <div className="flex flex-col gap-1 text-sm">
         <label className="flex flex-col gap-1">
@@ -78,7 +78,7 @@ export function ResetPasswordForm() {
       <button
         type="submit"
         disabled={busy}
-        className="bg-brand min-h-11 rounded-md px-3 text-sm font-medium text-white disabled:opacity-60"
+        className="bg-accent min-h-11 rounded-md px-3 text-sm font-medium text-on-accent disabled:opacity-60"
       >
         {busy ? t("auth.saving") : t("auth.savePassword")}
       </button>

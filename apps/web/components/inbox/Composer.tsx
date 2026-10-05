@@ -83,8 +83,8 @@ export function Composer({
 
   return (
     <div
-      className={`border-t border-black/5 p-3 dark:border-white/10 ${
-        isNote ? "bg-amber-50 dark:bg-amber-950/30" : ""
+      className={`border-t border-border p-3 ${
+        isNote ? "bg-warning-soft" : ""
       }`}
     >
       <div className="mb-2 flex items-center gap-2">
@@ -93,13 +93,13 @@ export function Composer({
           aria-pressed={isNote}
           onClick={() => setIsNote((was) => !was)}
           className={`min-h-11 rounded-md px-3 text-sm ${
-            isNote ? "bg-amber-200 font-medium dark:bg-amber-800" : "hover:bg-background"
+            isNote ? "bg-warning font-medium text-background" : "hover:bg-background"
           }`}
         >
           {t("thread.internalNote")}
         </button>
         {action.isError && (
-          <span className="text-xs text-red-600 dark:text-red-400">
+          <span className="text-xs text-danger">
             {action.error instanceof ApiError
               ? (action.error.problem.detail ?? action.error.problem.title)
               : t("thread.sendFailed")}
@@ -166,13 +166,13 @@ export function Composer({
                   : t("thread.placeholder")
             }
             aria-label={isNote ? t("thread.internalNote") : t("thread.placeholder")}
-            className="min-h-11 flex-1 resize-none rounded-md border border-black/10 px-3 py-2 text-sm disabled:opacity-60 dark:border-white/15"
+            className="min-h-11 flex-1 resize-none rounded-md border border-border px-3 py-2 text-sm disabled:opacity-60"
           />
           <button
             type="button"
             onClick={submit}
             disabled={blocked || !text.trim() || action.isPending}
-            className="bg-accent min-h-11 rounded-md px-4 text-sm font-medium text-black disabled:opacity-50"
+            className="bg-accent min-h-11 rounded-md px-4 text-sm font-medium text-on-accent disabled:opacity-50"
           >
             {t("thread.send")}
           </button>
