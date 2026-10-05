@@ -6463,7 +6463,20 @@ is why [10](../10-staging.md) §2 now says more than it did:
 changed, and the pilot's project — the one the latency matters for — has yet to be made, in
 Mumbai. `fly.toml` moved with it, from `bom` to `sin`, to keep the API beside its database.
 
-Not yet run: the application's own password, the API and the worker on Fly, the web app, the
+**A host without a charge, asked for the same day.** Fly has no free plan, so one was looked
+for. Render's has a region in Singapore, beside staging's database, and no card; it sleeps after
+15 minutes without a request, and offers no free worker. So the API and the worker learned to
+share a container — `python -m dealerai.both`, the worker a child that is started again when it
+ends — and [`render.yaml`](../../../render.yaml) describes the service. Run here as Render will
+run it: the API served, the worker was killed and came back in five seconds, 137 MB for the pair,
+and the container stopped cleanly. The start-up check gained two refusals on the way, for what a
+host's form can do that a file cannot: leave `WEB_ORIGINS` or `DATABASE_URL` blank. Whether
+staging goes there is the owner's to say; Fly stays the host for whatever must not sleep.
+
+**And on GitHub:** the `e2e` job ran and passed on pull request #2 that day — four checks green.
+The review above says it had not yet run there; it has now.
+
+Not yet run: the application's own password, the API and the worker on a host, the web app, the
 authentication settings, and the first sign-in.
 
 ---

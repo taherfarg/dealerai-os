@@ -1,5 +1,9 @@
-# Staging on Fly.io: the API and the worker, one image, two process groups
+# On Fly.io: the API and the worker, one image, two process groups
 # (docs/sales/10-staging.md § 4). The web app is Vercel's.
+#
+# This is the host that does not sleep, and it is not free. Staging can run on
+# Render's free plan instead (render.yaml); the pilot cannot, because a webhook
+# has to be answered at once.
 #
 #   fly deploy --ha=false        # from the repository's root
 #

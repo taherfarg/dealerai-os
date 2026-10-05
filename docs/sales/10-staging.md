@@ -21,7 +21,7 @@ first run of this whole page is that part's second exit.
 | Decision | Where it stands |
 |---|---|
 | **Where the Supabase project lives** | **Staging: Singapore (`ap-southeast-1`), on Supabase's Free plan. The pilot's project: Mumbai (`ap-south-1`).** Decided 2026-10-05. Mumbai is where customers' data is to live: [00](00-prd.md) §12 Q1 proposed it because Tokyo added 150–200 ms to every request from the UAE, Supabase offers no region nearer the Gulf, and the project earlier docs named is gone, so nothing has to be moved. The staging project was then made in Singapore — found by which pooler answered for it — and the owner chose to leave it there: a region cannot be changed afterwards, only chosen again with a new project, and staging holds no customers. Measured from the owner's machine that day, by how long a connection takes to open: Mumbai about 50 ms away, Singapore about 100, Tokyo about 175. Free is a plan of an *organisation*: the existing one is on Pro, where every project is 10 US dollars a month, so staging has an organisation of its own (§2). What free costs instead is below |
-| **Where the API and the worker run** | **Fly.io, beside the database: Singapore (`sin`) for staging, Mumbai (`bom`) for the pilot — decided 2026-10-05.** Fly has no free plan: a card is needed, and a machine is paid for by the second while it runs — about 2.19 US dollars a month for the smallest, always on, in Fly's cheapest regions (its price list, read 2026-10-05; some regions cost more), and almost nothing while stopped. Two machines, so about 4.40 a month, or less if staging is stopped between the days it is used. What any host had to give: a container image run twice, in a region beside the database, a process that is never put to sleep — a webhook has to be answered, and the worker has no visitors to wake it — and a response that may stay open, which is how a screen hears about a new message. [`fly.toml`](../../fly.toml) says all of that; §4 is the commands |
+| **Where the API and the worker run** | **Staging: Render's free plan, in Singapore — found 2026-10-05, when the owner asked for a host without a charge; theirs to confirm.** It costs nothing and needs no card. What it costs instead: the service is put to sleep after 15 minutes with no request and takes about a minute to wake; it has a tenth of a CPU; and it has no free background worker, so the API and the worker share one container ([`render.yaml`](../../render.yaml)). Koyeb's free plan was looked at too: Frankfurt or Washington only, a continent away from the database on every query. **The pilot, and staging if it must not sleep: Fly.io, beside the database** — decided 2026-10-05, Singapore (`sin`) for staging's database, Mumbai (`bom`) for the pilot's. Fly has no free plan: a card is needed, and a machine is paid for by the second while it runs — about 2.19 US dollars a month for the smallest, always on, in Fly's cheapest regions (its price list, read 2026-10-05; some regions cost more), and almost nothing while stopped. Two machines, so about 4.40 a month, or less if staging is stopped between the days it is used. What any host had to give: a container image run twice, in a region beside the database, a process that is never put to sleep — a webhook has to be answered, and the worker has no visitors to wake it — and a response that may stay open, which is how a screen hears about a new message. [`fly.toml`](../../fly.toml) says all of that; §4 is the commands |
 | **Where the web app runs** | Vercel, as the architecture says |
 | **Who sends the email** | **Not decided.** Supabase's own sender is for trying things: a few emails an hour, to the project's own team. A real sender is an account with an email service (Resend, Postmark, Amazon SES, …) and a domain it may send from. Until there is one, §7 can be walked by the project's own team and nobody else |
 
@@ -152,6 +152,40 @@ below). Never: `STORAGE_DIR`, `MIGRATION_DATABASE_URL`.
 address, a secret that is short or is the one from Supabase's documentation, `WEB_ORIGINS` still
 naming localhost, the transaction pooler (`:6543`) where the session pooler belongs. Read the
 first lines of the log.
+
+### On Render, free
+
+[`render.yaml`](../../render.yaml) is a Blueprint: Render reads it from the repository and makes
+the service it describes. It has not been deployed yet — its field names were read from Render's
+reference on the day it was written — but the container was run here exactly as Render will run
+it, `python -m dealerai.both` with `PORT=10000`: one process serving, the worker beside it and
+started again when it was killed, 137 MB in all.
+
+1. A Render account — signing in with GitHub is enough, and no card is asked for.
+2. **New → Blueprint**, this repository, the branch `sales/phase-1`. Render shows the one service
+   and asks for the values the file leaves out:
+
+   | Asked for | What to give |
+   |---|---|
+   | `DATABASE_URL` | The session pooler's address as `dealerai_app` (the table above). Secret |
+   | `WEB_ORIGINS` | The web app's address, `https://<web>` — so §5 comes first, or this is filled in after it and the service deployed again. Left blank, the service refuses to start and says why |
+   | `GOOGLE_API_KEY` | A Gemini key, or blank |
+   | `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | A push key and a `mailto:` address, or both blank |
+
+   `SUPABASE_JWT_SECRET` is not asked for: Render makes it, and nobody needs to see it.
+3. The API is then at `https://dealerai-staging.onrender.com`, or what Render shows if that name
+   was taken. That is `<api>` everywhere on this page.
+
+**What free means, day to day.** After 15 minutes with no request Render puts the service to
+sleep, and the worker with it: a task that falls due in that time is announced when the service
+wakes, and the first screen of the day takes about a minute. A month has 750 free hours, which is
+one service awake the whole time, so a free monitor asking for `/internal/health` every ten
+minutes keeps it awake — and keeps the worker asking the database for work, which is what stops
+Supabase pausing a Free project. (Render's page on its free plan does not say whether it minds.) Without one, a staging nobody opens for a week is asleep on both
+sides. Render also restarts a free service when it likes; nothing here minds.
+
+It is right for staging and wrong for customers: a webhook has to be answered at once, and a
+sleeping service cannot. The pilot's API is Fly's, below.
 
 ### On Fly.io
 
