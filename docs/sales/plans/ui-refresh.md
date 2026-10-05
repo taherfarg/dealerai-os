@@ -1060,3 +1060,486 @@ marketing screens among them — and nothing on any of them is unreadable.
 | The dashboard's tiles still mark their state with a coloured edge | 5 |
 | Dark mode has no run of the sweep; `palette.test.ts` holds it pair by pair | 6 |
 | Real phones and a screen reader | Staging |
+
+---
+
+# Step 2 — The shell
+
+**Goal:** the frame of every page is direction B's. On a desk, a white rail 88 px wide with each
+destination as an icon over its word; on a phone, one row at the top in place of three and a
+floating bar of icons at the foot. The bell is a drawing, not an emoji. The language, the
+workspace and the way out live in one menu under the person's own avatar.
+
+**How this step was planned.** By reading what the shell is made of and what holds it in place.
+
+| What was read | What it found |
+|---|---|
+| `Shell.tsx` | One `<aside>` that is a column on a desk and a block on a phone, and a second `<nav>` for the phone's bar. Keeping one `<aside>` with two shapes means one bell and one account button, not two of each hidden by CSS |
+| `NavLinks.tsx` | Used twice: by the shell, and by Settings for its sections. So the icon is optional: with one, a link is drawn the shell's way; without, it is the row it was |
+| `NotificationsBell.tsx` | Its list is positioned inside the sidebar. A rail that scrolls inside itself would cut it off, so the list becomes `fixed` on a desk as it already is on a phone |
+| `LocaleToggle.tsx` | A server component. It goes into the menu as a child handed down by the shell, which is one too |
+| `Shell.test.tsx`, `NotificationsBell.test.tsx`, `shell.e2e.ts`, `fixtures.ts` | Two navigations with one name; the skip link first; the bell's count inside its button; links found by their word inside the navigation called *Main*. All of it stays true |
+| The bars that stick above a phone's navigation (`HandOverBar`, `AiSettings`, `RoutingForm`, the tasks' undo) | They assume a bar 64 px high at the very bottom. A floating bar with two-line Arabic labels reaches 92 px |
+| The seven avatar tints of [11](../11-ui-refresh.md) §3.6 | 6.3 to 1 or better in light, 8.5 or better in dark |
+
+One finding changed the step. **The canvas colour is still not in it.** A page drawn straight onto
+mint, with its panels in a soft fill two shades away, loses its panels. `ground` arrives with the
+first screen that puts white panels on it — the inbox, step 3 — and each later screen moves onto
+it as it is redrawn.
+
+**Architecture:** the rail and the top row are the same element, shaped by breakpoint. The shell
+draws with three new things, each written here because here is where it is first used: `Icon`
+(one file, the drawings named by what they mean), `Avatar` (initials on a tint chosen from the
+name, by two pure functions with tests), and two classes in `globals.css`, `icon-btn` and
+`badge`. The account menu is a dialog through `Modal.tsx`; what goes in it is the shell's to say.
+
+**Tech stack:** nothing new.
+
+## What Step 2 does not build
+
+| Item | Why, and when |
+|---|---|
+| `ground`, `btn`, `field`, `pill`, `card` | Nothing in the shell draws with them. Step 3 |
+| A flag on an avatar, and avatar sizes | The shell's only avatar is the person signed in. Step 3, with customers |
+| Hiding the phone's bar inside a conversation | It would change how the tests move between screens. If wanted, its own decision |
+
+## File structure
+
+| File | Responsibility |
+|---|---|
+| `apps/web/app/globals.css`, `palette.test.ts` | **Modify.** Seven avatar tints, light and dark, held to 4.5 to 1; `icon-btn`; `badge` |
+| `apps/web/components/Icon.tsx`, `Icon.test.tsx` | **Create.** The drawings |
+| `apps/web/lib/avatar.ts`, `avatar.test.ts`, `apps/web/components/Avatar.tsx` | **Create.** Initials and tint from a name; the circle |
+| `apps/web/components/NavLinks.tsx` | **Modify.** An optional icon: the drawing over the word |
+| `apps/web/components/NotificationsBell.tsx` | **Modify.** A drawn bell; a list that is not cut off by the rail |
+| `apps/web/components/AccountMenu.tsx`, `AccountMenu.test.tsx` | **Create.** The avatar, and the dialog it opens |
+| `apps/web/components/AvailabilitySwitch.tsx` | **Modify.** A compact shape for the rail |
+| `apps/web/messages/en.ts`, `ar.ts` | **Modify.** `account.title`, `account.language`, `common.close` |
+| `apps/web/components/Shell.tsx`, `Shell.test.tsx` | **Modify.** The rail, the top row, the floating bar |
+| `apps/web/components/crm/HandOverBar.tsx`, `settings/AiSettings.tsx`, `settings/RoutingForm.tsx`, `app/[tenant]/tasks/page.tsx` | **Modify.** Clear of the floating bar |
+
+---
+
+## Task S1: The avatar's colours, and two classes
+
+**Files:** `apps/web/app/palette.test.ts`, `apps/web/app/globals.css`
+
+- [ ] **Step 1: The test first.** In `palette.test.ts`, names may now carry a digit — the pattern
+  in `values()` becomes `/--([a-z0-9-]+):\s*(#[0-9a-f]{6})\b/g` — and `PAIRS` gains, as its last
+  entry:
+
+```ts
+  // An avatar's initials on its own tint.
+  ...Array.from({ length: 7 }, (_, n) => [`tint-${n}-ink`, `tint-${n}`] as const),
+```
+
+Run `npx vitest run app/palette.test.ts`: 2 failed, with `tint-0-ink on tint-0: no such name`.
+
+- [ ] **Step 2: The tints.** In `globals.css`, the fourteen values of
+  [11](../11-ui-refresh.md) §3.6 as `--tint-0` and `--tint-0-ink` to `--tint-6` and
+  `--tint-6-ink`, at the end of the light `:root` block and again, with their dark values, at the
+  end of the dark one; fourteen mapping lines of the one shape in `@theme inline`
+  (`--color-tint-0: var(--tint-0);`); and after the radii:
+
+```css
+@layer components {
+  /* A round button that holds one icon and has a name ([11] § 3.4). */
+  .icon-btn {
+    position: relative;
+    display: inline-grid;
+    place-items: center;
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+    border-radius: 9999px;
+  }
+  .icon-btn:hover {
+    background: var(--surface);
+  }
+
+  /* A count, on the corner of what it counts. */
+  .badge {
+    display: inline-grid;
+    place-items: center;
+    min-width: 1.125rem;
+    height: 1.125rem;
+    padding-inline: 0.3125rem;
+    border-radius: 9999px;
+    background: var(--accent);
+    color: var(--on-accent);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    line-height: 1;
+  }
+}
+```
+
+- [ ] **Step 3:** `npx vitest run app/palette.test.ts` — 4 passed. `npm run check:rtl` — ok.
+
+## Task S2: The drawings
+
+**Files:** `apps/web/components/Icon.tsx`, `Icon.test.tsx`
+
+- [ ] **Step 1: The test** — `Icon.test.tsx`:
+
+```tsx
+import { render } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
+import { Icon } from "./Icon";
+
+describe("Icon", () => {
+  it("is never read out: the control it sits in has the name", () => {
+    const { container } = render(<Icon name="bell" />);
+    const drawing = container.querySelector("svg");
+    expect(drawing?.getAttribute("aria-hidden")).toBe("true");
+    expect(drawing?.querySelector("path")).not.toBeNull();
+  });
+});
+```
+
+Fails: there is no `./Icon`.
+
+- [ ] **Step 2: `Icon.tsx`** — a table `DRAWINGS` of JSX keyed by what each drawing means
+  (`inbox`, `today`, `customers`, `pipeline`, `tasks`, `dashboard`, `inventory`, `approvals`,
+  `settings`, `command`, `content`, `bell`, `person`, `close`), `export type IconName = keyof
+  typeof DRAWINGS`, and:
+
+```tsx
+export function Icon({
+  name,
+  size = 20,
+  className = "",
+}: {
+  name: IconName;
+  size?: number;
+  className?: string;
+}) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      width={size}
+      height={size}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.75}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={`shrink-0 ${className}`}
+    >
+      {DRAWINGS[name]}
+    </svg>
+  );
+}
+```
+
+The fourteen drawings are the mock-up's ([the canvas](https://claude.ai/artifact/Firg3c1Vh1rM44xuV4ZWYm)),
+path for path. A drawing joins the table in the step that first uses it.
+
+- [ ] **Step 3:** the test passes.
+
+## Task S3: A person, as a circle
+
+**Files:** `apps/web/lib/avatar.ts`, `avatar.test.ts`, `apps/web/components/Avatar.tsx`
+
+- [ ] **Step 1: The rules, as tests** — `lib/avatar.test.ts`:
+
+```ts
+import { describe, expect, it } from "vitest";
+import { TINTS, initials, tint } from "./avatar";
+
+describe("initials", () => {
+  it("takes the first letter of the first word and of the last", () => {
+    expect(initials("Omar Al Mazrouei")).toBe("OM");
+    expect(initials("  james   whitfield ")).toBe("JW");
+  });
+
+  it("takes one letter from one word", () => {
+    expect(initials("Sara")).toBe("S");
+  });
+
+  it("takes one letter from an Arabic name: two would join and read as a word", () => {
+    expect(initials("عمر المزروعي")).toBe("ع");
+  });
+
+  it("has nothing to say for nobody", () => {
+    expect(initials(null)).toBe("");
+    expect(initials("   ")).toBe("");
+  });
+});
+
+describe("tint", () => {
+  it("is the same for the same person, however the name was typed", () => {
+    expect(tint("Omar Al Mazrouei")).toBe(tint("  omar al mazrouei "));
+  });
+
+  it("is always one of the seven", () => {
+    for (const name of ["Omar Al Mazrouei", "Mona Fathy", "عمر", "", null]) {
+      const chosen = tint(name);
+      expect(Number.isInteger(chosen) && chosen >= 0 && chosen < TINTS).toBe(true);
+    }
+  });
+});
+```
+
+- [ ] **Step 2: `lib/avatar.ts`:**
+
+```ts
+/** Arabic and the scripts written like it: letters that join. */
+const JOINS = /[؀-ۿݐ-ݿࢠ-ࣿ]/;
+
+/** The letters that stand for a name ([11] § 3.6). */
+export function initials(name: string | null | undefined): string {
+  const words = (name ?? "").trim().split(/\s+/).filter(Boolean);
+  if (!words.length) return "";
+  const first = [...words[0]][0];
+  // Two Arabic initials join and read as the start of a word. One, then.
+  if (words.length === 1 || JOINS.test(first)) return first.toUpperCase();
+  return (first + [...words[words.length - 1]][0]).toUpperCase();
+}
+
+/** How many tints `globals.css` has. */
+export const TINTS = 7;
+
+/** The same person is always the same colour. */
+export function tint(name: string | null | undefined): number {
+  let sum = 0;
+  for (const letter of (name ?? "").trim().toLowerCase()) {
+    sum = (sum * 31 + (letter.codePointAt(0) ?? 0)) % 9973;
+  }
+  return sum % TINTS;
+}
+```
+
+- [ ] **Step 3: `components/Avatar.tsx`** — a `<span aria-hidden="true">`, round, 36 px, in
+  `bg-tint-N text-tint-N-ink` for `N = tint(name)` (each of the seven class pairs written out
+  whole in a table, because Tailwind finds classes by reading the file), holding `initials(name)`
+  or, when there are none, `<Icon name="person" />`. Hidden from a screen reader: the name is
+  beside it, or is the name of the control it sits in.
+
+- [ ] **Step 4:** `npx vitest run lib/avatar.test.ts` — 6 passed.
+
+## Task S4: The navigation, drawn
+
+**Files:** `apps/web/components/NavLinks.tsx`
+
+- [ ] **Step 1:** `NavItem` gains `icon?: IconName`. A link with one is the drawing over its
+  word, on `accent-soft` when it is the page; a link without one — Settings' sections — is the row
+  it was, with its chosen state on `surface`, which can be seen on a white page where `background`
+  could not. The count is `badge` in both.
+
+```tsx
+        return item.icon ? (
+          // In the shell: the drawing over its word ([11] § 4).
+          <Link
+            key={item.key}
+            href={href}
+            aria-current={active ? "page" : undefined}
+            className={`flex min-h-11 w-full flex-col items-center justify-center gap-0.5 rounded-2xl px-1 py-1.5 text-center text-[11px] leading-4 transition-colors rtl:text-xs ${
+              active
+                ? "bg-accent-soft text-accent-ink font-semibold"
+                : "text-muted hover:bg-surface hover:text-foreground"
+            }`}
+          >
+            <span className="relative">
+              <Icon name={item.icon} size={22} />
+              {badge > 0 && <span className="badge absolute -end-2.5 -top-1.5">{badge}</span>}
+            </span>
+            <span>{t(item.key)}</span>
+          </Link>
+        ) : (
+          <Link
+            key={item.key}
+            href={href}
+            aria-current={active ? "page" : undefined}
+            className={`flex min-h-11 items-center justify-between gap-2 rounded-md px-3 py-2 text-start text-sm transition-colors ${
+              active ? "bg-surface font-medium" : "hover:bg-surface"
+            }`}
+          >
+            <span>{t(item.key)}</span>
+            {badge > 0 && <span className="badge">{badge}</span>}
+          </Link>
+        );
+```
+
+## Task S5: The bell
+
+**Files:** `apps/web/components/NotificationsBell.tsx`
+
+- [ ] **Step 1:** the button is `icon-btn` holding `<Icon name="bell" size={22} />` and, when
+  there is something unread, `<span className="badge absolute end-0.5 top-0.5">`. The list is
+  `fixed` at both sizes — under the top row on a phone, beside the rail's foot on a desk:
+
+```tsx
+          className="border-border bg-background fixed inset-x-3 top-14 z-20 max-h-96 overflow-y-auto rounded-lg border shadow-lg md:inset-x-auto md:start-24 md:top-auto md:bottom-3 md:w-80"
+```
+
+Its rows hover on `surface`. Its five unit tests pass unchanged.
+
+## Task S6: The account menu
+
+**Files:** `apps/web/components/AccountMenu.tsx`, `AccountMenu.test.tsx`,
+`AvailabilitySwitch.tsx`, `apps/web/messages/en.ts`, `ar.ts`
+
+- [ ] **Step 1: The words.** `account.title` — *Your account* / *حسابك*; `account.language` —
+  *Language* / *اللغة*; `common.close` — *Close* / *إغلاق*. In both catalogues, by hand: prettier
+  is never run on them.
+
+- [ ] **Step 2: The test** — `AccountMenu.test.tsx`:
+
+```tsx
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import { AccountMenu } from "./AccountMenu";
+import { LocaleProvider } from "@/lib/i18n-client";
+
+vi.mock("@/lib/api/hooks", () => ({
+  useMe: () => ({ data: { user: { id: "u1", name: "Sara Mansour" } } }),
+}));
+
+const show = () =>
+  render(
+    <LocaleProvider locale="en">
+      <AccountMenu>
+        <p>what the shell put inside</p>
+      </AccountMenu>
+    </LocaleProvider>,
+  );
+
+describe("AccountMenu", () => {
+  it("is a button with a name, showing whose account it is", () => {
+    show();
+    expect(screen.getByRole("button", { name: "Your account" }).textContent).toBe("SM");
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("opens a dialog with the person's name and what it was given, and closes again", () => {
+    show();
+    fireEvent.click(screen.getByRole("button", { name: "Your account" }));
+    const dialog = screen.getByRole("dialog", { name: "Your account" });
+    expect(dialog.textContent).toContain("Sara Mansour");
+    expect(dialog.textContent).toContain("what the shell put inside");
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+});
+```
+
+- [ ] **Step 3: `AccountMenu.tsx`** — a client component: a button, `icon-btn`, named
+  `account.title`, holding the `Avatar` of `useMe().data?.user.name`; pressed, it renders
+  `<Modal label={t("account.title")} onClose={…}>` with a first row — the avatar, the name as an
+  `h2` with `dir="auto"`, and a close `icon-btn` named `common.close` — and under it its
+  `children` in a column. What the children are is the shell's to say: some are drawn on the
+  server, which a client component may be handed but may not import.
+
+- [ ] **Step 4: `AvailabilitySwitch`** takes `compact`: in the rail it is its dot over its words,
+  in the 11 px of the rail's labels, hovering on `surface`. Without it, it is the row it was.
+
+## Task S7: The frame
+
+**Files:** `apps/web/components/Shell.tsx`, `Shell.test.tsx`, and the four that sit above the
+phone's bar
+
+- [ ] **Step 1:** `Shell.test.tsx` mocks one more thing, `./AccountMenu`, as it mocks the others.
+
+- [ ] **Step 2: `Shell.tsx`.** Every destination gets its `icon`. The frame:
+
+```tsx
+    <div className="grid min-h-screen grid-rows-[auto_1fr] md:grid-cols-[5.5rem_1fr] md:grid-rows-1">
+      <a
+        href="#page"
+        className="bg-surface border-border sr-only rounded-md border px-3 py-2 text-sm focus:not-sr-only focus:fixed focus:start-2 focus:top-2 focus:z-50"
+      >
+        {t(locale, "nav.skip")}
+      </a>
+      {/* One element, two shapes ([11] § 4): a row across the top of a phone, a
+          rail down the side of a desk. So there is one bell and one account. */}
+      <aside className="border-border bg-background flex items-center gap-2 border-b px-3 py-1 md:sticky md:top-0 md:h-dvh md:flex-col md:gap-3 md:overflow-y-auto md:border-b-0 md:border-e md:px-2 md:py-3">
+        <span
+          role="img"
+          aria-label="DealerAI"
+          className="bg-accent text-on-accent grid size-9 shrink-0 place-items-center rounded-xl text-base font-semibold md:size-11 md:text-lg"
+        >
+          D
+        </span>
+        <span className="min-w-0 flex-1 truncate text-sm font-medium md:hidden">{tenant.name}</span>
+
+        {/* The same list as the bar under a phone's page; CSS shows one. */}
+        <nav
+          aria-label={t(locale, "nav.main")}
+          className="hidden w-full flex-col items-center gap-0.5 md:flex"
+        >
+          <NavLinks
+            slug={tenant.slug}
+            items={SALES}
+            badges={{ "nav.approvals": pendingApprovals }}
+          />
+          <hr aria-hidden="true" className="border-border my-1.5 w-10" />
+          <p className="sr-only">{t(locale, "nav.marketing")}</p>
+          <NavLinks slug={tenant.slug} items={MARKETING} />
+        </nav>
+
+        <div className="flex shrink-0 items-center gap-1 md:mt-auto md:w-full md:flex-col">
+          <div className="hidden w-full md:block">
+            <AvailabilitySwitch compact />
+          </div>
+          <NotificationsBell />
+          <AccountMenu>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-sm">{t(locale, "account.language")}</span>
+              <LocaleToggle locale={locale} />
+            </div>
+            <WorkspaceSwitcher current={tenant} tenants={tenants} locale={locale} />
+            {/* On a desk it is in the rail, where it is one press away. */}
+            <div className="md:hidden">
+              <AvailabilitySwitch />
+            </div>
+            <SignOutButton />
+          </AccountMenu>
+        </div>
+      </aside>
+
+      <main id="page" className="min-w-0 p-4 pb-28 md:p-8">
+        {children}
+      </main>
+
+      <nav
+        aria-label={t(locale, "nav.main")}
+        className="border-border bg-background fixed inset-x-3 bottom-3 z-10 grid grid-cols-5 gap-1 rounded-3xl border p-1.5 shadow-lg md:hidden"
+      >
+        <NavLinks slug={tenant.slug} items={MOBILE} />
+      </nav>
+    </div>
+```
+
+- [ ] **Step 3: Clear of the bar.** A floating bar with two-line labels reaches 92 px from the
+  foot of a phone. `sticky bottom-16` becomes `sticky bottom-28` in `HandOverBar.tsx`,
+  `AiSettings.tsx` and `RoutingForm.tsx`, and the tasks' undo goes from `bottom-24` to
+  `bottom-28`. Their `md:` values stay.
+
+- [ ] **Step 4:** from `apps/web`, `npm run check`. Expected: green, with `Tests  362 passed` in 63
+  files: 353, one for the icon, six for the avatar, two for the menu.
+
+## Task S8: The whole check, the suite, and the look
+
+- [ ] **Step 1:** `npm run check:web`, then `npm run build` in `apps/web`.
+- [ ] **Step 2:** with no `next dev` running, `E2E_DB_PORT=54432 npm run e2e` — 65 passed. A test
+  that cannot find something is read before it is touched: the shell is meant to keep every name
+  and role it had.
+- [ ] **Step 3:** the photographs — a desk and a phone, English and Arabic, light and dark.
+- [ ] **Step 4:** `## Step 2 review`, here; where it stands, in [11](../11-ui-refresh.md).
+
+## Spec coverage (Step 2)
+
+| Requirement | Task |
+|---|---|
+| [11](../11-ui-refresh.md) §3.4 — `icon-btn`, `badge` | S1. The rest of the classes: step 3 |
+| §3.5 — one file of drawings, always hidden, no emoji | S2, S5 |
+| §3.6 — initials, one for Arabic, a tint from the name | S1, S3. The flag badge: step 3 |
+| §4 — the rail, the top row, the floating bar | S4, S7 |
+| §4 — the account menu; *Taking chats* in the rail on a desk and in the menu on a phone | S6, S7 |
+| §4 — the skip link and the two navigations with one name stay | S7 step 1; `Shell.test.tsx`, `shell.e2e.ts` |
+| §2 — nothing the tests hold on to changes | S8 step 2 |
+
+## Execution (Step 2)
+
+Inline, straight on from step 1: the owner said to go on.

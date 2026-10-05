@@ -273,9 +273,11 @@ Each step is its own commits, and the app works after each.
    hand is replaced by its name in one pass, so the whole app changes colour and face at once and
    nothing is left on the old gold. Nothing moves.
 2. **Shell.** The rail, the phone's top row and floating bar, the account menu — and with them
-   what they are the first to be drawn with: the canvas colour, the shared classes, `Icon` and
-   `Avatar`. (Planning step 1 found that nothing in it would use them.)
-3. **Inbox.** List, conversation, lead strip, draft, composer, customer panel.
+   what they are the first to be drawn with: `Icon`, `Avatar`, and the two classes a rail needs.
+   (Planning step 1 found that nothing in it would use them.)
+3. **Inbox.** List, conversation, lead strip, draft, composer, customer panel — and the canvas
+   colour and the rest of the shared classes, because this is the first screen that puts white
+   panels on mint. Each later screen moves onto the canvas as it is redrawn.
 4. **Customers, Pipeline, Tasks, My day.**
 5. **Dashboard, Settings, sign-in.**
 6. **The pass.** Every screen in Arabic and in dark, the dark sweep, [07](07-frontend.md) §5
