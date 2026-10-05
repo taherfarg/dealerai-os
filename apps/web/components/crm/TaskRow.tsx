@@ -130,7 +130,7 @@ export function TaskRow({
             );
             if (chosen) onSnooze(chosen.at);
           }}
-          className="text-muted min-h-11 shrink-0 rounded-md border border-border bg-transparent text-xs"
+          className="field text-muted shrink-0 px-3 text-xs"
         >
           <option value="">{t("tasks.snooze")}</option>
           {snoozeOptions(new Date(clock)).map((option) => (

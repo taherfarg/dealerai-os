@@ -2,16 +2,12 @@
 
 import type { Lead, Stage } from "@/lib/api/hooks";
 import { useNow } from "@/lib/clock";
+import { Avatar } from "@/components/Avatar";
 import { Auto, CustomerName, Ltr } from "@/components/Bidi";
 import { formatDue, formatMoney } from "@/lib/format";
 import { useLocale, useT } from "@/lib/i18n-client";
 import { counted } from "@/lib/words";
-
-const BAND_TONE: Record<string, string> = {
-  hot: "bg-hot-soft text-hot",
-  warm: "bg-warning-soft text-warning",
-  cold: "bg-info-soft text-info",
-};
+import { BAND_PILL } from "./band";
 
 /**
  * One lead on the board.
@@ -49,19 +45,20 @@ export function LeadCard({
       draggable
       data-lead={lead.id}
       onDragStart={(event) => event.dataTransfer.setData("text/plain", lead.id)}
-      className="border-border bg-surface rounded-md border p-2 shadow-sm"
+      // A white card on its soft column ([11] § 5.2).
+      className="bg-background rounded-2xl p-3 shadow-sm"
     >
       <button type="button" onClick={onOpen} className="block w-full text-start">
-        <span className="flex items-baseline justify-between gap-2">
+        <span className="flex items-center gap-2">
+          {/* The flag rides on the avatar, so the name beside it is given none. */}
+          <Avatar name={lead.contact.name} country={lead.contact.country} size="sm" />
           <CustomerName
-            country={lead.contact.country}
+            country={null}
             name={lead.contact.name}
-            className="text-sm font-medium"
+            className="flex-1 text-sm font-medium"
           />
           {lead.band && (
-            <span
-              className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${BAND_TONE[lead.band]}`}
-            >
+            <span className={`pill shrink-0 ${BAND_PILL[lead.band]}`}>
               {t(`band.${lead.band}`)} {lead.score ?? ""}
             </span>
           )}
@@ -89,7 +86,7 @@ export function LeadCard({
         aria-label={t("pipeline.moveTo")}
         value={lead.stage.id}
         onChange={(event) => onMove(event.target.value)}
-        className="text-muted mt-2 min-h-11 w-full rounded-md border border-border bg-transparent text-xs"
+        className="field text-muted mt-2 w-full px-3 text-xs"
       >
         {stages.map((stage) => (
           <option key={stage.id} value={stage.id}>

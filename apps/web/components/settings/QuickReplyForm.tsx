@@ -8,7 +8,7 @@ import { useT } from "@/lib/i18n-client";
 const LANGUAGES = ["ar", "en", "fr"] as const;
 /** The table's own check (0011): a slash and a lowercase word. */
 const SHORTCUT = /^\/[a-z0-9-]{1,30}$/;
-const FIELD = "min-h-11 rounded-md border border-border px-2";
+const FIELD = "field px-3";
 
 /** A new quick reply, or one being changed — saved whole, every language. */
 export function QuickReplyForm({
@@ -94,13 +94,13 @@ export function QuickReplyForm({
         </p>
       )}
       <div className="flex justify-end gap-2">
-        <button type="button" onClick={onDone} className="min-h-11 px-3">
+        <button type="button" onClick={onDone} className="btn btn-quiet">
           {t("common.cancel")}
         </button>
         <button
           type="submit"
           disabled={!valid || save.isPending}
-          className="bg-accent min-h-11 rounded-md px-4 font-medium text-on-accent disabled:opacity-50"
+          className="btn btn-primary"
         >
           {t("common.save")}
         </button>

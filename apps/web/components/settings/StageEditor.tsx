@@ -9,7 +9,7 @@ import { useT } from "@/lib/i18n-client";
 type Editable = { id?: string; name: string; category: Stage["category"] };
 
 const CATEGORIES = ["open", "won", "lost"] as const;
-const FIELD = "min-h-11 rounded-md border border-border px-2";
+const FIELD = "field px-3";
 
 /**
  * One board's stages, as they will be saved, in order. The PUT replaces the
@@ -77,7 +77,7 @@ export function StageEditor({ pipeline }: { pipeline: Pipeline }) {
               aria-label={t("routing.moveUp")}
               disabled={index === 0}
               onClick={() => move(index, -1)}
-              className="hover:bg-background min-h-11 min-w-11 rounded-md disabled:opacity-40"
+              className="icon-btn disabled:opacity-40"
             >
               ↑
             </button>
@@ -86,7 +86,7 @@ export function StageEditor({ pipeline }: { pipeline: Pipeline }) {
               aria-label={t("routing.moveDown")}
               disabled={index === stages.length - 1}
               onClick={() => move(index, 1)}
-              className="hover:bg-background min-h-11 min-w-11 rounded-md disabled:opacity-40"
+              className="icon-btn disabled:opacity-40"
             >
               ↓
             </button>
@@ -94,7 +94,7 @@ export function StageEditor({ pipeline }: { pipeline: Pipeline }) {
               type="button"
               aria-label={t("routing.remove")}
               onClick={() => set(stages.filter((_, at) => at !== index))}
-              className="hover:bg-background min-h-11 min-w-11 rounded-md"
+              className="icon-btn"
             >
               ×
             </button>
@@ -105,20 +105,20 @@ export function StageEditor({ pipeline }: { pipeline: Pipeline }) {
         <button
           type="button"
           onClick={() => set([...stages, { name: "", category: "open" }])}
-          className="hover:bg-background min-h-11 rounded-md px-3 text-sm underline"
+          className="btn btn-quiet"
         >
           {t("pipelines.addStage")}
         </button>
         {dirty && (
           <div className="flex gap-2">
-            <button type="button" onClick={() => setDraft(null)} className="min-h-11 px-3 text-sm">
+            <button type="button" onClick={() => setDraft(null)} className="btn btn-quiet">
               {t("settings.discard")}
             </button>
             <button
               type="button"
               disabled={replace.isPending || stages.some((stage) => !stage.name.trim())}
               onClick={() => replace.mutate(stages, { onSuccess: () => setDraft(null) })}
-              className="bg-accent min-h-11 rounded-md px-4 text-sm font-medium text-on-accent disabled:opacity-50"
+              className="btn btn-primary"
             >
               {t("common.save")}
             </button>

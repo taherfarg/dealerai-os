@@ -129,7 +129,7 @@ function TeamRow({ team }: { team: Team }) {
         type="button"
         onClick={() => remove.mutate(team.id)}
         disabled={remove.isPending}
-        className="hover:bg-background min-h-11 rounded-md px-3 text-sm text-danger"
+        className="btn btn-quiet text-danger"
       >
         {t("team.deleteTeam")}
       </button>
@@ -191,7 +191,7 @@ export function TeamSettings() {
             aria-label={t("team.newTeam")}
             className={`${FIELD} flex-1 text-sm`}
           />
-          <button type="submit" className="bg-accent min-h-11 rounded-md px-4 text-sm font-medium text-on-accent">
+          <button type="submit" className="btn btn-primary">
             {t("team.add")}
           </button>
         </form>

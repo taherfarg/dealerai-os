@@ -18,7 +18,7 @@ export function GoogleButton({ next }: { next: string }) {
           },
         })
       }
-      className="border-border min-h-11 rounded-md border px-3 text-sm"
+      className="btn"
     >
       {t("auth.google")}
     </button>

@@ -59,7 +59,7 @@ export default function TodayPage({ params }: { params: Promise<{ tenant: string
                 <li key={conversation.id} className="border-b border-border">
                   <Link
                     href={`/${tenant}/inbox/${conversation.id}`}
-                    className="hover:bg-background flex min-h-11 items-center justify-between gap-2 py-2"
+                    className="hover:bg-surface flex min-h-11 items-center justify-between gap-2 py-2"
                   >
                     <CustomerName
                       country={conversation.contact.country}
@@ -112,7 +112,7 @@ export default function TodayPage({ params }: { params: Promise<{ tenant: string
                 <li key={lead.id} className="border-b border-border">
                   <Link
                     href={`/${tenant}/pipeline?lead=${lead.id}`}
-                    className="hover:bg-background flex min-h-11 flex-wrap items-center justify-between gap-2 py-2"
+                    className="hover:bg-surface flex min-h-11 flex-wrap items-center justify-between gap-2 py-2"
                   >
                     <CustomerName
                       country={lead.contact.country}

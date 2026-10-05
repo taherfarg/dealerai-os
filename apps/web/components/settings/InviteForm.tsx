@@ -97,7 +97,7 @@ export function InviteForm() {
         <button
           type="submit"
           disabled={invite.isPending}
-          className="bg-accent min-h-11 self-start rounded-md px-4 text-sm font-medium text-on-accent disabled:opacity-50"
+          className="btn btn-primary self-start"
         >
           {t("invite.create")}
         </button>
@@ -129,7 +129,7 @@ export function InviteForm() {
             <button
               type="button"
               onClick={() => navigator.clipboard.writeText(link).then(() => setCopied(true))}
-              className="border-border min-h-11 rounded-md border px-3"
+              className="field"
             >
               {copied ? t("invite.copied") : t("invite.copy")}
             </button>

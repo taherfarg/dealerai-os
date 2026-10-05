@@ -30,7 +30,7 @@ function Templates({ channel, canSync }: { channel: Channel; canSync: boolean })
             type="button"
             onClick={() => sync.mutate()}
             disabled={sync.isPending}
-            className="hover:bg-background min-h-11 rounded-md px-3 text-sm underline"
+            className="btn btn-quiet"
           >
             {t("channels.sync")}
           </button>

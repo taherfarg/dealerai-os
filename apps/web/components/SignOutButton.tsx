@@ -18,7 +18,7 @@ export function SignOutButton() {
         // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- a whole page load, not the router, is what empties this tab's memory
         void signOut().then(() => window.location.assign("/"));
       }}
-      className="text-muted hover:bg-background flex min-h-11 items-center rounded-md px-3 py-2 text-start text-sm whitespace-nowrap disabled:opacity-50"
+      className="btn btn-quiet text-muted self-start"
     >
       {t("auth.signOut")}
     </button>

@@ -27,7 +27,7 @@ export function QuickReplySettings() {
         <button
           type="button"
           onClick={() => setEditing("new")}
-          className="bg-accent min-h-11 self-start rounded-md px-4 text-sm font-medium text-on-accent"
+          className="btn btn-primary self-start"
         >
           {t("quick.add")}
         </button>
@@ -59,14 +59,14 @@ export function QuickReplySettings() {
                   <button
                     type="button"
                     onClick={() => setEditing(reply)}
-                    className="hover:bg-background min-h-11 rounded-md px-3"
+                    className="btn btn-quiet"
                   >
                     {t("quick.edit")}
                   </button>
                   <button
                     type="button"
                     onClick={() => remove.mutate(reply.id)}
-                    className="hover:bg-background min-h-11 rounded-md px-3 text-danger"
+                    className="btn btn-quiet text-danger"
                   >
                     {t("quick.delete")}
                   </button>

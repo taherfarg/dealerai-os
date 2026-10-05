@@ -24,7 +24,7 @@ export function AvailabilitySwitch({ compact = false }: { compact?: boolean }) {
       className={
         compact
           ? "text-muted hover:bg-surface flex min-h-11 w-full flex-col items-center justify-center gap-1 rounded-2xl px-1 py-1.5 text-center text-[11px] leading-4 disabled:opacity-60 rtl:text-xs"
-          : "hover:bg-background flex min-h-11 w-full items-center gap-2 rounded-md px-3 py-2 text-sm disabled:opacity-60"
+          : "hover:bg-surface flex min-h-11 w-full items-center gap-2 rounded-md px-3 py-2 text-sm disabled:opacity-60"
       }
     >
       <span aria-hidden className={`size-2 rounded-full ${on ? "bg-success" : "bg-muted"}`} />

@@ -37,7 +37,7 @@ export default function TasksPage({ params }: { params: Promise<{ tenant: string
       <h1 className="text-lg font-semibold">{t("tasks.title")}</h1>
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <div role="tablist" className="flex gap-1">
+        <div role="tablist" className="flex max-w-full gap-1.5 overflow-x-auto">
           {BUCKETS.map((name) => (
             <button
               key={name}
@@ -45,12 +45,13 @@ export default function TasksPage({ params }: { params: Promise<{ tenant: string
               type="button"
               aria-selected={bucket === name}
               onClick={() => setFilters({ bucket: name })}
-              className={`min-h-11 rounded-md px-3 text-sm ${
+              // Pills, as the inbox's are: the chosen one filled.
+              className={`min-h-11 shrink-0 rounded-full px-3 text-sm font-medium transition-colors sm:px-4 ${
                 bucket === name
-                  ? "bg-background font-medium"
+                  ? "bg-accent text-on-accent"
                   : name === "overdue"
-                    ? "text-danger"
-                    : "text-muted"
+                    ? "bg-surface text-danger hover:bg-accent-soft"
+                    : "bg-surface hover:bg-accent-soft"
               }`}
             >
               {t(`tasks.${name}`)}
@@ -63,7 +64,7 @@ export default function TasksPage({ params }: { params: Promise<{ tenant: string
             value={filters.assignee}
             aria-label={t("tasks.team")}
             onChange={(event) => setFilters({ assignee: event.target.value })}
-            className="text-muted ms-auto min-h-11 rounded-md border border-border px-2 text-sm"
+            className="text-muted ms-auto field px-3"
           >
             <option value="me">{t("tasks.mine")}</option>
             <option value="team">{t("tasks.team")}</option>

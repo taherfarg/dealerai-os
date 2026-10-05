@@ -17,6 +17,7 @@ import {
   useTasks,
 } from "@/lib/api/hooks";
 import { useFilters } from "@/lib/filters";
+import { Avatar } from "@/components/Avatar";
 import { Auto, CustomerName, Ltr } from "@/components/Bidi";
 import { formatDue, formatMoney } from "@/lib/format";
 import { useLocale, useT } from "@/lib/i18n-client";
@@ -83,9 +84,11 @@ export default function CustomerPage({
   return (
     <div className="mx-auto max-w-4xl">
       <header className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
+        {/* The flag rides on the avatar, so the name beside it is given none. */}
+        <Avatar name={record.name} country={record.country} size="xl" />
+        <div className="min-w-0 flex-1">
           <h1 className="text-lg font-semibold">
-            <CustomerName country={record.country} name={record.name} wrap />
+            <CustomerName country={null} name={record.name} wrap />
           </h1>
           <ul className="text-muted mt-1 flex flex-wrap gap-3 text-xs">
             {record.identities.map((identity) => (
@@ -108,7 +111,7 @@ export default function CustomerPage({
             <button
               type="button"
               onClick={() => setDialog("reassign")}
-              className="hover:bg-background min-h-11 rounded-md px-3 text-sm"
+              className="btn"
             >
               {t("customer.reassign")}
             </button>
@@ -117,7 +120,7 @@ export default function CustomerPage({
             <button
               type="button"
               onClick={() => setDialog("merge")}
-              className="hover:bg-background min-h-11 rounded-md px-3 text-sm"
+              className="btn"
             >
               {t("customer.merge")}
             </button>
@@ -129,7 +132,7 @@ export default function CustomerPage({
               type="button"
               onClick={() => exporting.mutate()}
               disabled={exporting.isPending}
-              className="hover:bg-background min-h-11 rounded-md px-3 text-sm"
+              className="btn"
             >
               {t("customer.export")}
             </button>
@@ -138,7 +141,7 @@ export default function CustomerPage({
             <button
               type="button"
               onClick={() => setDialog("erase")}
-              className="hover:bg-background min-h-11 rounded-md px-3 text-sm text-danger"
+              className="btn btn-quiet text-danger"
             >
               {t("customer.erase")}
             </button>

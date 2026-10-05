@@ -6,7 +6,7 @@ import { useId, useState } from "react";
 import { useT } from "@/lib/i18n-client";
 import { createClient } from "@/lib/supabase/client";
 
-const FIELD = "border-border bg-background min-h-11 rounded-md border px-3";
+const FIELD = "field";
 
 /**
  * A new password, for somebody the link in their email has just signed in
@@ -78,7 +78,7 @@ export function ResetPasswordForm() {
       <button
         type="submit"
         disabled={busy}
-        className="bg-accent min-h-11 rounded-md px-3 text-sm font-medium text-on-accent disabled:opacity-60"
+        className="btn btn-primary"
       >
         {busy ? t("auth.saving") : t("auth.savePassword")}
       </button>

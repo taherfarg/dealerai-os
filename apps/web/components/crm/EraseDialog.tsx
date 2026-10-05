@@ -66,7 +66,7 @@ export function EraseDialog({
         <input
           value={typed}
           onChange={(event) => setTyped(event.target.value)}
-          className="min-h-11 rounded-md border border-border px-2 text-sm"
+          className="field px-3"
           dir="auto"
         />
       </label>
@@ -80,14 +80,14 @@ export function EraseDialog({
       )}
 
       <div className="mt-4 flex justify-end gap-2">
-        <button type="button" onClick={onClose} className="min-h-11 px-3 text-sm">
+        <button type="button" onClick={onClose} className="btn btn-quiet">
           {t("common.cancel")}
         </button>
         <button
           type="button"
           disabled={!confirmed || erase.isPending}
           onClick={() => erase.mutate(undefined, { onSuccess: onErased })}
-          className="min-h-11 rounded-md bg-danger px-4 text-sm font-medium text-background disabled:opacity-50"
+          className="btn btn-danger"
         >
           {t("erase.confirm")}
         </button>

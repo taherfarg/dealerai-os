@@ -33,7 +33,7 @@ export function WorkspaceSwitcher({
         // Navigating rather than setting state: the tenant is in the URL, so
         // switching workspace has to change the address, not hidden state.
         onChange={(e) => router.push(`/${e.target.value}`)}
-        className="border-border bg-background text-foreground rounded-md border px-2 py-1.5 text-sm"
+        className="field px-3"
       >
         {tenants.map((tn) => (
           <option key={tn.id} value={tn.slug}>

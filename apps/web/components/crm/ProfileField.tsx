@@ -93,7 +93,7 @@ export function ProfileField({
             defaultValue={String(field?.value ?? "")}
             onChange={(event) => save(event.target.value)}
             onBlur={() => setEditing(false)}
-            className="min-h-11 rounded-md border border-border px-2 text-sm"
+            className="field px-3"
             aria-label={t(`profile.${name}` as MessageKey)}
           >
             <option value="">{t("profile.unknown")}</option>
@@ -113,7 +113,7 @@ export function ProfileField({
               if (event.key === "Enter") save(event.currentTarget.value);
               if (event.key === "Escape") setEditing(false);
             }}
-            className="min-h-11 w-40 rounded-md border border-border px-2 text-end text-sm"
+            className="field w-40 px-3 text-end"
           />
         )
       ) : (

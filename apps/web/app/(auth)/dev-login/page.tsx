@@ -68,16 +68,16 @@ function DevLogin() {
           onChange={(event) => setEmail(event.target.value)}
           placeholder="layla@pollux.test"
           aria-label="Email"
-          className="border-border min-h-11 rounded-md border px-3 text-sm"
+          className="field"
         />
         <input
           value={name}
           onChange={(event) => setName(event.target.value)}
           placeholder="Layla Hassan"
           aria-label="Name"
-          className="border-border min-h-11 rounded-md border px-3 text-sm"
+          className="field"
         />
-        <button type="submit" className="bg-accent min-h-11 rounded-md px-3 text-sm font-medium text-on-accent">
+        <button type="submit" className="btn btn-primary">
           Sign in as them
         </button>
       </form>

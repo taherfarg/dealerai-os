@@ -22,7 +22,7 @@ const PLACES = [
 ] as const;
 
 const LANGUAGES = ["en", "ar", "fr"] as const;
-const FIELD = "border-border bg-background min-h-11 rounded-md border px-3";
+const FIELD = "field";
 
 /** A first workspace for an owner who has none ([08] § 14). They are its
  *  owner, and the next thing they do is invite their team. */
@@ -148,7 +148,7 @@ export function CreateWorkspace() {
       <button
         type="submit"
         disabled={busy || locales.length === 0}
-        className="bg-accent min-h-11 rounded-md px-3 text-sm font-medium text-on-accent disabled:opacity-60"
+        className="btn btn-primary"
       >
         {t("onboarding.create")}
       </button>

@@ -5,7 +5,7 @@ import { useState } from "react";
 import { useT } from "@/lib/i18n-client";
 import { createClient } from "@/lib/supabase/client";
 
-const FIELD = "border-border bg-background min-h-11 rounded-md border px-3";
+const FIELD = "field";
 
 /** A link to choose a new password, sent to an address ([08] § 14). */
 export function ForgotPasswordForm() {
@@ -60,7 +60,7 @@ export function ForgotPasswordForm() {
           <button
             type="submit"
             disabled={busy}
-            className="bg-accent min-h-11 rounded-md px-3 text-sm font-medium text-on-accent disabled:opacity-60"
+            className="btn btn-primary"
           >
             {busy ? t("auth.sending") : t("auth.sendLink")}
           </button>

@@ -48,7 +48,7 @@ export function BriefCard({
             <li key={`${item.kind}:${item.id}`}>
               <Link
                 href={HREF[item.kind](tenant, item)}
-                className="hover:bg-background flex min-h-11 items-center justify-between gap-2 text-sm"
+                className="hover:bg-surface flex min-h-11 items-center justify-between gap-2 text-sm"
               >
                 {/* Who, then what is wrong, each its own: in one element the
                     name decided the direction, and an Arabic reader lost the

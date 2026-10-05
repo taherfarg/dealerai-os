@@ -2,15 +2,11 @@
 
 import Link from "next/link";
 import type { Customer } from "@/lib/api/hooks";
+import { Avatar } from "@/components/Avatar";
 import { CustomerName, Ltr } from "@/components/Bidi";
 import { formatRelative } from "@/lib/format";
 import { useLocale, useT } from "@/lib/i18n-client";
-
-const BAND_TONE: Record<string, string> = {
-  hot: "bg-hot-soft text-hot",
-  warm: "bg-warning-soft text-warning",
-  cold: "bg-info-soft text-info",
-};
+import { BAND_PILL } from "./band";
 
 /**
  * One customer, as a table row on a desktop and a card on a phone. With
@@ -43,16 +39,16 @@ export function CustomerRow({
       )}
       <Link
         href={href}
-        className={`hover:bg-background grid gap-x-3 gap-y-1 border-b border-border px-3 py-3 md:grid-cols-[1fr_10rem_8rem_6rem_6rem] md:items-center ${
+        className={`hover:bg-surface grid gap-x-3 gap-y-1 border-b border-border px-3 py-3 md:grid-cols-[1fr_10rem_8rem_6rem_6rem] md:items-center ${
           onSelect ? "min-w-0 flex-1" : ""
         }`}
       >
-        <span className="flex min-w-0 items-baseline gap-2 text-sm font-medium">
-          <CustomerName country={customer.country} name={customer.name} />
+        <span className="flex min-w-0 items-center gap-2 text-sm font-medium">
+          {/* The flag rides on the avatar, so the name beside it is given none. */}
+          <Avatar name={customer.name} country={customer.country} size="sm" />
+          <CustomerName country={null} name={customer.name} />
           {customer.opted_out && (
-            <span className="shrink-0 rounded bg-danger-soft px-1 text-[10px] uppercase text-danger">
-              {t("customer.optedOut")}
-            </span>
+            <span className="pill pill-danger shrink-0">{t("customer.optedOut")}</span>
           )}
         </span>
         <span className="text-muted truncate text-xs">
@@ -63,11 +59,7 @@ export function CustomerRow({
         </span>
         <span>
           {customer.band && (
-            <span
-              className={`rounded-full px-2 py-0.5 text-xs font-medium ${BAND_TONE[customer.band]}`}
-            >
-              {t(`band.${customer.band}`)}
-            </span>
+            <span className={`pill ${BAND_PILL[customer.band]}`}>{t(`band.${customer.band}`)}</span>
           )}
         </span>
         <time className="text-muted text-xs md:text-end" dateTime={customer.last_seen_at}>

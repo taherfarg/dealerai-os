@@ -26,8 +26,8 @@ import {
   watchDevice,
 } from "@/lib/push";
 
-const BUTTON = "bg-accent min-h-11 self-start rounded-md px-4 text-sm font-medium text-on-accent";
-const QUIET = "border-border min-h-11 rounded-md border px-3 text-sm";
+const BUTTON = "btn btn-primary self-start";
+const QUIET = "btn";
 
 /** What this browser can do never changes while the page is open. */
 const never = () => () => {};

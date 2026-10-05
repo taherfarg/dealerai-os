@@ -44,7 +44,7 @@ function WaitingRow({
       <WaitingTimer waitingSince={conversation.waiting_since} state={conversation.sla_state} />
       <Link
         href={`/${tenant}/inbox/${conversation.id}`}
-        className="hover:bg-background inline-flex min-h-11 items-center rounded-md px-3 text-sm"
+        className="btn"
       >
         {t("dashboard.open")}
       </Link>
@@ -54,7 +54,7 @@ function WaitingRow({
           value=""
           disabled={assign.isPending}
           onChange={(event) => event.target.value && assign.mutate(event.target.value)}
-          className="min-h-11 rounded-md border border-border px-2 text-sm"
+          className="field px-3"
         >
           <option value="">{t("dashboard.reassign")}</option>
           {colleagues.map((member) => (

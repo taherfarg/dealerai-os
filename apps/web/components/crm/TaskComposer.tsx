@@ -48,20 +48,20 @@ export function TaskComposer({
         aria-label={t("tasks.newTitle")}
         onChange={(event) => setTitle(event.target.value)}
         onKeyDown={(event) => event.key === "Enter" && add()}
-        className="min-h-11 flex-1 rounded-md border border-border px-3 text-sm"
+        className="field flex-1"
       />
       <input
         type="datetime-local"
         value={due}
         aria-label={t("tasks.due")}
         onChange={(event) => setDue(event.target.value)}
-        className="min-h-11 rounded-md border border-border px-2 text-sm"
+        className="field px-3"
       />
       <button
         type="button"
         onClick={add}
         disabled={!title.trim() || create.isPending}
-        className="bg-accent min-h-11 rounded-md px-4 text-sm font-medium text-on-accent disabled:opacity-50"
+        className="btn btn-primary"
       >
         {t("tasks.add")}
       </button>

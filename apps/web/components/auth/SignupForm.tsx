@@ -8,7 +8,7 @@ import { useT } from "@/lib/i18n-client";
 import { createClient } from "@/lib/supabase/client";
 import { GoogleButton } from "./GoogleButton";
 
-const FIELD = "border-border bg-background min-h-11 rounded-md border px-3";
+const FIELD = "field";
 
 /** An account through Supabase Auth, confirmed by email when the project asks
  *  for it ([08] § 14). An invitation's address arrives pre-filled. */
@@ -119,7 +119,7 @@ export function SignupForm() {
       <button
         type="submit"
         disabled={busy}
-        className="bg-accent min-h-11 rounded-md px-3 text-sm font-medium text-on-accent disabled:opacity-60"
+        className="btn btn-primary"
       >
         {busy ? t("auth.creating") : t("auth.createAccount")}
       </button>

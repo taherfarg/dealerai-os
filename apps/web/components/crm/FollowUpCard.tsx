@@ -90,7 +90,7 @@ export function FollowUpCard({
               type="button"
               disabled={busy || sent}
               onClick={() => void send()}
-              className="bg-accent min-h-11 rounded-md px-3 font-semibold text-on-accent disabled:opacity-50"
+              className="btn btn-primary"
             >
               {t("followup.send")}
             </button>
@@ -127,9 +127,9 @@ export function FollowUpCard({
             value={skipReason}
             onChange={(event) => setSkipReason(event.target.value)}
             aria-label={t("followup.skipReason")}
-            className="min-h-11 min-w-40 flex-1 rounded-md border border-border-strong bg-transparent px-2"
+            className="field min-w-40 flex-1 px-3"
           />
-          <button type="button" disabled={!skipReason.trim() || busy} onClick={() => void skip()} className="min-h-11 rounded-md border border-border-strong px-3 disabled:opacity-50">
+          <button type="button" disabled={!skipReason.trim() || busy} onClick={() => void skip()} className="btn">
             {t("followup.confirmSkip")}
           </button>
         </div>

@@ -31,17 +31,17 @@ export function LostReasonDialog({
         onKeyDown={(event) => {
           if (event.key === "Enter" && reason.trim()) onConfirm(reason.trim());
         }}
-        className="mt-3 min-h-11 w-full rounded-md border border-border px-3 text-sm"
+        className="field mt-3 w-full"
       />
       <div className="mt-4 flex justify-end gap-2">
-        <button type="button" onClick={onCancel} className="min-h-11 px-3 text-sm">
+        <button type="button" onClick={onCancel} className="btn btn-quiet">
           {t("common.cancel")}
         </button>
         <button
           type="button"
           disabled={!reason.trim()}
           onClick={() => onConfirm(reason.trim())}
-          className="bg-accent min-h-11 rounded-md px-4 text-sm font-medium text-on-accent disabled:opacity-50"
+          className="btn btn-primary"
         >
           {t("lost.confirm")}
         </button>

@@ -41,7 +41,7 @@ export function ReassignDialog({
         <ul className="mt-1 max-h-56 overflow-y-auto">
           {colleagues.map((member) => (
             <li key={member.id}>
-              <label className="hover:bg-background flex min-h-11 items-center gap-2 rounded-md px-2 text-sm">
+              <label className="hover:bg-surface flex min-h-11 items-center gap-2 rounded-md px-2 text-sm">
                 <input
                   type="radio"
                   name="owner"
@@ -71,14 +71,14 @@ export function ReassignDialog({
       </section>
 
       <div className="mt-4 flex justify-end gap-2">
-        <button type="button" onClick={onClose} className="min-h-11 px-3 text-sm">
+        <button type="button" onClick={onClose} className="btn btn-quiet">
           {t("common.cancel")}
         </button>
         <button
           type="button"
           disabled={!chosen || reassign.isPending}
           onClick={() => reassign.mutate(chosen, { onSuccess: onClose })}
-          className="bg-accent min-h-11 rounded-md px-4 text-sm font-medium text-on-accent disabled:opacity-50"
+          className="btn btn-primary"
         >
           {t("reassign.confirm")}
         </button>

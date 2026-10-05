@@ -49,7 +49,7 @@ export function MergeDialog({
           type="search"
           value={search}
           onChange={(event) => setSearch(event.target.value)}
-          className="mt-1 min-h-11 w-full rounded-md border border-border px-3 text-sm"
+          className="field mt-1 w-full"
         />
       </label>
 
@@ -60,7 +60,7 @@ export function MergeDialog({
               type="button"
               onClick={() => setChosen(row)}
               className={`flex min-h-11 w-full items-center justify-between gap-2 rounded-md px-2 text-start text-sm ${
-                chosen?.id === row.id ? "bg-accent/20" : "hover:bg-background"
+                chosen?.id === row.id ? "bg-accent/20" : "hover:bg-surface"
               }`}
             >
               <CustomerName country={row.country} name={row.name} />
@@ -100,7 +100,7 @@ export function MergeDialog({
       </p>
 
       <div className="mt-4 flex justify-end gap-2">
-        <button type="button" onClick={onClose} className="min-h-11 px-3 text-sm">
+        <button type="button" onClick={onClose} className="btn btn-quiet">
           {t("common.cancel")}
         </button>
         <button
@@ -118,7 +118,7 @@ export function MergeDialog({
               },
             )
           }
-          className="bg-accent min-h-11 rounded-md px-4 text-sm font-medium text-on-accent disabled:opacity-50"
+          className="btn btn-primary"
         >
           {t("merge.confirm")}
         </button>

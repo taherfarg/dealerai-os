@@ -46,7 +46,7 @@ export function Avatar({
     >
       {letters || <Icon name="person" size={18} />}
       {flag && (
-        <span className="bg-background text-foreground absolute -end-1 -bottom-0.5 grid min-w-4 place-items-center rounded-full px-0.5 text-[10px] leading-4 font-medium">
+        <span className="bg-background text-foreground absolute -end-1.5 -bottom-1 grid min-w-4 place-items-center rounded-full px-0.5 text-[10px] leading-4 font-medium">
           {flag}
         </span>
       )}
