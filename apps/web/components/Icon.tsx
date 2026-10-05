@@ -80,6 +80,42 @@ const DRAWINGS = {
     </>
   ),
   close: <path d="M6 6l12 12M18 6 6 18" />,
+  // The ones that point are mirrored in Arabic by whoever draws them.
+  back: <path d="M19 12H5M11 6l-6 6 6 6" />,
+  chevronUp: <path d="m7 14 5-5 5 5" />,
+  chevronDown: <path d="m7 10 5 5 5-5" />,
+  send: (
+    <>
+      <path d="M20 4 4 11l6.5 2.5L13 20z" />
+      <path d="M20 4l-9.5 9.5" />
+    </>
+  ),
+  check: <path d="m5 12.5 4.5 4.5L19 7.5" />,
+  refresh: (
+    <>
+      <path d="M19 12a7 7 0 1 1-2.1-5" />
+      <path d="M19 5v3.5h-3.5" />
+    </>
+  ),
+  spark: <path d="M12 4l1.7 5.3L19 11l-5.3 1.7L12 18l-1.7-5.3L5 11l5.3-1.7z" />,
+  clock: (
+    <>
+      <circle cx="12" cy="12" r="8" />
+      <path d="M12 8v4l2.5 2" />
+    </>
+  ),
+  alert: (
+    <>
+      <circle cx="12" cy="12" r="8" />
+      <path d="M12 8v4.5M12 15.5v.5" />
+    </>
+  ),
+  note: (
+    <>
+      <path d="M5 4h14v11l-5 5H5z" />
+      <path d="M19 15h-5v5" />
+    </>
+  ),
 } satisfies Record<string, ReactNode>;
 
 export type IconName = keyof typeof DRAWINGS;

@@ -100,3 +100,15 @@ export function countryFlag(iso2: string | null): string {
     ...[...iso2.toUpperCase()].map((c) => 0x1f1e6 + c.charCodeAt(0) - 65),
   );
 }
+
+/** A country as a word, in the reader's language. `Intl` knows them all. */
+export function countryName(iso2: string | null, locale: Locale): string {
+  if (!iso2 || !/^[A-Za-z]{2}$/.test(iso2)) return "";
+  try {
+    return (
+      new Intl.DisplayNames([DATE_LOCALE[locale]], { type: "region" }).of(iso2.toUpperCase()) ?? ""
+    );
+  } catch {
+    return "";
+  }
+}

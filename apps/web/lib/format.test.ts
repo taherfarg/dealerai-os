@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   countryFlag,
+  countryName,
   formatDateTime,
   formatDue,
   formatDuration,
@@ -120,5 +121,17 @@ describe("countryFlag", () => {
   it("returns nothing for junk rather than a broken glyph", () => {
     expect(countryFlag(null)).toBe("");
     expect(countryFlag("Algeria")).toBe("");
+  });
+});
+
+describe("countryName", () => {
+  it("says a country as a word, in the reader's language", () => {
+    expect(countryName("ae", "en")).toBe("United Arab Emirates");
+    expect(countryName("DZ", "ar")).toBe("الجزائر");
+  });
+
+  it("says nothing for what is not a country's code", () => {
+    expect(countryName(null, "en")).toBe("");
+    expect(countryName("Algeria", "en")).toBe("");
   });
 });
