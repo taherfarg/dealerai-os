@@ -49,10 +49,12 @@ primary_region = "bom"
     timeout = "5s"
     grace_period = "20s"
 
-# Both processes. Measured in this image with nothing to do: the API holds
-# about 90 MB and the worker about 70 MB. The rest is room for what has not
-# been measured — a document being read, a voice note on its way to the model.
-# A knob, not a finding: turn it when staging has had real work.
+# Both processes, on the smallest machine Fly has: staging is to cost as little
+# as it can. Measured in this image with nothing to do, the API holds about
+# 90 MB and the worker about 70 MB, so 256 MB runs them; what has not been
+# measured is a document being read or a voice note on its way to the model.
+# A knob, not a finding: if a machine is killed for memory, the log says so,
+# and "512mb" is the next step.
 [[vm]]
   size = "shared-cpu-1x"
-  memory = "512mb"
+  memory = "256mb"

@@ -18,16 +18,24 @@ Nothing here has been done yet. The code's half was built and checked on a lapto
 
 | Decision | Where it stands |
 |---|---|
-| **Where the Supabase project lives** | **Mumbai (`ap-south-1`) — decided 2026-10-05.** The project earlier docs named is gone, so nothing has to be moved; [00](00-prd.md) §12 Q1 proposed Mumbai because Tokyo added 150–200 ms to every request from the UAE, and Supabase offers no region nearer the Gulf |
-| **Where the API and the worker run** | **Fly.io, in Mumbai (`bom`) — decided 2026-10-05.** What any host had to give: a container image run twice, in a region beside the database, a process that is never put to sleep — a webhook has to be answered, and the worker has no visitors to wake it — and a response that may stay open, which is how a screen hears about a new message. [`fly.toml`](../../fly.toml) says all of that; §4 is the commands |
+| **Where the Supabase project lives** | **Mumbai (`ap-south-1`), on Supabase's Free plan — decided 2026-10-05.** The project earlier docs named is gone, so nothing has to be moved; [00](00-prd.md) §12 Q1 proposed Mumbai because Tokyo added 150–200 ms to every request from the UAE, and Supabase offers no region nearer the Gulf. Free is a plan of an *organisation*: the existing one is on Pro, where every project is 10 US dollars a month, so staging gets an organisation of its own (§2). What free costs instead is below |
+| **Where the API and the worker run** | **Fly.io, in Mumbai (`bom`) — decided 2026-10-05.** Fly has no free plan: a card is needed, and a machine is paid for by the second while it runs — about 2.19 US dollars a month for the smallest, always on, in Fly's cheapest regions (its price list, read 2026-10-05; some regions cost more), and almost nothing while stopped. Two machines, so about 4.40 a month, or less if staging is stopped between the days it is used. What any host had to give: a container image run twice, in a region beside the database, a process that is never put to sleep — a webhook has to be answered, and the worker has no visitors to wake it — and a response that may stay open, which is how a screen hears about a new message. [`fly.toml`](../../fly.toml) says all of that; §4 is the commands |
 | **Where the web app runs** | Vercel, as the architecture says |
 | **Who sends the email** | **Not decided.** Supabase's own sender is for trying things: a few emails an hour, to the project's own team. A real sender is an account with an email service (Resend, Postmark, Amazon SES, …) and a domain it may send from. Until there is one, §7 can be walked by the project's own team and nobody else |
 
+**What a free project costs instead of money.** Supabase pauses a Free project that has had too
+little database activity for a week, after an email warning; a paused project can be resumed for
+90 days, and after that it cannot. While staging's worker runs, it asks the database for work every
+second, which should be activity enough — so the risk is stopping staging's machines for more than
+a week and forgetting the project. It also has no backups, and a small database. All of that is
+right for staging and wrong for customers: **the pilot's project is on a paid plan.**
+
 ## 2. The project (founder, then one command)
 
-1. Create the Supabase project in Mumbai (`ap-south-1`). Note its address,
-   `https://<project-ref>.supabase.co`. On the organisation's plan a project is a monthly
-   charge of its own — 10 US dollars when this was written.
+1. In the Supabase dashboard, make a **new organisation on the Free plan**, and in it the
+   project: region Mumbai (`ap-south-1`). Note its address, `https://<project-ref>.supabase.co`.
+   Not in the existing organisation: that one is on Pro, where a project is 10 US dollars a
+   month. An account has two free projects.
 2. Copy `.env.staging.example` to `.env.staging` and fill in the **session pooler** address, with
    the database password, from the project's *Connect* panel. The file is gitignored.
 3. Apply the schema, from a laptop:
