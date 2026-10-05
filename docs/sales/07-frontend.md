@@ -80,21 +80,12 @@ the same workspace for whoever clicks it.
 
 ## 5. UI system
 
-- **shadcn/ui** components, with their physically-directional classes converted to logical ones on
-  the way in (`ml-` → `ms-`, `right-` → `end-`), because `check:rtl` scans `components/` too.
-- **Tokens** extend `globals.css` rather than replacing it: `--success`, `--warning`, `--info`,
-  `--hot`, `--warm`, `--cold`, `--whatsapp`, plus shadcn's variables mapped onto the existing ones so
-  both systems paint the same colours in light and dark mode.
-- **Contrast:** white text on the Pollux accent `#4AA0FF` fails WCAG AA, so primary buttons use
-  `#1F6FD1` with white text and the accent stays for highlights, focus rings and the active nav item.
-  The tenant's accent and logo come from the brand profile, so a second dealer looks like themselves.
-- **Fonts:** Geist for Latin, IBM Plex Sans Arabic when `dir="rtl"`, both through `next/font`.
-- **Component inventory** (`components/sales/`): `ConversationRow`, `ConversationList`,
-  `MessageBubble` (one per message type), `VoiceNote`, `MessageStatusTicks`, `WindowBanner`,
-  `Composer`, `TemplatePicker`, `QuickReplyMenu`, `VehiclePicker`, `DraftPanel`, `CustomerPanel`,
-  `ProfileField`, `IdentityList`, `LeadCard`, `StageColumn`, `ScoreReasons`, `TaskRow`,
-  `FollowUpCard`, `StatTile`, `RepTable`, `WaitingList`, `BriefCard`, `NotificationList`,
-  `EmptyState`, `ErrorState` and the matching skeletons.
+**What this section planned was never built, and is no longer the plan** (2026-10-05): shadcn/ui,
+Geist with IBM Plex Sans Arabic, a tenant's own accent colour, a `components/sales/` folder. What
+exists is nine colours in `globals.css` and classes written by hand in each file.
+
+The look the app is getting, and how, is [11 — the new look](11-ui-refresh.md). This section is
+rewritten to describe what exists when that work is done.
 
 ---
 
