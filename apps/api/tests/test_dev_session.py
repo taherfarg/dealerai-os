@@ -59,12 +59,35 @@ async def test_outside_local_the_routes_do_not_exist(
 
 def test_the_router_is_not_registered_outside_local(monkeypatch: pytest.MonkeyPatch) -> None:
     """The second lock: a non-local app never mounts the routes at all."""
+    from starlette.routing import Match
+
     from dealerai import main
     from dealerai.config import get_settings
 
-    monkeypatch.setattr(get_settings(), "env", "staging")
-    paths = {getattr(route, "path", "") for route in main.create_app().routes}
-    assert not any(path.startswith("/internal/dev") for path in paths)
+    def routed(app: object, path: str) -> bool:
+        """Whether anything in the app would take this request — asked of the
+        routes themselves, since an included router does not list its paths."""
+        scope = {"type": "http", "method": "GET", "path": path, "root_path": ""}
+        return any(route.matches(scope)[0] is Match.FULL for route in app.routes)  # type: ignore[attr-defined]
+
+    # On a laptop it is there — so the question below can be answered either way.
+    assert routed(main.create_app(), "/internal/dev/people")
+
+    settings = get_settings()
+    monkeypatch.setattr(settings, "env", "staging")
+    # Fit to serve, as a deployment has to be: otherwise the app refuses to be
+    # built at all (config.deploy_problems), and this would prove nothing.
+    monkeypatch.setattr(settings, "supabase_url", "https://abcdefghijklmnop.supabase.co")
+    monkeypatch.setattr(settings, "supabase_jwt_secret", "a-secret-of-this-deployment-and-no-other")
+    monkeypatch.setattr(settings, "web_origins", "https://staging.dealerai.example")
+    monkeypatch.setattr(settings, "storage_dir", None)
+    monkeypatch.setattr(settings, "vapid_private_key", None)
+
+    elsewhere = main.create_app()
+    assert not routed(elsewhere, "/internal/dev/people")
+    assert not routed(elsewhere, "/docs")
+    # And the rest of the app is: it was built, not refused.
+    assert routed(elsewhere, "/v1/me")
 
 
 async def test_a_missing_jwt_secret_is_named_rather_than_signing_with_nothing(
