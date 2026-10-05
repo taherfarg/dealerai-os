@@ -63,7 +63,7 @@ export function Modal({
       }}
       // overscroll-contain: reaching the end of the dialog does not start
       // scrolling the page underneath it.
-      className={`bg-surface text-foreground border-border overscroll-contain p-0 backdrop:bg-black/40 ${SHAPE[variant]}`}
+      className={`bg-background text-foreground border-border overscroll-contain p-0 shadow-lg backdrop:bg-black/40 ${SHAPE[variant]}`}
     >
       <div className={variant === "sheet" ? "min-h-full" : "p-4"}>
         {title && (

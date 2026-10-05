@@ -204,6 +204,15 @@
     border-color: transparent;
     background: transparent;
   }
+  /* The button that cannot be taken back. */
+  .btn-danger {
+    border-color: transparent;
+    background: var(--danger);
+    color: var(--background);
+  }
+  .btn-danger:hover {
+    background: color-mix(in srgb, var(--danger) 88%, black);
+  }
 
   /* Somewhere to type or to choose. */
   .field {

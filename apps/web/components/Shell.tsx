@@ -109,8 +109,13 @@ export function Shell({
         </div>
       </aside>
 
-      <main id="page" className="min-w-0 p-4 pb-28 md:p-8">
-        {children}
+      {/* On a desk the page is a white sheet on the canvas ([11] § 5.2); on a
+          phone the sheet is the whole screen. The inbox draws its own panels
+          edge to edge, and the sheet steps aside for it. */}
+      <main id="page" className="bg-ground min-w-0 md:p-4">
+        <div className="bg-background min-h-full p-4 pb-28 has-[>[data-inbox]]:contents md:rounded-[1.125rem] md:p-6">
+          {children}
+        </div>
       </main>
 
       <nav

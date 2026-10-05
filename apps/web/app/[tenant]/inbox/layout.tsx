@@ -8,9 +8,10 @@ import { ConversationList } from "@/components/inbox/ConversationList";
  * undoes.
  *
  * The inbox is the one page that fits the window exactly, so that the composer
- * sits at its foot: it takes back the padding the shell gives every page, and
- * its height is the window's, less the row the shell says it keeps at the top
- * (`--shell-top`, in components/Shell.tsx).
+ * sits at its foot. `data-inbox` tells the shell not to put it on a sheet; it
+ * takes back the margin the shell gives the canvas on a desk; and its height is
+ * the window's, less the row the shell says it keeps at the top (`--shell-top`,
+ * in components/Shell.tsx).
  */
 export default function InboxLayout({
   children,
@@ -20,7 +21,10 @@ export default function InboxLayout({
   return (
     // One row that is the whole height: whichever of the two is on screen
     // fills it, and scrolls inside itself.
-    <div className="group -mx-4 -mt-4 -mb-28 grid h-[calc(100dvh-var(--shell-top))] grid-cols-1 grid-rows-[minmax(0,1fr)] md:-m-8 lg:grid-cols-[23.25rem_1fr]">
+    <div
+      data-inbox
+      className="group grid h-[calc(100dvh-var(--shell-top))] grid-cols-1 grid-rows-[minmax(0,1fr)] md:-m-4 lg:grid-cols-[23.25rem_1fr]"
+    >
       {/* A div, not an aside: the list is the page, not something beside it —
           and the shell already has the page's one complementary landmark. */}
       <div className="bg-background border-border min-h-0 group-has-[[data-thread]]:hidden lg:block lg:border-e lg:group-has-[[data-thread]]:block">
