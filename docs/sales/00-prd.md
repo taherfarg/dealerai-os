@@ -195,7 +195,7 @@ WhatsApp quality rating drops · template rejections · reps reverting to the ph
 
 | # | Question | Needed by | Owner |
 |---|---|---|---|
-| Q1 | ~~Recreate the Supabase project in Mumbai (ap-south-1) before real customer data?~~ **Answered 2026-10-05: Mumbai.** The first project was found gone, so there is nothing to move: a new one is made there, and the API and the worker run beside it on Fly.io ([10](10-staging.md) §1) | — | Founder |
+| Q1 | ~~Recreate the Supabase project in Mumbai (ap-south-1) before real customer data?~~ **Answered 2026-10-05: Mumbai, for the project customers' data will live in.** The first project was found gone, so there is nothing to move. Staging's project is in Singapore, where it happened to be made and where the owner left it, with its API and worker beside it on Fly.io ([10](10-staging.md) §1) | — | Founder |
 | Q2 | Which two salespeople pilot first? | Week 11 | Founder |
 | Q3 | Default Arabic register for UAE customers: mirror the customer, or Gulf-leaning formal? | Week 7 (drafts) | Founder + sales team |
 | Q4 | When does the SaaS company exist, so the Tech Provider can move to it? | Phase 3 | Founder |

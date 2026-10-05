@@ -6459,6 +6459,10 @@ is why [10](../10-staging.md) §2 now says more than it did:
   `app` schema, from the days the browser read tables itself. Nothing serves that schema, so they
   cannot be called; revoking them is a migration for another day.
 
+**Decided the same day:** staging stays in Singapore. It holds no customers, a region cannot be
+changed, and the pilot's project — the one the latency matters for — has yet to be made, in
+Mumbai. `fly.toml` moved with it, from `bom` to `sin`, to keep the API beside its database.
+
 Not yet run: the application's own password, the API and the worker on Fly, the web app, the
 authentication settings, and the first sign-in.
 

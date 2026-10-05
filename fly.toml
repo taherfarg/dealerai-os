@@ -16,8 +16,10 @@
 # The name is the owner's to choose, and has to be free on Fly.
 app = "dealerai-staging"
 
-# Mumbai, beside the Supabase project (ap-south-1).
-primary_region = "bom"
+# Singapore, beside staging's Supabase project (ap-southeast-1): where that
+# project was made, and where the owner chose to leave it. The pilot's project
+# is to be in Mumbai, and its API with it ("bom").
+primary_region = "sin"
 
 [build]
   dockerfile = "apps/api/Dockerfile"
