@@ -138,13 +138,19 @@ class Settings(BaseSettings):
                 "or more: it signs invitation links and media links, and the local one is "
                 "in the Supabase CLI's documentation"
             )
-        if self.web_origins == LOCAL_WEB_ORIGINS:
+        # A host's form can leave a value blank, and blank passes for a string.
+        if not self.web_origin_list or self.web_origins == LOCAL_WEB_ORIGINS:
             problems.append(
-                "WEB_ORIGINS still names localhost: the browser refuses every call from "
-                "the deployed web app until its origin is listed"
+                "WEB_ORIGINS does not name the deployed web app: the browser refuses every "
+                "call from it until its origin is listed"
             )
         if self.storage_dir:
             problems.append("STORAGE_DIR is for a laptop: leave it unset")
+        if not self.database_url.startswith(("postgresql://", "postgres://")):
+            problems.append(
+                "DATABASE_URL is not a postgresql:// address: it is the session pooler's, "
+                "as dealerai_app"
+            )
         if ":6543/" in self.database_url:
             problems.append(
                 "DATABASE_URL points at the transaction pooler (:6543): the API holds a "
