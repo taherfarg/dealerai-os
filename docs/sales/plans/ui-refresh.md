@@ -1576,3 +1576,249 @@ phone in Arabic, and the bell's list beside the rail's foot.
 | The page is still white from edge to edge: no canvas yet | 3 onwards |
 | Settings' sections are rows of words | 5 |
 | An iPhone's home indicator and the floating bar: to be looked at on a real phone | Staging |
+
+---
+
+# Step 3 — The inbox
+
+**Goal:** the inbox is the mock-up, in the running app. The list and the conversation fill the
+window as two panels; a conversation is bubbles on the mint canvas; the AI draft is a dashed
+bubble on our side; the composer is one row; and on a phone an open conversation has the whole
+screen.
+
+**How this step was planned.** By reading the eight components and what finds them.
+
+| What was read | What it found |
+|---|---|
+| The end-to-end tests' own locators | `page.locator("header")` must stay one element while the customer panel is shut; `a[href*="/pipeline?lead="]` must stay one link; *Send* is found by exact name; the waiting state by its `aria-label`. So the lead strip is a button, not a link, and no second `<header>` appears |
+| `fixtures.ts`, `visit()` | Where the navigation does not have a destination, a test goes there by its address. So the phone's bar can be hidden inside a conversation without a test losing its way |
+| `inbox/layout.tsx` | `h-full` with nothing definite above it. The inbox needs the window's height, which depends on a row the shell owns — so the shell says how tall that row is, in one CSS variable |
+| `Thread.copilot.test.tsx` | It fakes the data hooks one by one. A thread that reads the customer's open lead needs one more faked |
+| `WaitingTimer.tsx`, `lib/format.ts` | The timer looks again every thirty seconds and shows seconds. `formatDuration` is also the dashboard's, where seconds matter: the timer rounds what it gives it, and the formatter stays as it is |
+| `CustomerName` | It draws the flag. Beside an avatar, the avatar carries it — so `CustomerName` is given no country there, and is otherwise unchanged |
+
+**Decisions made here.**
+
+- **On a phone an open conversation hides the shell's top row and its bar.** The way out is the
+  back arrow, as in every messenger. It is what gives the composer its place at the foot of the
+  screen ([11](../11-ui-refresh.md) §9's risk about a long draft goes with it).
+- **The canvas is `ground`, here first.** The conversation is drawn on it; the list, the header
+  and the composer are white panels.
+- **`btn`, `field`, `pill` arrive**, and are used by every control this step touches. `card`
+  still waits for step 4.
+
+## What Step 3 does not build
+
+| Item | Why, and when |
+|---|---|
+| The customer's own page, the pipeline, tasks | Step 4. `CustomerRow` and `LeadCard` keep their own band colours until then |
+| The fields inside *What we know* | Their editing is its own small machine (`ProfileField`); only what surrounds them changes |
+| Templates and quick replies, beyond their colours and buttons | They work, and nobody has looked at them in the mock-up |
+
+## File structure
+
+| File | Responsibility |
+|---|---|
+| `apps/web/app/globals.css`, `palette.test.ts` | **Modify.** `ground`; `btn`, `field`, `pill` and their tones |
+| `apps/web/components/Icon.tsx` | **Modify.** `back`, `check`, `refresh`, `spark`, `send`, `clock`, `alert`, `note`, the two chevrons |
+| `apps/web/components/Avatar.tsx` | **Modify.** Sizes; a customer's flag on its corner |
+| `apps/web/lib/format.ts`, `format.test.ts` | **Modify.** `countryName`: a country as a word, in the reader's language |
+| `apps/web/components/inbox/WaitingTimer.tsx`, `WaitingTimer.test.tsx` | **Modify, create.** A pill; minutes after the first minute |
+| `apps/web/components/Shell.tsx`, `app/[tenant]/inbox/layout.tsx` | **Modify.** The window's height; no shell around a conversation on a phone |
+| `apps/web/components/inbox/ConversationList.tsx`, `ConversationRow.tsx` | **Modify.** Pills for tabs, a soft search, rows with avatars |
+| `apps/web/components/inbox/Thread.tsx`, `LeadStrip.tsx`, `Thread.copilot.test.tsx` | **Modify, create.** The header; the open lead in one line; the canvas |
+| `apps/web/components/inbox/MessageBubble.tsx` | **Modify.** Bubbles with a corner on the side they speak from |
+| `apps/web/components/inbox/DraftPanel.tsx`, `Composer.tsx` | **Modify.** The dashed bubble; one row to write in |
+| `apps/web/components/crm/CustomerPanel.tsx`, `band.ts` | **Modify, create.** The panel; a band's pill, said once |
+
+---
+
+## Task I1: The canvas and the classes
+
+- [ ] `palette.test.ts` gains `["foreground", "ground"]` and `["muted", "ground"]`, and fails.
+- [ ] `globals.css`: `--ground` is `#edf3ef` in light and `#0c1210` in dark, mapped as the others
+  are. In the components layer: `btn` (outlined, a pill, 44 px), `btn-primary` (the accent,
+  darkening on hover), `btn-quiet` (no outline until hovered); `field` (a pill; a `textarea` gets
+  a 22 px corner) and `field-soft`; `pill` and `pill-danger`, `pill-warning`, `pill-info`,
+  `pill-accent`, `pill-hot`, each a soft fill with its own ink — pairs the palette's test already
+  holds. The test passes.
+
+## Task I2: What the pieces need
+
+- [ ] **`countryName(code, locale)`** in `lib/format.ts`, test first:
+
+```ts
+describe("countryName", () => {
+  it("says a country as a word, in the reader's language", () => {
+    expect(countryName("ae", "en")).toBe("United Arab Emirates");
+    expect(countryName("DZ", "ar")).toBe("الجزائر");
+  });
+
+  it("says nothing for what is not a country's code", () => {
+    expect(countryName(null, "en")).toBe("");
+    expect(countryName("Algeria", "en")).toBe("");
+  });
+});
+```
+
+```ts
+/** A country as a word, in the reader's language. `Intl` knows them all. */
+export function countryName(iso2: string | null, locale: Locale): string {
+  if (!iso2 || !/^[a-z]{2}$/i.test(iso2)) return "";
+  try {
+    return new Intl.DisplayNames([DATE_LOCALE[locale]], { type: "region" }).of(iso2.toUpperCase()) ?? "";
+  } catch {
+    return "";
+  }
+}
+```
+
+- [ ] **`Avatar`** takes `size` (`sm` 28, `md` 36, `lg` 44, `xl` 56 px) and `country`. A country
+  is `countryFlag(country)` in a small white badge on the corner at the end side: a picture where
+  the system has flags, two letters where it has not.
+
+- [ ] **`WaitingTimer`**, test first — `WaitingTimer.test.tsx`:
+
+```tsx
+import { render, screen } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
+import { WaitingTimer } from "./WaitingTimer";
+import { LocaleProvider } from "@/lib/i18n-client";
+
+const NOW = Date.parse("2026-10-05T10:00:00Z");
+const ago = (seconds: number) => new Date(NOW - seconds * 1000).toISOString();
+const show = (seconds: number, state: "ok" | "due_soon" | "breached") =>
+  render(
+    <LocaleProvider locale="en">
+      <WaitingTimer waitingSince={ago(seconds)} state={state} now={NOW} />
+    </LocaleProvider>,
+  );
+
+describe("WaitingTimer", () => {
+  it("counts in minutes once a minute has passed", () => {
+    show(22 * 60 + 30, "breached");
+    expect(screen.getByLabelText("Missed 22m")).toBeDefined();
+  });
+
+  it("counts the first minute in seconds", () => {
+    show(45, "ok");
+    expect(screen.getByLabelText("Waiting 45s")).toBeDefined();
+  });
+
+  it("says its state in a word and wears it: plain, then a warning, then danger", () => {
+    expect(show(45, "ok").container.querySelector(".pill")?.className).toBe("pill ");
+    expect(show(300, "due_soon").container.querySelector(".pill-warning")).not.toBeNull();
+    expect(show(900, "breached").container.querySelector(".pill-danger")).not.toBeNull();
+  });
+});
+```
+
+The timer becomes `<span className={`pill ${TONE[state]}`} aria-label=…>` with a clock, or an
+alert when missed, and `formatDuration(seconds < 60 ? seconds : Math.floor(seconds / 60) * 60,
+locale)`.
+
+## Task I3: The window
+
+- [ ] **`Shell.tsx`** says how tall its top row is, and steps aside for a conversation on a phone.
+  The root gains `group/shell [--shell-top:3.3125rem] has-[[data-thread]]:[--shell-top:0px]
+  md:[--shell-top:0px]`; the `<aside>` gains `max-md:group-has-[[data-thread]]/shell:hidden`; the
+  phone's `<nav>` gains `group-has-[[data-thread]]/shell:hidden`.
+- [ ] **`inbox/layout.tsx`** takes the window: `-mx-4 -mt-4 -mb-28
+  h-[calc(100dvh-var(--shell-top))] md:-m-8`, two columns from `lg` (`23.25rem` and the rest), the
+  list a white panel, the conversation's side `bg-ground`.
+
+## Task I4: The list
+
+- [ ] **`ConversationList`**: the tabs are pills in a row that scrolls sideways before it would
+  widen the page, the chosen one filled, each count in a small circle; the search is `field
+  field-soft`; the rows scroll with room under the last one for the phone's bar.
+- [ ] **`ConversationRow`**: the avatar with the flag, then the name and the age, one line of what
+  was said, and the waiting pill, who has it and the unread `badge`. No rule between rows; the
+  chosen one on `accent-soft`. *Unassigned* is `pill pill-accent`. Its eight tests pass unchanged.
+
+## Task I5: The conversation
+
+- [ ] **`LeadStrip.tsx`** — a button, never a link:
+
+```tsx
+/**
+ * The customer's open lead, in one line under their name ([11] § 5.1). It reads
+ * what the customer panel reads, so opening the panel asks for nothing new —
+ * and it is a button that opens that panel, not a second link to the pipeline.
+ */
+export function LeadStrip({ contactId, onOpen }: { contactId: string; onOpen: () => void }) {
+  const t = useT();
+  const customer = useCustomer(contactId);
+  const lead = customer.data?.leads.find((candidate) => candidate.stage.category === "open");
+  if (!lead) return null;
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="bg-background hover:bg-surface mx-3 mt-3 flex min-h-11 flex-wrap items-center gap-x-2 gap-y-1 rounded-2xl px-4 py-2 text-start text-xs lg:mx-5"
+    >
+      <Icon name="inventory" size={16} className="text-muted" />
+      <span className="text-muted">{t("customer.openLead")}</span>
+      <Auto className="text-sm font-medium">{lead.vehicle?.label ?? lead.pipeline_name}</Auto>
+      <Auto className="pill">{lead.stage.name}</Auto>
+      {lead.band && <span className={`pill ${BAND_PILL[lead.band]}`}>{t(`band.${lead.band}`)}</span>}
+      {lead.budget && <Ltr className="ms-auto text-sm font-semibold">{formatMoney(lead.budget)}</Ltr>}
+    </button>
+  );
+}
+```
+
+- [ ] **`Thread.tsx`**: the header is a white panel — back (a drawn arrow inside the span that
+  mirrors it), the avatar, the name as the `h1`, then *Assign to me*, *Customer* and *Close* as
+  `btn`s; under the name the waiting pill, who has it and the window, all still inside the one
+  `<header>`. On a phone *Customer* and *Close* are their drawings, their words kept for a screen
+  reader. Then the strip; then the messages on `ground`; the customer panel a white column.
+  `Thread.copilot.test.tsx` fakes `useCustomer` too.
+- [ ] **`MessageBubble.tsx`**: a 22 px corner, tight on the side the bubble speaks from
+  (`rounded-es-md` theirs, `rounded-ee-md` ours); theirs white with a soft shadow; 16 px on a
+  phone and 15 on a desk. Its tests pass unchanged.
+
+## Task I6: The draft and the composer
+
+- [ ] **`DraftPanel.tsx`**: still a `<section>` named *AI draft*, outside the log. Inside it one
+  bubble on our side: white, a dashed `accent` outline, the tight corner at the end. The label
+  with its spark, confidence and intent as pills, *Collapse draft* as a chevron that keeps its
+  name; sources as pills; *Send draft* `btn-primary`, the rest `btn` and `btn-quiet`. Its tests
+  pass unchanged.
+- [ ] **`Composer.tsx`**: one row — *Internal note* (a pill that fills with `warning` when on; its
+  drawing alone on a phone), the box (`field`), and *Send*, a round accent button whose name is
+  still *Send*. Its tests pass unchanged.
+
+## Task I7: The customer panel
+
+- [ ] **`band.ts`**: `BAND_PILL = { hot: "pill-hot", warm: "pill-warning", cold: "pill-info" }`.
+- [ ] **`CustomerPanel.tsx`**: the avatar (large, with the flag), the name, the number, the
+  country as a word, who has them; a drawn close button that keeps its name; tags as pills; the
+  open lead as a card — still the one link to `/pipeline?lead=` — with its stage and band as pills
+  and its price at the end.
+
+## Task I8: The whole check, the suite, and the look
+
+- [ ] `npm run check:web`; `npm run build`; `E2E_DB_PORT=54432 npm run e2e` — 65 passed. A test
+  that now finds two of something is narrowed to where it meant to look
+  ([11](../11-ui-refresh.md) §9); a test that finds none is read before anything is touched.
+- [ ] The photographs: the inbox on a desk in English, light and dark, with the customer panel
+  open in one; on a phone in Arabic, the list and the conversation.
+- [ ] `## Step 3 review`, here; where it stands, in [11](../11-ui-refresh.md).
+
+## Spec coverage (Step 3)
+
+| Requirement | Task |
+|---|---|
+| [11](../11-ui-refresh.md) §3.1 `ground`; §3.4 `btn`, `field`, `pill` | I1 |
+| §3.6 — the flag on the avatar's corner | I2 |
+| §5.1 — the inbox fills the window | I3 |
+| §5.1 — the list, the waiting pill and its three looks, minutes | I2, I4 |
+| §5.1 — the header, the lead strip, messages | I5 |
+| §5.1 — the draft, the composer | I6 |
+| §5.1 — the customer panel, the country as a word | I2, I7 |
+| §9 — the lead strip says words the panel also says | I5 (a button), I8 |
+
+## Execution (Step 3)
+
+Inline, straight on from step 2.
