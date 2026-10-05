@@ -83,8 +83,8 @@ and for dark (`prefers-color-scheme`, as now).
 | `info` / `info-soft` | `#0c4a80` / `#d7ebff` | `#9ccbf5` / `#0e2a44` | A neutral notice, a cold lead |
 | `hot` / `hot-soft` | `#8a3b0c` / `#ffe2cf` | `#ffb48a` / `#3d1d0a` | A hot lead |
 
-`brand` and `success` stay as names and point at the accent, so nothing that uses them breaks. The
-old gold and navy go.
+`success` stays as a name and is the accent's green. `brand` goes with the navy, and the old gold
+with it: what used them is renamed in the same pass that names everything else.
 
 Every pair above that carries text was worked out before it was chosen: text on its own soft fill
 is 6:1 or better in both modes, white on `accent` is 5.3:1, `muted` is 5.8:1 on `ground`. The
@@ -198,7 +198,9 @@ margin around them.
   same request the panel makes. No open lead, no strip.
 - **Messages.** On `ground`. The customer's are white, ours are `accent` with white text, a note
   is `warning-soft` with its label, an event is a centred line. Quiet text inside our bubble is
-  white and small. Ticks, failures and retry are where they are.
+  white and small. Ticks and retry are where they are. One of ours that failed is `danger-soft`,
+  not green: its *Not delivered* line is red, red on the green cannot be read, and a message that
+  failed must never pass for one that went.
 - **The AI draft.** Still a region of its own between the messages and the composer, always in
   view, and never inside the log. It is drawn as a bubble on our side with a dashed `accent`
   outline: not sent yet. Label, confidence and intent on top, the text, *Based on* with its sources
@@ -266,10 +268,12 @@ it has to stay readable; what changes is `accent-ink`, the green used as text.
 
 Each step is its own commits, and the app works after each.
 
-1. **Foundation.** Tokens, font, shared classes, `Icon`, `Avatar`. Every colour written by hand is
-   replaced by its token in one pass, so the whole app changes colour and face at once and nothing
-   is left on the old gold.
-2. **Shell.** The rail, the phone's top row and floating bar, the account menu.
+1. **Foundation.** The names for every colour, the typeface, the corners. Every colour written by
+   hand is replaced by its name in one pass, so the whole app changes colour and face at once and
+   nothing is left on the old gold. Nothing moves.
+2. **Shell.** The rail, the phone's top row and floating bar, the account menu — and with them
+   what they are the first to be drawn with: the canvas colour, the shared classes, `Icon` and
+   `Avatar`. (Planning step 1 found that nothing in it would use them.)
 3. **Inbox.** List, conversation, lead strip, draft, composer, customer panel.
 4. **Customers, Pipeline, Tasks, My day.**
 5. **Dashboard, Settings, sign-in.**
