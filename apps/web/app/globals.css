@@ -86,15 +86,22 @@
   --color-success: var(--accent-ink);
 }
 
+/* Softer corners everywhere at once: what a component writes as rounded-md
+   and rounded-lg ([11] § 3.3). Pills and bubbles come with their screens. */
+@theme {
+  --radius-md: 0.75rem;
+  --radius-lg: 1.125rem;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  /* One family for Latin and Arabic, set on <html> by app/fonts.ts. */
+  font-family: var(--font-readex), system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
-/* Arabic needs a face that actually has the glyphs, and a little more leading. */
+/* Arabic wants a little more leading than Latin does. */
 [dir="rtl"] body {
-  font-family: "Segoe UI", "Noto Sans Arabic", "IBM Plex Sans Arabic", system-ui, sans-serif;
   line-height: 1.75;
 }
 
