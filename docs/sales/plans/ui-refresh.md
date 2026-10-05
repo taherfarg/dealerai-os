@@ -1822,3 +1822,51 @@ export function LeadStrip({ contactId, onOpen }: { contactId: string; onOpen: ()
 ## Execution (Step 3)
 
 Inline, straight on from step 2.
+
+---
+
+## Step 3 review — 2026-10-05
+
+**Built as planned, in three commits:** `3d89d68` (the canvas and the classes), `ad972f2` (the
+flag on the avatar, a country in words, the timer in minutes) and `8a5e0f3` (the inbox).
+
+| What | Before | After |
+|---|---|---|
+| A customer's message | White on white, no bubble | A white bubble on the mint canvas |
+| A conversation on a phone | Under a three-row header, over a bar, the composer sometimes below the screen | The whole screen, the composer at its foot |
+| The waiting timer | Coloured text, with seconds that were already out of date | A pill with three looks; minutes after the first |
+| The customer's open lead | Only inside the panel | One line under the name as well |
+| Unit tests | 362 in 63 files | 367 in 64 |
+| End-to-end | 65 | 65 passed in 4.4 minutes, with no test changed |
+
+**What the suite found: one thing, and it was real.** The first run was 64 of 65. In Arabic at
+360 px the sweep refused the conversation: *scrollable-region-focusable*. The messages now scroll
+inside the conversation where the page used to scroll for them, and nothing in that area could
+take the keyboard, so somebody without a pointer could not read a message that was out of sight.
+The scrolling area takes focus now. No test was touched.
+
+Nothing found two of anything: the lead strip is a button and hides while the panel is open, so the
+panel's link to the pipeline is still the only one.
+
+**What differs from the plan.**
+
+- **The customer panel stands beside the whole conversation** — the draft and the composer too —
+  where the plan left it beside the messages only. The first photograph showed the panel cut off
+  half way down by the draft.
+- **The composer's box is one line**, growing with what is typed where the browser can
+  (`field-sizing`), and stays one line where it cannot.
+- **Taking a conversation** (*Assign to me*) moved under the name, beside the word that says
+  nobody has it: with an avatar in the row there was no room left for the name on a phone.
+- **The template picker and the quick-reply menu** got their buttons, fields and corners; nothing
+  else of theirs changed.
+- **A long draft on a phone still takes most of the screen.** It is the thing to act on, and it
+  folds away with its chevron; capping it would have put a scrolling box inside a scrolling box.
+
+**Known, and left.**
+
+| What | Step |
+|---|---|
+| `CustomerRow` and `LeadCard` still write their own band colours; `band.ts` waits for them | 4 |
+| The fields inside *What we know* are as they were | 4, with the customer's own page |
+| A sent message's ticks are still characters | When somebody minds |
+| The flag is two letters wherever Windows draws it | Not ours to fix; a phone draws the flag |

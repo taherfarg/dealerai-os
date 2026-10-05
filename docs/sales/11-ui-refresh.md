@@ -8,10 +8,11 @@ for that.
 This page says what the app will look like and how it gets there. It changes how things look and
 where a few controls sit. It does not change what any screen does.
 
-**Where it stands (2026-10-05):** the direction is chosen and this design is agreed. Steps 1 and 2
-of §8 are built — the palette, the typeface and the corners on every screen, and the shell around
-them ([step 1](plans/ui-refresh.md#step-1-review--2026-10-05),
-[step 2](plans/ui-refresh.md#step-2-review--2026-10-05)). Steps 3 to 6 are not. The step-by-step
+**Where it stands (2026-10-05):** the direction is chosen and this design is agreed. Steps 1 to 3
+of §8 are built — the palette, the typeface and the corners on every screen, the shell around
+them, and the inbox ([step 1](plans/ui-refresh.md#step-1-review--2026-10-05),
+[step 2](plans/ui-refresh.md#step-2-review--2026-10-05),
+[step 3](plans/ui-refresh.md#step-3-review--2026-10-05)). Steps 4 to 6 are not. The step-by-step
 plan is [`plans/ui-refresh.md`](plans/ui-refresh.md), written one step at a time.
 
 ---
