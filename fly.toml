@@ -25,6 +25,9 @@ primary_region = "bom"
 [env]
   ENV = "staging"
   LOG_LEVEL = "info"
+  # A Free project's database takes 60 connections in all, and Supabase's own
+  # services hold about ten of them. Each process keeps up to this many.
+  DB_POOL_MAX = "5"
 
 # Each takes the place of the image's CMD.
 [processes]

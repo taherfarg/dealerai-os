@@ -6438,4 +6438,28 @@ measurement (the API holds about 90 MB with nothing to do, the worker about 70) 
 is a guess. Still open on the founder's track: making the project, the Fly account, who sends the
 email, and the Google client.
 
+**The staging day, begun on 2026-10-05:** the owner asked for staging without a monthly charge,
+made a Free-plan organisation and, in it, the project (`sqlshcesowlrmhiugnpf`). What happened next
+is why [10](../10-staging.md) §2 now says more than it did:
+
+- The address put into `.env.staging` was the direct one, which is IPv6 only and did not resolve
+  from this machine, and its password held a `#`, which ends a URL early. Both were found by
+  looking at the address's shape without printing it, and mended in place: the session pooler's
+  address, the password percent-encoded.
+- **The project is in Singapore, not Mumbai** — found by which region's pooler knew it. From this
+  machine a connection opens in about 50 ms to Mumbai, 100 to Singapore and 175 to Tokyo. Whether
+  staging stays there is the owner's to say.
+- It signs sessions with ES256 and publishes the key: the JWKS check that was a risk in Part A and
+  a certainty in Part D's plan is now a fact, and what D10 built is what it needs.
+- **All fifteen migrations applied from empty in one run** — the first time `0006` to `0015` had
+  met a hosted Supabase. Asked from outside afterwards: row-level security on and forced on every
+  tenant table, no table privilege at all for the public key's roles, `dealerai_app` present and
+  unable to sign in or to bypass row-level security.
+- Left as found, and written down: the public key's roles may still execute seven functions in the
+  `app` schema, from the days the browser read tables itself. Nothing serves that schema, so they
+  cannot be called; revoking them is a migration for another day.
+
+Not yet run: the application's own password, the API and the worker on Fly, the web app, the
+authentication settings, and the first sign-in.
+
 ---
