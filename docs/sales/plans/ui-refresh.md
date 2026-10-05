@@ -1977,3 +1977,40 @@ buttons, are `field`.
 ## Execution (Step 4)
 
 Inline, straight on from step 3.
+
+---
+
+## Step 4 review — 2026-10-05
+
+**Built as planned, in two commits:** `3943b1a` (the sheet) and `5217bd3` (the pass and the
+customer screens).
+
+| What | Before | After |
+|---|---|---|
+| A page on a desk | White from edge to edge | A white sheet on the mint canvas |
+| Buttons and fields written out by hand | 105, in forty spellings | None of those forty: `field`, `btn`, `icon-btn` |
+| A lead's band | Three colour pairs, written in two files | `BAND_PILL`, in one |
+| Unit tests | 367 | 367 |
+| End-to-end | 65 | 65 passed in 4.4 minutes, with no test changed |
+
+**What the suite found: one thing.** The first run was 62 of 65: the three journeys in English at
+360 px, all at the same place. The tasks' four tabs, redrawn as pills, were 336 px wide in a 328 px
+row, and the page scrolled sideways by eight. They are narrower on a phone now and scroll inside
+themselves if a language ever makes them too wide again. Arabic passed the first time: its words
+are shorter.
+
+**What differs from the plan.**
+
+- **The tasks' tabs became pills** like the inbox's. On a white sheet their chosen state — white
+  on white — could not be seen.
+- **`dev-login`'s two inputs** were put right by hand, as the plan said they would need.
+- **The avatar's flag sits a little further out**, so that at its smallest size it does not cover
+  the initials.
+
+**Known, and left for step 5.**
+
+| What |
+|---|
+| On the dashboard a waiting customer's *Hand over to* now wraps under their name: the select is wider than it was |
+| The dashboard's tiles still mark their state with a coloured edge |
+| Settings' sections are rows of words; the sign-in pages are a column with no card |
