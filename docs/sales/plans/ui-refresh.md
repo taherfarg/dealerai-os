@@ -1010,3 +1010,53 @@ git commit -m "feat(web): the installed app wears the app's own colour"
 
 Inline in this session, as S7's parts were — no subagents unless asked. One checkpoint: after F1,
 before the face changes, because F1 is the commit that touches sixty files.
+
+---
+
+## Step 1 review — 2026-10-05
+
+**Built as planned, in three commits:** `bca3902` (every colour behind a name), `5e5d3be` (the
+typeface and the corners), `f53a7c7` (the installed app's colour).
+
+**The numbers.**
+
+| What | Before | After |
+|---|---|---|
+| Colours written by hand in pages and components | 311 | 0, and one allowed on purpose: `backdrop:bg-black/40` |
+| Names in `globals.css` | 9 | 18, each with a light and a dark value, each mapped into Tailwind |
+| Lowest contrast of a pair that carries text | not held by anything | 5.34 to 1 in both modes (white on the accent), held by `palette.test.ts` |
+| Unit tests | 347 in 59 files | 353 in 60 |
+| End-to-end | 65 | 65 passed in 4.3 minutes, with no test changed |
+| Requests a browser makes to Google for the font | — | 0: Next serves it from the app's own address |
+
+`npm run check:web` is green, `next build` compiles with the font, and `check:colours` runs in
+`npm run check` and in CI.
+
+**What the suite and the screenshots found.** Nothing to fix. Readex Pro is wider than the
+system's face and no row outgrew 360 px in either language; the sweep refused no pair of colours.
+Fourteen screens were photographed — a desk in English, a phone in Arabic, light and dark, the two
+marketing screens among them — and nothing on any of them is unreadable.
+
+**What differs from the plan.**
+
+- *Reading the pass* (F1 step 13) was done by a script, not by eye over 440 changed lines: each
+  file before and after, with every colour word taken out of both, compared whole. It named the
+  three files changed by hand and three more whose only difference was a Windows line ending. The
+  special cases — the note, the note switch, the hot lead, the filled red button, the status dots —
+  were then read in place.
+- *The app was looked at before F1 was committed,* not after: a palette is easier to take back
+  before it is a commit.
+- *The photographs are taken by Playwright* from the developer's own server, with a script kept
+  outside the repository. The app's built-in browser pane cannot show 1440 px at a size that can
+  be read.
+
+**Known, and left for the step that owns it.**
+
+| What | Step |
+|---|---|
+| A customer's message is still white on white, with no bubble | 3 |
+| A phone's header is still three rows, and the composer can fall below the screen under a long draft | 2 and 3 |
+| The flag is still two letters on Windows; the bell is still an emoji; selects are the browser's own | 2 and 3 |
+| The dashboard's tiles still mark their state with a coloured edge | 5 |
+| Dark mode has no run of the sweep; `palette.test.ts` holds it pair by pair | 6 |
+| Real phones and a screen reader | Staging |
