@@ -1543,3 +1543,36 @@ phone's bar
 ## Execution (Step 2)
 
 Inline, straight on from step 1: the owner said to go on.
+
+---
+
+## Step 2 review — 2026-10-05
+
+**Built as planned, in two commits:** `5dd6701` (the drawings, the avatar, `icon-btn` and
+`badge`) and `cabc7e0` (the shell).
+
+| What | Before | After |
+|---|---|---|
+| A phone's header | Three rows: the name, the language and the bell, the workspace | One row, 53 px |
+| The navigation | Words | A drawing over each word; the chosen one on `accent-soft` |
+| Emoji drawing an icon | One, the bell | None |
+| Unit tests | 353 in 60 files | 362 in 63 |
+| End-to-end | 65 | 65 passed in 4.4 minutes, with no test changed |
+
+`npm run check:web` is green and `next build` compiles.
+
+**What the suite found.** Nothing. The shell kept every name and role the tests hold on to: two
+navigations called *Main* with one shown, the skip link first, the bell's count inside its button.
+
+**What differs from the plan.** The tasks were built together and committed as two, not seven: the
+pieces, then the frame that uses them. The account menu was photographed open on a desk and on a
+phone in Arabic, and the bell's list beside the rail's foot.
+
+**Known, and left.**
+
+| What | Step |
+|---|---|
+| Inside a conversation on a phone, the top row and the floating bar still take room the conversation wants | 3 |
+| The page is still white from edge to edge: no canvas yet | 3 onwards |
+| Settings' sections are rows of words | 5 |
+| An iPhone's home indicator and the floating bar: to be looked at on a real phone | Staging |
