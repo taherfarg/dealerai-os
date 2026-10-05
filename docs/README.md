@@ -141,7 +141,7 @@ localhost, but the discipline is the real protection.
 | Known gap | **A real sign-in has never been exercised.** Supabase email confirmation is ON and the built-in SMTP rate-limits immediately, so no test user could be created. The gate, redirect and session plumbing are verified; the credential round trip is not. Confirm a user (or disable confirmation on the dev project) and log in once. **Still true.** What it needed from the code is done (Sales S7 Part D): sessions verified against the keys a project publishes, email links that open in any browser, a forgotten password, an image, and a check that a deployment is fit. The sign-in itself is the staging day's ([sales/10-staging.md](sales/10-staging.md) §7). |
 | M3 Content factory | T3.2–T3.6 done — one vehicle in, eight guarded bilingual pieces out. Remaining: T3.1 brand ingestion, T3.7 content UI, T3.8 calendar |
 | M2 Inventory | API side complete — T2.1 CRUD, T2.3 photo QA, T2.4 CSV import, T2.5 enrichment, T2.6 stock report · T2.2 upload needs a Storage bucket · inventory screens need a working sign-in |
-| Tests | 301 passing, 8 skipped · live evals green (`npm run eval:gateway`, `npm run eval:vision` — deselected by default, they spend money) |
+| Tests | 1,594 backend tests passing, 8 skipped; 347 web tests; 65 end-to-end, in a browser (`npm run e2e`) · live evals green (`npm run eval:gateway`, `npm run eval:vision` — deselected by default, they spend money) |
 | Supabase | **No project at present.** [sales/10-staging.md](sales/10-staging.md) is the order to make one in: the project, the schema, the application's password, authentication, then the API, the worker and the web app. |
 | Meta / WhatsApp / TikTok app review | Not started — **long lead time, start now** |
 

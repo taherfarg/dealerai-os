@@ -6320,3 +6320,113 @@ stack proves itself), D9 (the suite whole, and its job), D13 (what staging needs
 and D15.
 
 ---
+
+## Part D review — 2026-10-05
+
+Fifteen tasks. The first exit is met on this machine and waits for a push to be met on GitHub: the
+paths every slice ended on are walked by a browser, 65 tests, in under five minutes, by a job that
+runs on every pull request. The second exit — staging running, and a real sign-in — has had
+everything the code owes it built and checked here, and nothing of it run for real: it waits on
+the founder's track, in the order [10](../10-staging.md) gives.
+
+What the plan fixed is in its table above. These are what building it and running it found
+besides — and the first four are the suite earning its keep before it was finished.
+
+| Found | Why it mattered | Fixed in |
+|---|---|---|
+| The Customers and Pipeline search boxes lost letters typed at speed: "Rashid Al", at 30 ms a key, ended as "l" | The box was bound to the address, and the address was changed through the router, which asks the server first. Between one letter and the next the box was put back. Measured: wrong at 0 and 30 ms a key, right at 80. A filter is now written with the History API, from the address as it is at that moment, and the two boxes keep their own text | `2669f45` |
+| A search typed straight after pressing an inbox tab put the old tab back | The same cause: the change was built on the address as it was when the page was last drawn | `2669f45` |
+| An address that is not yours, pasted, said "no such conversation" | The API's words, for a developer, and with no heading on the page. The screen had a sentence of its own for it, in both languages, and never used it | `2669f45` |
+| The dashboard, shown to somebody it is not for, had no heading | Part C's audit visited the dashboard as a manager. The checker, on every page, went as a salesperson too | `af00766` |
+| A customer who has been answered is still "waiting" | Until the reply has actually been sent — and only the worker sends. That is the product being right, and it is why the plan was wrong to leave the worker out of the suite's stack | `7281c20` |
+| A tab pressed just after an address is typed in does nothing | The server draws the page before the browser has made it work. Once in twelve runs the manager's follow-up was not found, because the choice of "Team" had been put back. The suite now waits for the app to ask who is signed in — its first act once it is running | `7281c20` |
+| The test of the local sign-in's second lock could not fail | It looked for `/internal/dev` among the app's top-level route paths, which this FastAPI no longer lists for an included router. Found when the new refusal at start broke it. It now asks the routes whether they would take the request: yes on a laptop, no elsewhere | `260ffe5` |
+| A follow-up due "in three hours" is under Today — unless today ends first | The bucket is the workspace's own day. Between nine and midnight in Dubai the seeded follow-up is tomorrow's. The suite looks under Today and then Upcoming, and no test depends on the hour it runs at | `7281c20`, `af00766` |
+| Supabase's guide: some mail systems open every link in a message to check it | A link that makes a session on a GET is used up by the scanner, and its reader is told it has expired. Not this part's to cure; written into [10](../10-staging.md) §8 | — |
+| `next dev`, started by an agent, writes `AGENTS.md` and `CLAUDE.md` into `apps/web` | Next 16 does that when it finds no such file. They are untracked and left alone: whether they belong in the repository is the owner's call | — |
+
+Different from the plan, on purpose: the worker is in the suite's stack, as above; an address typed
+in goes through `arrive()`; the salesperson's day does not tick a seeded task, whose bucket depends
+on the hour — tasks have a test of their own; a new workspace opens on Team and roles, not on an
+empty inbox as the plan remembered; the accessibility sweep first proves it can find a fault (a
+button with no name, put on a page for it), because a checker that did not run looks exactly like
+a clean app; the refusal's language is told by its script, not by its sentence; `isPublic` is
+exported from the gate so that what is open can be tested; and the suite takes under five minutes
+where the plan feared fifteen, so nothing was trimmed from it.
+
+Sound as built, and left alone: the first run of the shell, of joining and of twelve of the
+fifteen screen tests passed as written — the screens could already be found by their roles and
+their catalogue words, in both languages, which is Part C's work showing; and at 360 px and at
+1440 px, neither of which the audit had measured, no page scrolled sideways and `axe-core` found
+nothing but the one missing heading.
+
+Known and deliberately not changed in Part D:
+
+- **Nothing in [10](../10-staging.md) has been run.** There is no Supabase project: the one the
+  docs named is gone. Migrations `0006`–`0015` have never met a hosted Supabase. The first sign-in,
+  Google, the two email templates, a push on a real phone and a screen reader are all §7 of that
+  page, with the founder.
+- **The email links and the forgotten password have not been seen working.** They are tested
+  against a stand-in for Supabase's client, as Part A's forms are, and the pages were looked at in
+  a production build in both languages. A template nobody has edited still sends a link that opens
+  only in the browser that asked.
+- **The `e2e` job has not run on GitHub.** It was run here as CI runs it — `CI=1`, from nothing —
+  twice. The branch has not been pushed.
+- **The server has no private way into Storage** ([10](../10-staging.md) §8). Staging will have
+  text and no media until that is decided and built: S5's first task.
+- A press in the moment before a page is running is lost — in the suite and for a person. On a
+  development server that moment is long; on a production build, on a slow phone, it has not been
+  measured.
+- A task's box is ticked by the server's answer: pressed, the row leaves for Done without ever
+  showing its tick.
+- A project that still signs with a shared secret is refused outside a laptop, by design; a key a
+  project revokes is trusted for up to ten minutes more.
+- `/internal/health` is public, and now says how much the worker has waiting.
+- The image is 999 MB: Marketing's dependencies come with it — Playwright's driver without its
+  browser, Pillow, the model's client.
+- The suite cannot run beside another `next dev` in the same checkout, drives one browser engine,
+  and leaves one workspace per run in its own database, where nobody looks.
+- The backend suite still uses whichever database `.env` names. `migrate --create` is the piece it
+  lacked; using it is its own task, already flagged.
+- No host's own file (`fly.toml`), and the image is not built in CI: both on the day there is a
+  host.
+
+**The suite, as it stands** — `npm run e2e`:
+
+| | Tests | Where |
+|---|---|---|
+| The day's work, as a salesperson, a manager and the owner | 12 | English and Arabic, 360 px and 1440 px |
+| The shell: five people, the dashboard's offer, signed out and back, installable | 8 | English on a desk, Arabic on a phone |
+| Who sees whom | 6 | English on a desk |
+| What one person does reaching another's screen | 1 | English on a desk |
+| Joining: invited, joined, refused, a first workspace | 8 | Both |
+| A path through every other screen, and the checker on 23 states | 30 | Both |
+| **All** | **65** | 4.3 and 4.8 minutes, from nothing running |
+
+**Checks, final:** `npm run check` on the scratch database — 1,594 backend tests (1,550 before this
+part), the guards at 100% branch coverage, 347 web tests (322 before), types, lint and logical
+CSS; `npm run check:openapi` — no drift; `CI=1 npm run e2e` — 65 passed.
+
+**Verified on 2026-10-03 and 2026-10-05**, on this machine:
+
+1. The suite from nothing running, as CI runs it, on both days: its database made and migrated,
+   the API, the worker and a development web server started, 65 passed, and all of it stopped.
+2. The search box, before and after: typed at 0, 30, 80 and 150 ms a key, Customers and Pipeline
+   held one or two letters at the first two speeds ("l", "a", "Ma") and all of it at the last two;
+   after the fix the suite types at full speed and the box holds every letter.
+3. The image, built and run as staging would run it. With a database address and nothing else it
+   exited naming `SUPABASE_URL`, `SUPABASE_JWT_SECRET` and `WEB_ORIGINS`. With enough it served as
+   `nobody`; its health said `staging`, and three things waiting for two minutes — the suite's
+   leavings, with no worker; a token from the local sign-in got 401; and the same image, started
+   as the worker, logged `worker_started` and took the three.
+4. `npm run smoke` against that container and a production build of the web app on another port:
+   eleven lines of `ok`, and `fit to use`.
+5. In that production build: the sign-in page offers "Forgot your password?"; the page it leads to
+   reads right in English and in Arabic at 375 px; sending answers with the one sentence, though
+   the request went nowhere; and the new-password page, opened signed out, leads to sign-in and
+   remembers where it was going.
+6. A session signed by a key pair made in the test, published as a JWKS, accepted with `ENV`
+   staging; the same test's forged, expired, misaddressed and unsigned tokens refused; a laptop's
+   token refused there and accepted here.
+
+---
