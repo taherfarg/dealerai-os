@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { Shell } from "./Shell";
 
+vi.mock("./AccountMenu", () => ({ AccountMenu: () => null }));
 vi.mock("./AvailabilitySwitch", () => ({ AvailabilitySwitch: () => null }));
 vi.mock("./LocaleToggle", () => ({ LocaleToggle: () => null }));
 vi.mock("./NavLinks", () => ({ NavLinks: () => null }));

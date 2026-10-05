@@ -29,7 +29,7 @@ export function HandOverBar({
   const colleagues = (members.data ?? []).filter((member) => member.role !== "viewer");
 
   return (
-    <div className="bg-surface border-border sticky bottom-16 z-10 mt-3 flex flex-wrap items-center gap-2 rounded-lg border p-3 text-sm shadow-lg md:bottom-4">
+    <div className="bg-surface border-border sticky bottom-28 z-10 mt-3 flex flex-wrap items-center gap-2 rounded-lg border p-3 text-sm shadow-lg md:bottom-4">
       <span className="font-medium">
         {ids.length} {t("bulk.selected")}
       </span>

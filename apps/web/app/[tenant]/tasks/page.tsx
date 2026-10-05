@@ -109,7 +109,7 @@ export default function TasksPage({ params }: { params: Promise<{ tenant: string
 
       {undo && (
         // Undo is an ordinary edit, which is why this needs no endpoint of its own.
-        <div className="bg-surface border-border fixed inset-x-4 bottom-24 mx-auto flex max-w-sm items-center justify-between gap-3 rounded-lg border p-3 text-sm shadow-lg md:bottom-6">
+        <div className="bg-surface border-border fixed inset-x-4 bottom-28 mx-auto flex max-w-sm items-center justify-between gap-3 rounded-lg border p-3 text-sm shadow-lg md:bottom-6">
           <span>{t("tasks.completed")}</span>
           <button
             type="button"

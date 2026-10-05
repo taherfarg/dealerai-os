@@ -190,7 +190,7 @@ export function AiSettings() {
       </section>
 
       {(dirty || save.isError) && (
-        <div className="bg-surface border-border sticky bottom-16 flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3 shadow-lg md:bottom-0">
+        <div className="bg-surface border-border sticky bottom-28 flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3 shadow-lg md:bottom-0">
           <span role={save.isError ? "alert" : undefined} className="text-sm">
             {save.isError
               ? save.error instanceof ApiError
