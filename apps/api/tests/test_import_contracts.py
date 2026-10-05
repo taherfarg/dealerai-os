@@ -33,6 +33,10 @@ def test_only_session_module_opens_connections() -> None:
         # ENV=local.
         SRC / "scripts" / "migrate.py",
         SRC / "scripts" / "seed_sales.py",
+        # The same elevated role, to give the application's own role a password
+        # on a hosted database — and then one connection as that role, to prove
+        # it signs in. Run by hand from a laptop; refuses when ENV=local.
+        SRC / "scripts" / "app_password.py",
     }
     offenders = [
         str(p.relative_to(SRC))

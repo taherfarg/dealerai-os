@@ -29,6 +29,7 @@
     "eval": "cd apps/api && uv run pytest -m eval -v",
     "eval:gateway": "cd apps/api && uv run pytest tests/evals/test_gateway_cache.py -m eval -v",
     "db:migrate:staging": "cd apps/api && uv run python -m dealerai.scripts.migrate --env-file .env.staging",
+    "db:app-password:staging": "cd apps/api && uv run python -m dealerai.scripts.app_password --env-file .env.staging",
     "web": "npm run dev --workspace web",
     "check:web": "npm run check --workspace web",
     "e2e": "npm run e2e --workspace web",

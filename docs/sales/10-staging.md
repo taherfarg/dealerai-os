@@ -66,12 +66,20 @@ right for staging and wrong for customers: **the pilot's project is on a paid pl
    roles hold no privilege on any table; and `dealerai_app` exists, cannot yet sign in, and cannot
    bypass row-level security. If a migration ever fails here, stop: that is a finding, not
    something to work around.
-4. Give the application its own way in — the one statement that is not in version control,
-   because it carries a secret. In the SQL editor, with a password made for the purpose:
+4. Give the application its own way in — the one step that is not a migration, because it makes
+   a secret:
 
-   ```sql
-   alter role dealerai_app login password '<a new password, kept in the host's secrets>';
+   ```bash
+   npm run db:app-password:staging -- --clipboard
    ```
+
+   It makes a password nobody chooses and nobody sees, sets it on `dealerai_app`, proves that
+   it signs in, and puts the application's whole address on the clipboard, to be pasted where a
+   host asks for `DATABASE_URL`. It is never printed. For a host whose command reads secrets from
+   a pipe, leave `--clipboard` off and pipe it: the output is the one line `DATABASE_URL=…`. Run
+   again, it makes another, and the one before stops working. (Typing `alter role … password
+   '…'` into the SQL editor would work too, and would leave the password in the server's log;
+   this sends only what the server stores.)
 
 5. Read the project's security advisor once. It should name the three tables above, which the
    public key cannot reach, and the `vector` extension living in `public`. Anything else is news.
@@ -128,7 +136,7 @@ file in the repository:
 | Variable | What it is | Where its value comes from |
 |---|---|---|
 | `ENV` | `staging` | — |
-| `DATABASE_URL` | How the application reaches Postgres, as `dealerai_app` — never as `postgres` | The **session pooler** address (port 5432) from *Connect*, with the user `dealerai_app.<project-ref>` and the password from §2.4. Secret |
+| `DATABASE_URL` | How the application reaches Postgres, as `dealerai_app` — never as `postgres` | Made whole by §2.4, and pasted or piped from there: the session pooler's address (port 5432) with the user `dealerai_app.<project-ref>`. Secret |
 | `SUPABASE_URL` | The project's address | §2.1 |
 | `SUPABASE_JWT_SECRET` | Signs invitation links and the links to customers' media. Not Supabase's: this deployment's own | 32 characters or more, made for the purpose (`openssl rand -hex 32`). Secret |
 | `WEB_ORIGINS` | Who may call the API from a browser | The web app's address, `https://<web>` |
@@ -167,7 +175,7 @@ started again when it was killed, 137 MB in all.
 
    | Asked for | What to give |
    |---|---|
-   | `DATABASE_URL` | The session pooler's address as `dealerai_app` (the table above). Secret |
+   | `DATABASE_URL` | Run §2.4's command with `--clipboard`, and paste. Secret |
    | `WEB_ORIGINS` | The web app's address, `https://<web>` — so §5 comes first, or this is filled in after it and the service deployed again. Left blank, the service refuses to start and says why |
    | `GOOGLE_API_KEY` | A Gemini key, or blank |
    | `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | A push key and a `mailto:` address, or both blank |
