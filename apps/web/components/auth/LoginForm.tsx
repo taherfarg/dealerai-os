@@ -71,6 +71,14 @@ export function LoginForm() {
         />
       </label>
 
+      {/* A thumb's height, taken back from the gap above it. */}
+      <Link
+        href="/forgot-password"
+        className="text-muted -my-2 inline-flex min-h-11 items-center self-start text-sm underline"
+      >
+        {t("auth.forgot")}
+      </Link>
+
       {(error || params.get("error") === "link") && (
         <p role="alert" className="text-danger text-sm">
           {error ?? t("auth.linkFailed")}

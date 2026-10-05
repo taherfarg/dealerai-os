@@ -39,6 +39,12 @@ beforeEach(() => {
 });
 
 describe("LoginForm", () => {
+  it("offers the way back from a forgotten password", () => {
+    show();
+    const link = screen.getByRole("link", { name: "Forgot your password?" });
+    expect(link.getAttribute("href")).toBe("/forgot-password");
+  });
+
   it("labels itself in Arabic", () => {
     show("ar");
     expect(screen.getByLabelText("البريد الإلكتروني")).toBeTruthy();

@@ -2,8 +2,15 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { safeNext } from "@/lib/auth/next";
 
-// An invitation is opened before its reader has an account.
-const PUBLIC_PATHS = ["/login", "/signup", "/auth", "/accept-invite"];
+// An invitation is opened before its reader has an account, and a forgotten
+// password is asked about by somebody who cannot sign in.
+const PUBLIC_PATHS = ["/login", "/signup", "/forgot-password", "/auth", "/accept-invite"];
+
+/** Open to somebody signed out. The new-password page is not: the link in the
+ *  email signs them in first (app/auth/callback). */
+export function isPublic(pathname: string): boolean {
+  return PUBLIC_PATHS.some((path) => pathname.startsWith(path));
+}
 
 /**
  * Refreshes the Supabase session on every request and gates the app.
@@ -60,9 +67,7 @@ export async function proxy(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const { pathname, search } = request.nextUrl;
-  const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
-
-  if (!user && !isPublic) {
+  if (!user && !isPublic(pathname)) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.search = "";
