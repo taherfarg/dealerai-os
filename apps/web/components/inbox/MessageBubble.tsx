@@ -58,17 +58,19 @@ export function MessageBubble({
       id={`message-${message.id}`}
       data-kind={message.kind}
       data-origin={message.origin}
-      className={`flex ${note ? "justify-center" : ours ? "justify-end" : "justify-start"} px-3 py-1`}
+      className={`flex ${note ? "justify-center" : ours ? "justify-end" : "justify-start"} px-3 py-0.5 lg:px-5`}
     >
       <div
-        className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
+        // A bubble has one tight corner, on the side it speaks from — written
+        // with logical corners, so it turns with the language ([11] § 3.3).
+        className={`max-w-[80%] px-3.5 py-2 text-base leading-6 lg:text-[15px] ${
           note
-            ? "w-full border border-warning/40 bg-warning-soft text-foreground"
+            ? "w-full rounded-2xl border border-warning/40 bg-warning-soft text-foreground"
             : sent
-              ? "bg-accent text-on-accent"
+              ? "rounded-[1.375rem] rounded-ee-md bg-accent text-on-accent"
               : failed
-                ? "bg-danger-soft text-foreground"
-                : "bg-background"
+                ? "rounded-[1.375rem] rounded-ee-md bg-danger-soft text-foreground"
+                : "rounded-[1.375rem] rounded-es-md bg-background shadow-sm"
         }`}
       >
         {note && <p className="mb-1 text-xs font-semibold uppercase">{t("thread.note")}</p>}

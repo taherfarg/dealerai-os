@@ -74,24 +74,37 @@ export function ConversationList() {
   return (
     <div className="flex h-full min-h-0 flex-col">
       <Heading className="sr-only">{t("nav.inbox")}</Heading>
-      <div className="border-b border-border p-3">
-        <div role="tablist" aria-label={t("nav.inbox")} className="flex gap-1">
+      <div className="flex flex-col gap-3 p-3">
+        {/* Four pills are wider than a small phone: the row scrolls sideways
+            inside itself rather than widening the page. */}
+        <div
+          role="tablist"
+          aria-label={t("nav.inbox")}
+          className="flex gap-1.5 overflow-x-auto"
+        >
           {allowed.map((candidate) => {
             const count = counts.data?.[candidate];
+            const chosen = candidate === view;
             return (
               <button
                 key={candidate}
                 type="button"
                 role="tab"
-                aria-selected={candidate === view}
+                aria-selected={chosen}
                 onClick={() => setParam("view", candidate === "mine" ? "" : candidate)}
-                className={`min-h-11 min-w-11 rounded-md px-3 text-sm transition-colors ${
-                  candidate === view ? "bg-background font-medium" : "hover:bg-background"
+                className={`inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-4 text-sm font-medium transition-colors ${
+                  chosen ? "bg-accent text-on-accent" : "bg-surface hover:bg-accent-soft"
                 }`}
               >
                 {t(TAB_KEYS[candidate])}
                 {count && count.waiting > 0 ? (
-                  <span className="text-muted ms-1 text-xs">{count.waiting}</span>
+                  <span
+                    className={`bg-background grid min-w-5 place-items-center rounded-full px-1.5 text-xs leading-5 ${
+                      chosen ? "text-accent-ink" : "text-muted"
+                    }`}
+                  >
+                    {count.waiting}
+                  </span>
                 ) : null}
               </button>
             );
@@ -107,11 +120,12 @@ export function ConversationList() {
             window.clearTimeout(searchTimer.current);
             searchTimer.current = window.setTimeout(() => setParam("q", value), 300);
           }}
-          className="mt-2 min-h-11 w-full rounded-md border border-border px-3 text-sm"
+          className="field field-soft w-full"
         />
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      {/* Room under the last row for the bar that floats over a phone's page. */}
+      <div className="min-h-0 flex-1 overflow-y-auto max-md:pb-24">
         {conversations.isPending && <ListSkeleton />}
         {conversations.isError && (
           <p className="p-4 text-sm text-danger">
@@ -125,7 +139,7 @@ export function ConversationList() {
             {view === "unassigned" ? t("inbox.emptyUnassigned") : t("inbox.empty")}
           </p>
         )}
-        <ul>
+        <ul className="flex flex-col gap-0.5 px-2">
           {rows.map((conversation) => (
             <ConversationRow
               key={conversation.id}
@@ -143,11 +157,14 @@ export function ConversationList() {
 
 function ListSkeleton() {
   return (
-    <ul aria-hidden className="animate-pulse">
+    <ul aria-hidden className="animate-pulse px-2">
       {[0, 1, 2, 3].map((row) => (
-        <li key={row} className="border-b border-border px-3 py-4">
-          <div className="bg-muted/20 h-4 w-1/3 rounded" />
-          <div className="bg-muted/10 mt-2 h-3 w-2/3 rounded" />
+        <li key={row} className="flex gap-3 p-3">
+          <div className="bg-muted/20 size-11 shrink-0 rounded-full" />
+          <div className="flex-1">
+            <div className="bg-muted/20 h-4 w-1/3 rounded" />
+            <div className="bg-muted/10 mt-2 h-3 w-2/3 rounded" />
+          </div>
         </li>
       ))}
     </ul>

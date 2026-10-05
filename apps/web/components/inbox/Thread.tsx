@@ -25,11 +25,14 @@ import { useNow } from "@/lib/clock";
 import { formatUntil } from "@/lib/format";
 import { useLocale, useT } from "@/lib/i18n-client";
 import { useWide } from "@/lib/media";
+import { Avatar } from "@/components/Avatar";
 import { CustomerName } from "@/components/Bidi";
+import { Icon } from "@/components/Icon";
 import { Modal } from "@/components/Modal";
 import { CustomerPanel } from "@/components/crm/CustomerPanel";
 import { Composer } from "./Composer";
 import { DraftPanel } from "./DraftPanel";
+import { LeadStrip } from "./LeadStrip";
 import { MessageBubble } from "./MessageBubble";
 import { WaitingTimer } from "./WaitingTimer";
 
@@ -163,75 +166,94 @@ export function Thread({ tenant, conversationId }: { tenant: string; conversatio
 
   return (
     <div data-thread className="flex h-full min-h-0 flex-col">
-      <header className="border-b border-border p-3">
+      <header className="bg-background border-border border-b px-3 py-2 lg:px-5">
         <div className="flex items-center gap-2">
           <Link
             href={`/${tenant}/inbox`}
             aria-label={t("thread.back")}
             // A thumb's width, pulled back into the header's own padding.
-            className="text-muted -ms-2 inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center text-sm lg:hidden"
+            className="text-muted hover:bg-surface -ms-2 inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full lg:hidden"
           >
-            {/* An arrow is a character, and a character does not mirror. */}
+            {/* The arrow is drawn pointing one way; the span turns it round in Arabic. */}
             <span aria-hidden className="inline-block rtl:-scale-x-100">
-              ←
+              <Icon name="back" />
             </span>
           </Link>
-          <h1 className="min-w-0 flex-1 text-sm font-medium">
-            <CustomerName country={row.contact.country} name={row.contact.name} />
+          {/* The flag rides on the avatar, so the name beside it is given none. */}
+          <Avatar name={row.contact.name} country={row.contact.country} />
+          <h1 className="min-w-0 flex-1 text-[15px] font-semibold">
+            <CustomerName country={null} name={row.contact.name} />
           </h1>
+          {/* On a phone these are their drawings; their words stay, for a screen reader. */}
           <div className="flex shrink-0 items-center gap-1 sm:gap-2">
-            {!row.assignee && (
-              <button
-                type="button"
-                onClick={() => me.data && assign.mutate(me.data.user.id)}
-                className="hover:bg-background min-h-11 rounded-md px-2 text-sm sm:px-3"
-              >
-                {t("thread.assignToMe")}
-              </button>
-            )}
             <button
               type="button"
               aria-pressed={panel}
               onClick={() => setPanel((was) => !was)}
-              className="hover:bg-background min-h-11 rounded-md px-2 text-sm sm:px-3"
+              className={`btn max-sm:min-w-11 max-sm:px-0 ${
+                panel ? "bg-accent-soft text-accent-ink border-transparent" : ""
+              }`}
             >
-              {t("customer.details")}
+              <Icon name="person" size={18} className="sm:hidden" />
+              <span className="max-sm:sr-only">{t("customer.details")}</span>
             </button>
             {row.status === "open" ? (
               <button
                 type="button"
                 onClick={() => setStatus.mutate("closed")}
-                className="hover:bg-background min-h-11 rounded-md px-2 text-sm sm:px-3"
+                className="btn max-sm:min-w-11 max-sm:px-0"
               >
-                {t("thread.close")}
+                <Icon name="check" size={18} className="sm:hidden" />
+                <span className="max-sm:sr-only">{t("thread.close")}</span>
               </button>
             ) : (
               <button
                 type="button"
                 onClick={() => setStatus.mutate("open")}
-                className="hover:bg-background min-h-11 rounded-md px-2 text-sm sm:px-3"
+                className="btn max-sm:min-w-11 max-sm:px-0"
               >
-                {t("thread.reopen")}
+                <Icon name="refresh" size={18} className="sm:hidden" />
+                <span className="max-sm:sr-only">{t("thread.reopen")}</span>
               </button>
             )}
           </div>
         </div>
         {/* The timer sits here, under the name: beside it, on a phone, it
-            took two lines and left the name three letters. */}
-        <p className="text-muted mt-1 flex flex-wrap items-center gap-x-2 text-xs">
+            took two lines and left the name three letters. Taking the
+            conversation sits here too, beside the word that says nobody has. */}
+        <div className="text-muted mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
           <WaitingTimer waitingSince={row.waiting_since} state={row.sla_state} />
-          {row.assignee
-            ? `${mine ? t("thread.assignedToYou") : row.assignee.name}`
-            : t("inbox.unassigned")}
-          {" · "}
-          {windowOpen
-            ? `${t("thread.windowOpen")} ${formatUntil(row.window_expires_at ?? "", locale, new Date(now))}`
-            : t("thread.windowClosed")}
-        </p>
+          <span>
+            {row.assignee
+              ? `${mine ? t("thread.assignedToYou") : row.assignee.name}`
+              : t("inbox.unassigned")}
+            {" · "}
+            {windowOpen
+              ? `${t("thread.windowOpen")} ${formatUntil(row.window_expires_at ?? "", locale, new Date(now))}`
+              : t("thread.windowClosed")}
+          </span>
+          {!row.assignee && (
+            <button
+              type="button"
+              onClick={() => me.data && assign.mutate(me.data.user.id)}
+              className="btn btn-primary ms-auto"
+            >
+              {t("thread.assignToMe")}
+            </button>
+          )}
+        </div>
       </header>
 
       <div className="flex min-h-0 flex-1">
-        <div className="min-h-0 flex-1 overflow-y-auto py-2">
+        {/* The conversation's own column. The customer panel stands beside all
+            of it — the draft and the composer too — not only the messages. */}
+        <div className="flex min-w-0 flex-1 flex-col">
+        {/* While the panel is open it says the same thing, and says more. */}
+        {!panel && <LeadStrip contactId={row.contact.id} onOpen={() => setPanel(true)} />}
+        {/* It scrolls inside itself, so the keyboard has to be able to
+            reach it: with nothing in it to Tab to, there is no other way to
+            read the messages that are out of sight. */}
+        <div tabIndex={0} className="min-h-0 flex-1 overflow-y-auto py-3">
           {messages.hasNextPage && (
             <button
               type="button"
@@ -252,31 +274,6 @@ export function Thread({ tenant, conversationId }: { tenant: string; conversatio
             </ul>
           </div>
         </div>
-
-        {panel &&
-          (wide ? (
-            // A column beside the thread, there while a reply is being typed.
-            <aside className="border-border bg-surface w-72 overflow-y-auto border-s">
-              <CustomerPanel tenant={tenant} contactId={row.contact.id} onEvidence={showEvidence} />
-            </aside>
-          ) : (
-            // On a phone it covers the thread, so it is a dialog: focus goes in,
-            // Escape comes out, and a screen reader is told the page changed.
-            <Modal variant="sheet" label={t("customer.details")} onClose={() => setPanel(false)}>
-              <CustomerPanel
-                tenant={tenant}
-                contactId={row.contact.id}
-                onClose={() => setPanel(false)}
-                onEvidence={(messageId) => {
-                  // The message is underneath: put the sheet away to show it.
-                  setPanel(false);
-                  showEvidence(messageId);
-                }}
-              />
-            </Modal>
-          ))}
-      </div>
-
       <DraftPanel
         suggestion={liveDraft}
         onSend={sendSuggestion}
@@ -299,6 +296,31 @@ export function Thread({ tenant, conversationId }: { tenant: string; conversatio
         language={row.contact.language}
         customerName={row.contact.name}
       />
+        </div>
+
+        {panel &&
+          (wide ? (
+            // A column beside the thread, there while a reply is being typed.
+            <aside className="border-border bg-background w-80 shrink-0 overflow-y-auto border-s">
+              <CustomerPanel tenant={tenant} contactId={row.contact.id} onEvidence={showEvidence} />
+            </aside>
+          ) : (
+            // On a phone it covers the thread, so it is a dialog: focus goes in,
+            // Escape comes out, and a screen reader is told the page changed.
+            <Modal variant="sheet" label={t("customer.details")} onClose={() => setPanel(false)}>
+              <CustomerPanel
+                tenant={tenant}
+                contactId={row.contact.id}
+                onClose={() => setPanel(false)}
+                onEvidence={(messageId) => {
+                  // The message is underneath: put the sheet away to show it.
+                  setPanel(false);
+                  showEvidence(messageId);
+                }}
+              />
+            </Modal>
+          ))}
+      </div>
     </div>
   );
 }

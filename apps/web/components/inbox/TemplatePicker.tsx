@@ -89,7 +89,7 @@ export function TemplatePicker({
         <select
           value={chosen?.id ?? ""}
           onChange={(event) => pick(event.target.value)}
-          className="min-h-11 rounded-md border border-border bg-transparent px-2 text-sm"
+          className="field"
         >
           <option value="">{t("template.pick")}</option>
           {offered.map((template) => (
@@ -114,7 +114,7 @@ export function TemplatePicker({
                 onChange={(event) =>
                   setValues(values.map((old, at) => (at === index ? event.target.value : old)))
                 }
-                className="min-h-11 min-w-0 flex-1 rounded-md border border-border px-3 text-sm"
+                className="field min-w-0 flex-1"
                 dir="auto"
               />
             </label>
@@ -127,7 +127,7 @@ export function TemplatePicker({
             </span>
             <Auto
               as="p"
-              className="bg-accent max-w-[80%] self-end whitespace-pre-wrap rounded-lg px-3 py-2 text-sm text-on-accent"
+              className="bg-accent text-on-accent max-w-[80%] self-end rounded-[1.375rem] rounded-ee-md px-3.5 py-2 text-sm whitespace-pre-wrap"
             >
               {filled(chosen.body, values)}
             </Auto>
@@ -148,7 +148,7 @@ export function TemplatePicker({
                 },
               )
             }
-            className="bg-accent min-h-11 self-end rounded-md px-4 text-sm font-medium text-on-accent disabled:opacity-50"
+            className="btn btn-primary self-end"
           >
             {t("template.send")}
           </button>

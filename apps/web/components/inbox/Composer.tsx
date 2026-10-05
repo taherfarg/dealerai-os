@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ApiError } from "@/lib/api/client";
 import { useAddNote, useQuickReplies, useSendMessage, type QuickReply } from "@/lib/api/hooks";
+import { Icon } from "@/components/Icon";
 import { useT } from "@/lib/i18n-client";
 import { filled, matching, QuickReplyMenu } from "./QuickReplyMenu";
 import { TemplatePicker } from "./TemplatePicker";
@@ -83,29 +84,17 @@ export function Composer({
 
   return (
     <div
-      className={`border-t border-border p-3 ${
-        isNote ? "bg-warning-soft" : ""
+      className={`border-border border-t px-3 py-2 lg:px-5 ${
+        isNote ? "bg-warning-soft" : "bg-background"
       }`}
     >
-      <div className="mb-2 flex items-center gap-2">
-        <button
-          type="button"
-          aria-pressed={isNote}
-          onClick={() => setIsNote((was) => !was)}
-          className={`min-h-11 rounded-md px-3 text-sm ${
-            isNote ? "bg-warning font-medium text-background" : "hover:bg-background"
-          }`}
-        >
-          {t("thread.internalNote")}
-        </button>
-        {action.isError && (
-          <span className="text-xs text-danger">
-            {action.error instanceof ApiError
-              ? (action.error.problem.detail ?? action.error.problem.title)
-              : t("thread.sendFailed")}
-          </span>
-        )}
-      </div>
+      {action.isError && (
+        <p className="mb-2 text-xs text-danger">
+          {action.error instanceof ApiError
+            ? (action.error.problem.detail ?? action.error.problem.title)
+            : t("thread.sendFailed")}
+        </p>
+      )}
 
       {template && (
         <TemplatePicker
@@ -123,11 +112,25 @@ export function Composer({
         onPick={pick}
       />
 
+      {/* One row ([11] § 5.1): whether it is a note, the words, and the way
+          out. On a phone the note switch is its drawing; its words stay. */}
+      <div className="flex items-end gap-2">
+        <button
+          type="button"
+          aria-pressed={isNote}
+          onClick={() => setIsNote((was) => !was)}
+          className={`btn max-sm:min-w-11 max-sm:px-0 ${
+            isNote ? "bg-warning text-background border-transparent" : "btn-quiet"
+          }`}
+        >
+          <Icon name="note" size={18} />
+          <span className="max-sm:sr-only">{t("thread.internalNote")}</span>
+        </button>
       {!template && (
-        <div className="flex items-end gap-2">
+        <>
           <textarea
             value={text}
-            rows={2}
+            rows={1}
             disabled={blocked}
             onChange={(event) => setText(event.target.value)}
             onKeyDown={(event) => {
@@ -166,18 +169,22 @@ export function Composer({
                   : t("thread.placeholder")
             }
             aria-label={isNote ? t("thread.internalNote") : t("thread.placeholder")}
-            className="min-h-11 flex-1 resize-none rounded-md border border-border px-3 py-2 text-sm disabled:opacity-60"
+            className="field max-h-40 min-w-0 flex-1 resize-none [field-sizing:content] disabled:opacity-60"
           />
           <button
             type="button"
             onClick={submit}
             disabled={blocked || !text.trim() || action.isPending}
-            className="bg-accent min-h-11 rounded-md px-4 text-sm font-medium text-on-accent disabled:opacity-50"
+            aria-label={t("thread.send")}
+            className="icon-btn bg-accent text-on-accent hover:bg-accent shrink-0 disabled:opacity-50"
           >
-            {t("thread.send")}
+            <span aria-hidden className="inline-block rtl:-scale-x-100">
+              <Icon name="send" />
+            </span>
           </button>
-        </div>
+        </>
       )}
+      </div>
     </div>
   );
 }

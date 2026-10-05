@@ -34,6 +34,7 @@ vi.mock("@/lib/api/hooks", () => ({
   useAddNote: () => ({ mutate: vi.fn(), isPending: false, isError: false }),
   useQuickReplies: () => ({ data: [] }),
   useCreateLead: () => ({ mutate: vi.fn() }),
+  useCustomer: () => ({ data: undefined }),
   useCreateTask: () => ({ mutate: vi.fn() }),
   useEditCustomer: () => ({ mutate: vi.fn() }),
 }));

@@ -38,7 +38,7 @@ export function QuickReplyMenu({
     <ul
       role="listbox"
       aria-label={t("quick.menu")}
-      className="bg-surface border-border mb-2 rounded-md border text-sm shadow"
+      className="bg-background border-border mb-2 overflow-hidden rounded-2xl border text-sm shadow-lg"
     >
       {options.map((reply, index) => (
         // The option is the control: a button inside one is a control inside a
@@ -52,7 +52,7 @@ export function QuickReplyMenu({
           onMouseDown={(event) => event.preventDefault()}
           onClick={() => onPick(reply)}
           className={`flex min-h-11 cursor-pointer items-center gap-2 px-3 ${
-            index === active ? "bg-background" : ""
+            index === active ? "bg-accent-soft" : ""
           }`}
         >
           <span className="font-mono text-xs" dir="ltr">

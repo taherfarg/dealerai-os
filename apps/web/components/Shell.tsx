@@ -47,7 +47,12 @@ export function Shell({
   return (
     // Grid columns, not float/absolute: the browser mirrors a grid under
     // dir="rtl" for free, so the rail moves to the right with no RTL CSS.
-    <div className="grid min-h-screen grid-rows-[auto_1fr] md:grid-cols-[5.5rem_1fr] md:grid-rows-1">
+    //
+    // --shell-top is how tall the row across the top of a phone is, for a
+    // screen that has to fit the window exactly (the inbox). An open
+    // conversation has the whole of a phone's screen: the row and the bar step
+    // aside for it, and the way out is its own back arrow.
+    <div className="group/shell grid min-h-screen grid-rows-[auto_1fr] [--shell-top:3.3125rem] has-[[data-thread]]:[--shell-top:0px] md:grid-cols-[5.5rem_1fr] md:grid-rows-1 md:[--shell-top:0px]">
       {/* The first stop for a keyboard: on a desk the navigation is some
           fifteen Tabs long, and every page begins after it. Seen only while
           it has focus. */}
@@ -59,7 +64,7 @@ export function Shell({
       </a>
       {/* One element, two shapes ([11] § 4): a row across the top of a phone, a
           rail down the side of a desk. So there is one bell and one account. */}
-      <aside className="border-border bg-background flex items-center gap-2 border-b px-3 py-1 md:sticky md:top-0 md:h-dvh md:flex-col md:gap-3 md:overflow-y-auto md:border-b-0 md:border-e md:px-2 md:py-3">
+      <aside className="border-border bg-background flex items-center gap-2 border-b px-3 py-1 max-md:group-has-[[data-thread]]/shell:hidden md:sticky md:top-0 md:h-dvh md:flex-col md:gap-3 md:overflow-y-auto md:border-b-0 md:border-e md:px-2 md:py-3">
         <span
           role="img"
           aria-label="DealerAI"
@@ -110,7 +115,7 @@ export function Shell({
 
       <nav
         aria-label={t(locale, "nav.main")}
-        className="border-border bg-background fixed inset-x-3 bottom-3 z-10 grid grid-cols-5 gap-1 rounded-3xl border p-1.5 shadow-lg md:hidden"
+        className="border-border bg-background fixed inset-x-3 bottom-3 z-10 grid grid-cols-5 gap-1 rounded-3xl border p-1.5 shadow-lg group-has-[[data-thread]]/shell:hidden md:hidden"
       >
         <NavLinks slug={tenant.slug} items={MOBILE} />
       </nav>

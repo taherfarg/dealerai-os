@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { Suggestion } from "@/lib/api/hooks";
 import type { MessageKey } from "@/lib/i18n";
+import { Icon } from "@/components/Icon";
 import { useT } from "@/lib/i18n-client";
 import { blockedReasons } from "@/lib/words";
 
@@ -81,7 +82,7 @@ export function DraftPanel({
 
   if (suggestion.status === "blocked") {
     return (
-      <div className="text-muted border-border border-t px-3 py-2 text-sm" role="status" dir="auto">
+      <div className="text-muted px-3 py-2 text-sm lg:px-5" role="status" dir="auto">
         {t("draft.blocked")}:{" "}
         {suggestion.blocked_reason
           ? blockedReasons(t, suggestion.blocked_reason)
@@ -111,35 +112,38 @@ export function DraftPanel({
   };
 
   return (
-    <section className="border-border bg-surface border-t px-3 py-2" aria-label={t("draft.title")}>
+    // Still a region of its own, outside the log: always in view, and never
+    // read out as a message. Drawn as a bubble on our side that has not gone
+    // yet — white, with a dashed outline ([11] § 5.1).
+    <section className="px-3 pb-2 lg:px-5" aria-label={t("draft.title")}>
+      <div className="border-accent bg-background ms-auto max-w-2xl rounded-[1.375rem] rounded-ee-md border border-dashed px-4 py-2">
       <div className="flex items-center gap-2">
-        <span className="text-xs font-semibold uppercase tracking-wide">{t("draft.title")}</span>
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+        <span className="text-accent-ink inline-flex items-center gap-1.5 text-xs font-semibold">
+          <Icon name="spark" size={16} />
+          {t("draft.title")}
+        </span>
         {ready && suggestion.confidence && (
-          <span
-            className={`rounded px-2 py-0.5 text-xs font-medium ${
-              suggestion.confidence === "low"
-                ? "bg-warning-soft text-warning"
-                : "bg-info-soft text-info"
-            }`}
-          >
+          <span className={`pill ${suggestion.confidence === "low" ? "pill-warning" : "pill-accent"}`}>
             {t(`draft.confidence.${suggestion.confidence as "low" | "medium" | "high"}`)}
           </span>
         )}
         {suggestion.intent && (
-          <span className="text-muted text-xs">
+          <span className="pill">
             {INTENTS.has(suggestion.intent)
               ? t(`draft.intent.${suggestion.intent}` as MessageKey)
               : suggestion.intent.replaceAll("_", " ")}
           </span>
         )}
+        </div>
         {!low && (
           <button
             type="button"
-            className="text-muted ms-auto min-h-11 px-2 text-xs underline"
+            className="icon-btn text-muted shrink-0"
             aria-label={collapsed ? t("draft.expand") : t("draft.collapse")}
             onClick={() => setOpen(collapsed)}
           >
-            {collapsed ? t("draft.expand") : t("draft.collapse")}
+            <Icon name={collapsed ? "chevronDown" : "chevronUp"} />
           </button>
         )}
       </div>
@@ -147,7 +151,7 @@ export function DraftPanel({
         <div>
           {ready ? (
             <>
-              <p className="mt-1 whitespace-pre-wrap text-sm leading-6" dir="auto">{body}</p>
+              <p className="mt-1 whitespace-pre-wrap text-base leading-7 lg:text-[15px]" dir="auto">{body}</p>
               {templateName && (
                 <p className="text-muted mt-1 text-xs">{t("draft.template")}: {templateName}</p>
               )}
@@ -164,7 +168,7 @@ export function DraftPanel({
                     <span key={index}>
                       <button
                         type="button"
-                        className="inline-flex min-h-11 items-center rounded-full border border-border-strong px-3"
+                        className="btn text-xs"
                         dir="auto"
                         onClick={() => setOpenedDocument(openedDocument === String(index) ? null : String(index))}
                       >
@@ -177,7 +181,7 @@ export function DraftPanel({
                       )}
                     </span>
                   ) : (
-                    <span key={index} dir="auto" className="rounded-full border border-border-strong px-2 py-1">
+                    <span key={index} dir="auto" className="pill">
                       {label}
                     </span>
                   );
@@ -212,7 +216,7 @@ export function DraftPanel({
                           setActionError(failure instanceof Error ? failure.message : t("draft.actionFailed"));
                         }
                       }}
-                      className="min-h-11 rounded-md border border-border-strong px-3 text-xs disabled:opacity-50"
+                      className="btn text-xs"
                       dir="auto"
                     >
                       {stringAt(action, "label") ?? t("draft.action")}
@@ -220,17 +224,20 @@ export function DraftPanel({
                   ))}
                 </div>
               )}
-              <div className="mt-3 flex flex-wrap gap-2 text-xs">
-                <button type="button" disabled={!canSend} onClick={() => onSend(suggestion)} className="bg-accent min-h-11 rounded-md px-3 font-semibold text-on-accent disabled:opacity-50">
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button type="button" disabled={!canSend} onClick={() => onSend(suggestion)} className="btn btn-primary">
+                  <span aria-hidden className="inline-block rtl:-scale-x-100">
+                    <Icon name="send" size={16} />
+                  </span>
                   {t("draft.send")}
                 </button>
-                <button type="button" disabled={!suggestion.text} onClick={() => onEdit(suggestion)} className="min-h-11 rounded-md border border-border-strong px-3 disabled:opacity-50">
+                <button type="button" disabled={!suggestion.text} onClick={() => onEdit(suggestion)} className="btn">
                   {t("draft.edit")}
                 </button>
-                <button type="button" onClick={onRegenerate} className="min-h-11 rounded-md border border-border-strong px-3">
+                <button type="button" onClick={onRegenerate} className="btn btn-quiet">
                   {t("draft.regenerate")}
                 </button>
-                <button type="button" onClick={() => setDismiss(true)} className="min-h-11 rounded-md px-3 underline">
+                <button type="button" onClick={() => setDismiss(true)} className="btn btn-quiet">
                   {t("draft.dismiss")}
                 </button>
               </div>
@@ -242,7 +249,7 @@ export function DraftPanel({
                     <button
                       key={reason}
                       type="button"
-                      className="min-h-11 rounded-md border border-border-strong px-2 text-xs"
+                      className="btn text-xs"
                       onClick={() => { onOutcome(suggestion.id, reason); setDismiss(false); }}
                     >
                       {t(`draft.reason.${reason}`)}
@@ -256,6 +263,7 @@ export function DraftPanel({
           )}
         </div>
       )}
+      </div>
     </section>
   );
 }
