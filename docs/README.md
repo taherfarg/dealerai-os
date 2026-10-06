@@ -142,7 +142,7 @@ localhost, but the discipline is the real protection.
 | M3 Content factory | T3.2–T3.6 done — one vehicle in, eight guarded bilingual pieces out. Remaining: T3.1 brand ingestion, T3.7 content UI, T3.8 calendar |
 | M2 Inventory | API side complete — T2.1 CRUD, T2.3 photo QA, T2.4 CSV import, T2.5 enrichment, T2.6 stock report · T2.2 upload needs a Storage bucket · inventory screens need a working sign-in |
 | Tests | 1,614 backend tests passing, 8 skipped; 367 web tests; 66 end-to-end, in a browser (`npm run e2e`) · live evals green (`npm run eval:gateway`, `npm run eval:vision` — deselected by default, they spend money) |
-| Supabase | **Staging's project exists** — Singapore, on the Free plan — with the schema on it, and nothing else has been run. [sales/10-staging.md](sales/10-staging.md) is the order for the rest: the application's password, the API and the worker, the web app, authentication, and the first sign-in. |
+| Supabase | **Staging is deployed** (2026-10-06): its project in Singapore on the Free plan, and the API, the worker and the web app on Render's free plan. [sales/10-staging.md](sales/10-staging.md) has what is left: authentication, and the first sign-in. |
 | Meta / WhatsApp / TikTok app review | Not started — **long lead time, start now** |
 
 ---

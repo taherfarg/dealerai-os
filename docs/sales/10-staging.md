@@ -9,10 +9,14 @@ founder's steps are dashboards and decisions; the rest is two commands. **No sec
 into a chat, an issue or a commit** — each goes from where it was made straight into the place
 that needs it.
 
-**Where it stands (2026-10-06):** §2.1 to §2.3 are done — the project exists
-(`sqlshcesowlrmhiugnpf`) and the schema is on it. Nothing after that has been run. The code's
-half was built and checked on a laptop in S7 Part D ([review](plans/s7-pilot-readiness.md)); the
-first run of this whole page is that part's second exit.
+**Where it stands (2026-10-06):** staging is deployed. §2, §4, §5 and §6 are done — the
+project exists (`sqlshcesowlrmhiugnpf`) with the schema on it, the application signs in as
+itself, the API with its worker and the web app are live on Render at
+`https://dealerai-staging.onrender.com` and `https://dealerai-staging-web.onrender.com`, and the
+check from outside passes twelve of twelve. Not done: authentication (§3), and the first sign-in
+and the phones (§7) — nobody has signed in yet. The code's half was built and checked on a
+laptop in S7 Part D ([review](plans/s7-pilot-readiness.md)); the first run of this whole page is
+that part's second exit.
 
 **The order on the day** is not quite the order of the sections. Render's form (§4) makes the
 API and the web app (§5) together, and §2.4 is run while that form is open, because what it
@@ -85,6 +89,23 @@ right for staging and wrong for customers: **the pilot's project is on a paid pl
    again, it makes another, and the one before stops working. (Typing `alter role … password
    '…'` into the SQL editor would work too, and would leave the password in the server's log;
    this sends only what the server stores.)
+
+   **What went wrong here the first time** (2026-10-06): the command was not run. The address
+   given to Render was the one already in `.env.staging` — the migration runner's, as
+   `postgres` — and it works: the API answered, the worker worked the queue, and §6 passed
+   twelve of twelve, with row-level security applying to nobody, because it does not apply to
+   the database's owner. It was found by asking the database who was connected
+   (`pg_stat_activity`), and put right within the hour. The API now refuses to start as
+   `postgres` (§4), so the mistake says so by itself.
+
+   **Nothing in this step needs to be looked at to be checked.** A box's contents were sent as
+   a picture, and then an address was pasted into a conversation, to ask whether they were the
+   right ones; both passwords were changed afterwards. Whether the right address is in place is
+   the database's to say — it shows who is signed in — and the right one can be told by how it
+   begins: `postgresql://dealerai_app`. The owner's password is changed on the project's
+   *Database Settings* page, *Reset database password*, with a password the page generates;
+   the new one then goes into `MIGRATION_DATABASE_URL` in `.env.staging`, and the application
+   is not touched by any of it.
 
 5. Read the project's security advisor once. It should name the three tables above, which the
    public key cannot reach, and the `vector` extension living in `public`. Anything else is news.
@@ -163,25 +184,27 @@ below). Never: `STORAGE_DIR`, `MIGRATION_DATABASE_URL`.
 
 **A wrong setting is named when the process starts, and it does not start**: a missing project
 address, a secret that is short or is the one from Supabase's documentation, `WEB_ORIGINS` still
-naming localhost, the transaction pooler (`:6543`) where the session pooler belongs. Read the
-first lines of the log.
+naming localhost, the transaction pooler (`:6543`) where the session pooler belongs, an address
+that signs in as `postgres`. Read the first lines of the log.
 
 ### On Render, free
 
 [`render.yaml`](../../render.yaml) is a Blueprint: Render reads it from the repository and makes
-the two services it describes, the API with its worker and the web app (§5). It has not been
-deployed yet — its field names were read from Render's reference on the days it was written —
-but the container was run here exactly as Render will run it, `python -m dealerai.both` with
+the two services it describes, the API with its worker and the web app (§5). It was first
+applied on 2026-10-06 and came up as written: the file's field names held, both names were free,
+and the two services answered at the addresses in step 3 within minutes. Before that the
+container had been run here exactly as Render runs it, `python -m dealerai.both` with
 `PORT=10000`: one process serving, the worker beside it and started again when it was killed,
 137 MB in all.
 
 1. A Render account — signing in with GitHub is enough, and no card is asked for.
-2. **New → Blueprint**, this repository, the branch `sales/phase-1`. Render shows the two
-   services and asks for the values the file leaves out:
+2. **New → Blueprint**, this repository, and the branch `sales/phase-1` — the form offers
+   `main`, where there is no `render.yaml`, and says so. Render then shows the two services and
+   asks for the values the file leaves out:
 
    | Asked for | What to give |
    |---|---|
-   | `DATABASE_URL` | Run §2.4's command with `--clipboard`, and paste. Secret |
+   | `DATABASE_URL` | Run §2.4's command with `--clipboard`, and paste. Secret. Not the address in `.env.staging`: that one is the owner's |
    | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | The project's publishable key, copied from its *API Keys* page. Public by design |
    | `GOOGLE_API_KEY` | A Gemini key, or blank |
    | `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | A push key and a `mailto:` address, or both blank |
@@ -282,10 +305,10 @@ Never `NEXT_PUBLIC_DEV_AUTH`: it is a laptop's sign-in, and a production build i
 The three `NEXT_PUBLIC_` values are written into the pages when they are built, so changing one
 means building again: **Manual Deploy** on the service's page.
 
-It has not been deployed yet. What was run here on 2026-10-06 is the two commands: from a clean
-copy of the repository with `NODE_ENV=production`, and then the built app held to a free
-instance's size, 512 MB and a tenth of a CPU. It was ready in about a second, answered `/login`
-in under a tenth of one, and held 75 MB idle and 83 MB after eighty requests.
+It was deployed on 2026-10-06, and answered. What was run here first, the same day, is the two
+commands: from a clean copy of the repository with `NODE_ENV=production`, and then the built app
+held to a free instance's size, 512 MB and a tenth of a CPU. It was ready in about a second,
+answered `/login` in under a tenth of one, and held 75 MB idle and 83 MB after eighty requests.
 
 *How to tell:* `https://<web>/login` shows the sign-in card, and an address inside a workspace
 leads back to it.
