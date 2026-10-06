@@ -83,6 +83,9 @@ def test_a_deployment_fit_to_serve_has_no_problems() -> None:
     # Including the placeholder push subject: with no push key, nothing is pushed.
     assert staging().deploy_problems() == []
     assert staging(env="production").deploy_problems() == []
+    # As the address is through Supabase's pooler, where a user carries its project.
+    through_the_pooler = "postgresql://dealerai_app.abcdefghijklmnop:secret@aws-0-ap-south-1.pooler.supabase.com:5432/postgres"
+    assert staging(database_url=through_the_pooler).deploy_problems() == []
 
 
 @pytest.mark.parametrize(
@@ -101,6 +104,18 @@ def test_a_deployment_fit_to_serve_has_no_problems() -> None:
             {"database_url": "postgresql://dealerai_app:secret@pooler.supabase.com:6543/postgres"},
             "DATABASE_URL",
         ),
+        (
+            {
+                "database_url": "postgresql://postgres.abcdefghijklmnop:secret@aws-0-ap-south-1.pooler.supabase.com:5432/postgres"
+            },
+            "DATABASE_URL",
+        ),
+        (
+            {
+                "database_url": "postgresql://postgres:secret@db.abcdefghijklmnop.supabase.co:5432/postgres"
+            },
+            "DATABASE_URL",
+        ),
         ({"vapid_private_key": "a-key"}, "VAPID_SUBJECT"),
     ],
     ids=[
@@ -114,6 +129,8 @@ def test_a_deployment_fit_to_serve_has_no_problems() -> None:
         "a database address that is not one",
         "a laptop's storage",
         "the transaction pooler",
+        "the database's owner, as a project's Connect panel gives it — which works",
+        "the database's owner, directly",
         "a push key with nobody to write to",
     ],
 )

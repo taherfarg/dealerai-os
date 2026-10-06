@@ -6,6 +6,7 @@ KeyError. `.env.example` is kept in sync by tests/test_config.py.
 
 from __future__ import annotations
 
+import re
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
@@ -155,6 +156,17 @@ class Settings(BaseSettings):
             problems.append(
                 "DATABASE_URL points at the transaction pooler (:6543): the API holds a "
                 "LISTEN connection, which needs the session pooler (:5432)"
+            )
+        # The address a Supabase project's own Connect panel offers is its
+        # owner's, and it works: everything answers, with nobody kept apart.
+        # Through the pooler a user carries its project: postgres.<project-ref>.
+        # ponytail: by name. Ask pg_roles for rolbypassrls as the pool opens if
+        # a host ever hands out another role that row-level security skips.
+        if re.match(r"postgres(?:ql)?://postgres[.:@]", self.database_url):
+            problems.append(
+                "DATABASE_URL signs in as postgres, whom row-level security does not apply "
+                "to: the application's address is dealerai_app's, which `npm run "
+                "db:app-password:staging` makes"
             )
         if self.vapid_private_key and self.vapid_subject.endswith("@dealerai.local"):
             problems.append(
