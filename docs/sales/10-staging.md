@@ -9,10 +9,15 @@ founder's steps are dashboards and decisions; the rest is two commands. **No sec
 into a chat, an issue or a commit** — each goes from where it was made straight into the place
 that needs it.
 
-**Where it stands (2026-10-05):** §2.1 to §2.3 are done — the project exists
+**Where it stands (2026-10-06):** §2.1 to §2.3 are done — the project exists
 (`sqlshcesowlrmhiugnpf`) and the schema is on it. Nothing after that has been run. The code's
 half was built and checked on a laptop in S7 Part D ([review](plans/s7-pilot-readiness.md)); the
 first run of this whole page is that part's second exit.
+
+**The order on the day** is not quite the order of the sections. Render's form (§4) makes the
+API and the web app (§5) together, and §2.4 is run while that form is open, because what it
+makes is pasted there. Authentication (§3) comes after them, because it has to be told the web
+app's address. Then the check (§6), and the first sign-in (§7).
 
 ---
 
@@ -22,7 +27,7 @@ first run of this whole page is that part's second exit.
 |---|---|
 | **Where the Supabase project lives** | **Staging: Singapore (`ap-southeast-1`), on Supabase's Free plan. The pilot's project: Mumbai (`ap-south-1`).** Decided 2026-10-05. Mumbai is where customers' data is to live: [00](00-prd.md) §12 Q1 proposed it because Tokyo added 150–200 ms to every request from the UAE, Supabase offers no region nearer the Gulf, and the project earlier docs named is gone, so nothing has to be moved. The staging project was then made in Singapore — found by which pooler answered for it — and the owner chose to leave it there: a region cannot be changed afterwards, only chosen again with a new project, and staging holds no customers. Measured from the owner's machine that day, by how long a connection takes to open: Mumbai about 50 ms away, Singapore about 100, Tokyo about 175. Free is a plan of an *organisation*: the existing one is on Pro, where every project is 10 US dollars a month, so staging has an organisation of its own (§2). What free costs instead is below |
 | **Where the API and the worker run** | **Staging: Render's free plan, in Singapore — decided 2026-10-05, when the owner asked for a host without a charge.** It costs nothing and needs no card. What it costs instead: the service is put to sleep after 15 minutes with no request and takes about a minute to wake; it has a tenth of a CPU; and it has no free background worker, so the API and the worker share one container ([`render.yaml`](../../render.yaml)). Koyeb's free plan was looked at too: Frankfurt or Washington only, a continent away from the database on every query. **The pilot, and staging if it must not sleep: Fly.io, beside the database** — decided 2026-10-05, Singapore (`sin`) for staging's database, Mumbai (`bom`) for the pilot's. Fly has no free plan: a card is needed, and a machine is paid for by the second while it runs — about 2.19 US dollars a month for the smallest, always on, in Fly's cheapest regions (its price list, read 2026-10-05; some regions cost more), and almost nothing while stopped. Two machines, so about 4.40 a month, or less if staging is stopped between the days it is used. What any host had to give: a container image run twice, in a region beside the database, a process that is never put to sleep — a webhook has to be answered, and the worker has no visitors to wake it — and a response that may stay open, which is how a screen hears about a new message. [`fly.toml`](../../fly.toml) says all of that; §4 is the commands |
-| **Where the web app runs** | Vercel, as the architecture says |
+| **Where the web app runs** | **Staging: Render's free plan, beside the API — decided 2026-10-06.** The architecture says Vercel, and Vercel's free plan is not for this: its fair-use page, read that day, keeps that plan for "non-commercial personal use only", and counts as commercial any deployment made for the gain of anyone who works on it. Its paid plan is 20 US dollars a month for each developer, and its trial is 14 days. Render's free plan says only not to run production on it, so the web app is a second free service in the same Blueprint (§5). What that costs: a page is rendered by a tenth of a CPU, the web app sleeps as the API does, and the two share the month's 750 hours. **The pilot's is not decided:** Vercel's paid plan, or the same two commands on Fly beside the API |
 | **Who sends the email** | **Not decided.** Supabase's own sender is for trying things: a few emails an hour, to the project's own team. A real sender is an account with an email service (Resend, Postmark, Amazon SES, …) and a domain it may send from. Until there is one, §7 can be walked by the project's own team and nobody else |
 
 **What a free project costs instead of money.** Supabase pauses a Free project that has had too
@@ -164,33 +169,46 @@ first lines of the log.
 ### On Render, free
 
 [`render.yaml`](../../render.yaml) is a Blueprint: Render reads it from the repository and makes
-the service it describes. It has not been deployed yet — its field names were read from Render's
-reference on the day it was written — but the container was run here exactly as Render will run
-it, `python -m dealerai.both` with `PORT=10000`: one process serving, the worker beside it and
-started again when it was killed, 137 MB in all.
+the two services it describes, the API with its worker and the web app (§5). It has not been
+deployed yet — its field names were read from Render's reference on the days it was written —
+but the container was run here exactly as Render will run it, `python -m dealerai.both` with
+`PORT=10000`: one process serving, the worker beside it and started again when it was killed,
+137 MB in all.
 
 1. A Render account — signing in with GitHub is enough, and no card is asked for.
-2. **New → Blueprint**, this repository, the branch `sales/phase-1`. Render shows the one service
-   and asks for the values the file leaves out:
+2. **New → Blueprint**, this repository, the branch `sales/phase-1`. Render shows the two
+   services and asks for the values the file leaves out:
 
    | Asked for | What to give |
    |---|---|
    | `DATABASE_URL` | Run §2.4's command with `--clipboard`, and paste. Secret |
-   | `WEB_ORIGINS` | The web app's address, `https://<web>` — so §5 comes first, or this is filled in after it and the service deployed again. Left blank, the service refuses to start and says why |
+   | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | The project's publishable key, copied from its *API Keys* page. Public by design |
    | `GOOGLE_API_KEY` | A Gemini key, or blank |
    | `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | A push key and a `mailto:` address, or both blank |
 
-   `SUPABASE_JWT_SECRET` is not asked for: Render makes it, and nobody needs to see it.
-3. The API is then at `https://dealerai-staging.onrender.com`, or what Render shows if that name
-   was taken. That is `<api>` everywhere on this page.
+   `SUPABASE_JWT_SECRET` is not asked for: Render makes it, and nobody needs to see it. Nor are
+   the two addresses: the file gives each service the other's, as Render will make them from
+   the services' names.
+3. The API is then at `https://dealerai-staging.onrender.com` and the web app at
+   `https://dealerai-staging-web.onrender.com`. Those are `<api>` and `<web>` everywhere on this
+   page. **If a name was taken, Render adds letters to it**, and each service has then been told
+   a wrong address for the other: on its *Environment* page put `WEB_ORIGINS` right on the API
+   and `NEXT_PUBLIC_API_URL` on the web app, and deploy both again. §6 names it when this has
+   happened.
 
-**What free means, day to day.** After 15 minutes with no request Render puts the service to
-sleep, and the worker with it: a task that falls due in that time is announced when the service
-wakes, and the first screen of the day takes about a minute. A month has 750 free hours, which is
-one service awake the whole time, so a free monitor asking for `/internal/health` every ten
-minutes keeps it awake — and keeps the worker asking the database for work, which is what stops
-Supabase pausing a Free project. (Render's page on its free plan does not say whether it minds.) Without one, a staging nobody opens for a week is asleep on both
-sides. Render also restarts a free service when it likes; nothing here minds.
+**What free means, day to day.** After 15 minutes with no request Render puts a service to
+sleep, and with the API its worker: a task that falls due in that time is announced when the
+service wakes. The first screen of the day takes about a minute, and may take two tries: the
+web app wakes for the browser, and the API only for the web app's first question, so a first
+page may say it could not load. Wait, and load it again. A month has 750 free hours for the two
+services together. Both awake the whole time would use them in under sixteen days, and Render
+then suspends both until the month ends — so nothing is set to keep staging awake. Asleep, the
+worker asks the database for nothing, and Supabase pauses a Free project that has been quiet
+for a week: open staging once a week, or resume the project from its dashboard. Render also
+restarts a free service when it likes; nothing here minds.
+
+A push that touches only `docs/` deploys nothing, and one that touches only the other
+service's half deploys one of the two (`buildFilter` in the file).
 
 It is right for staging and wrong for customers: a webhook has to be answered at once, and a
 sleeping service cannot. The pilot's API is Fly's, below.
@@ -240,15 +258,43 @@ With the worker stopped, `waiting` only grows.
 
 ## 5. The web app
 
-A Vercel project on this repository, with `apps/web` as its root directory and Node 22.
+On Render, beside the API: a second free service in the same Blueprint, `dealerai-staging-web`,
+built and started from the repository's root, where an npm workspace's packages are installed.
+
+```bash
+npm ci --include=dev && npm run build --workspace web
+npm run start --workspace web
+```
+
+The build needs TypeScript and Tailwind, which are development packages, and a host that sets
+`NODE_ENV=production` leaves those out unless they are asked for. `next start` listens on the
+port Render names.
 
 | Variable | Value |
 |---|---|
-| `NEXT_PUBLIC_SUPABASE_URL` | The project's address |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | The project's publishable key — public by design; row-level security is what protects the data |
-| `NEXT_PUBLIC_API_URL` | `https://<api>` |
+| `NEXT_PUBLIC_SUPABASE_URL` | The project's address. In `render.yaml` |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | The project's publishable key — public by design; row-level security is what protects the data. Asked for by Render's form (§4) |
+| `NEXT_PUBLIC_API_URL` | `https://<api>`. In `render.yaml` |
+| `NODE_VERSION` | `22`, in `render.yaml`: what CI builds and tests with. Without it Render takes the newest release there is |
 
 Never `NEXT_PUBLIC_DEV_AUTH`: it is a laptop's sign-in, and a production build ignores it anyway.
+
+The three `NEXT_PUBLIC_` values are written into the pages when they are built, so changing one
+means building again: **Manual Deploy** on the service's page.
+
+It has not been deployed yet. What was run here on 2026-10-06 is the two commands: from a clean
+copy of the repository with `NODE_ENV=production`, and then the built app held to a free
+instance's size, 512 MB and a tenth of a CPU. It was ready in about a second, answered `/login`
+in under a tenth of one, and held 75 MB idle and 83 MB after eighty requests.
+
+*How to tell:* `https://<web>/login` shows the sign-in card, and an address inside a workspace
+leads back to it.
+
+**On Vercel instead**, where the pilot's may go: a project on this repository with `apps/web` as
+its *Root Directory*, the three `NEXT_PUBLIC_` values, and Node 22. Vercel builds `main` for
+production until it is told otherwise — *Settings → Environments → Production → Branch
+Tracking* — and saving that builds nothing: *Deployments → Create Deployment* does. (Its pages,
+read 2026-10-06.)
 
 ## 6. Is it fit to use
 
