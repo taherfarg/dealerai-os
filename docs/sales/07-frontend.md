@@ -6,7 +6,7 @@
 
 ## 1. What exists today
 
-`apps/web` is Next.js 16.3.4 (App Router), React 19.2, TypeScript strict, Tailwind v4 with tokens in
+`apps/web` is Next.js 16.3.8 (App Router), React 19.2, TypeScript strict, Tailwind v4 with tokens in
 `app/globals.css`, a Supabase auth gate in `proxy.ts` (Next 16's middleware file), the `[tenant]` URL
 segment, a small typed message catalogue in `lib/i18n.ts`, a server-side fetch helper in `lib/api.ts`,
 three pages (login, command center, approvals) and `scripts/check-logical-css.mjs`, which fails the
