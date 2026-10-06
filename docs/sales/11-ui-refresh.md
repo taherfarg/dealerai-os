@@ -8,14 +8,11 @@ for that.
 This page says what the app will look like and how it gets there. It changes how things look and
 where a few controls sit. It does not change what any screen does.
 
-**Where it stands (2026-10-05):** the direction is chosen and this design is agreed. Steps 1 to 4
-of §8 are built — the palette, the typeface and the corners on every screen, the shell around
-them, the inbox, and every other page on its sheet with the customer screens redrawn
-([step 1](plans/ui-refresh.md#step-1-review--2026-10-05),
-[step 2](plans/ui-refresh.md#step-2-review--2026-10-05),
-[step 3](plans/ui-refresh.md#step-3-review--2026-10-05),
-[step 4](plans/ui-refresh.md#step-4-review--2026-10-05)). Steps 5 and 6 are not. The
-step-by-step plan is [`plans/ui-refresh.md`](plans/ui-refresh.md), written one step at a time.
+**Where it stands (2026-10-06):** built. All six steps of §8 are done and reviewed in
+[`plans/ui-refresh.md`](plans/ui-refresh.md): the palette, the typeface and the corners on every
+screen; the shell; the inbox; every other page on its sheet; the dashboard and the pages outside a
+workspace; and the last pass, with the accessibility sweep running in dark as well. What exists is
+described in [07](07-frontend.md) §5. What is left needs a real phone, and waits for staging.
 
 ---
 

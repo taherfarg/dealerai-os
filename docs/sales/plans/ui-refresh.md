@@ -2014,3 +2014,99 @@ are shorter.
 | On the dashboard a waiting customer's *Hand over to* now wraps under their name: the select is wider than it was |
 | The dashboard's tiles still mark their state with a coloured edge |
 | Settings' sections are rows of words; the sign-in pages are a column with no card |
+
+---
+
+# Step 5 — The dashboard, and the pages outside a workspace
+
+**Goal:** the last screens that still look like the old app do not. Step 4's pass already redrew
+their buttons and fields, and the sheet already holds them; what is left is three things.
+
+| What was looked at, in the photographs of step 4 | What it found |
+|---|---|
+| The dashboard's tiles | A coloured edge on one side says the state — the one shape [11](../11-ui-refresh.md) set out to lose. The number can carry the colour, and the hint already says the target in words |
+| The dashboard's waiting list | *Hand over to* is a wider control than it was, and falls under the name on its own. Two lines on purpose reads better than one line that broke |
+| Settings | Nothing: its sections are rows whose chosen one can be seen, and its forms are fields and buttons |
+| Sign-in, sign-up, the invitation, the first workspace, the two password pages | A column of fields on a white page, with no mark and nothing to say whose app it is |
+
+## Task D1: The dashboard
+
+- [ ] **`StatTile`**: no edge. A soft tile with the 18 px corner; where there is a tone, the number
+  is `text-success`, `text-warning` or `text-danger` — pairs the palette's test holds on `surface`
+  for danger and warning, and gains for the green: `["accent-ink", "surface"]` is already there.
+- [ ] **`WaitingList`**: a row is two lines. First who is waiting — a small avatar with the flag,
+  the name, the waiting pill. Then who has them, *Open* and *Hand over to*. The name keeps
+  `min-w-24`, which its test asks for.
+
+## Task D2: Outside a workspace
+
+- [ ] **`(auth)/layout.tsx`**: the canvas, and on it the mark and the language toggle above one
+  white card with the 22 px corner. Still one `<main>`.
+- [ ] **`LocaleToggle`**: a pill.
+
+## Task D3: The whole check, the suite, and the look
+
+- [ ] `npm run check:web`; `npm run build`; `E2E_DB_PORT=54432 npm run e2e` — 65 passed.
+- [ ] The photographs: the dashboard on a desk; sign-in on a desk and on a phone in Arabic.
+- [ ] `## Step 5 review`, here; where it stands, in [11](../11-ui-refresh.md).
+
+## Execution (Step 5)
+
+Inline, straight on from step 4.
+
+---
+
+## Step 5 review — 2026-10-06
+
+**Built as planned:** `6915250`.
+
+| What | Before | After |
+|---|---|---|
+| A tile against a target | A coloured edge down one side | The number wears the colour; the hint says the target |
+| A waiting customer on the dashboard | One line that broke by itself | Two lines on purpose, with an avatar |
+| The pages outside a workspace | A column of fields on white | The mark, and one white card on the canvas |
+
+Nothing differs from the plan, and the suite found nothing: this step and the next were run
+together.
+
+---
+
+# Step 6 — The pass
+
+**Goal:** what [11](../11-ui-refresh.md) §7 and §8 left for the end. No new look, only the checks
+on the one that is there.
+
+- [x] **The sweep, once more in dark** — `311184a`. A seventh project in `playwright.config.ts`,
+  `dark-1440`: the one test that walks every page with `axe-core`, on a desk with the device set
+  to dark. It passed the first time it was asked: the dark column of the palette had only ever
+  been held by arithmetic.
+- [x] **Every screen, in the combinations nobody had looked at.** Fourteen more photographs: the
+  inbox, the pipeline and customers on a desk in Arabic; customers, tasks and the pipeline on a
+  phone; the dashboard and sign-in in dark. The frame, the bubbles, the draft and the composer all
+  turn round with the language; nothing is wider than its screen.
+- [x] **[07](../07-frontend.md) §5 says what exists** — the names, the three things that hold
+  them, the classes, `Icon`, `Avatar`, the frame — and §10 and §11 say the accent's ring and the
+  dark run.
+- [x] **The whole check** — below.
+
+## Step 6 review — 2026-10-06
+
+| What | At the start of this plan | Now |
+|---|---|---|
+| Colours written by hand | 311 | 0, and one allowed on purpose |
+| Buttons and fields written out by hand | about a hundred | None of the forty spellings that made them |
+| Unit tests | 347 in 59 files | 367 in 64 |
+| End-to-end | 65 | 66, in 5.0 minutes: the 65, none of them changed, and the dark run |
+| What the suites found on the way | — | Three things, all real: a scrolling area a keyboard could not reach, tabs eight pixels too wide for a small phone, and — before any test, while planning — a failed message that would have been red on green |
+
+`npm run check:web` is green, `next build` compiles, and `npm run e2e` is 66 of 66.
+
+**Known, and left.**
+
+| What | Why |
+|---|---|
+| Real phones and a screen reader | Staging, which this work was holding up and no longer is |
+| An iPhone's home indicator under the floating bar | It needs the real thing in a hand |
+| The flag as two letters on Windows | A phone draws the flag; Windows has no pictures of them |
+| The four marketing screens were not redesigned | By decision ([11](../11-ui-refresh.md) §1). They sit on the sheet and use the shared controls like everything else |
+| `card`, a colour per dealership, keyboard shortcuts | Not built, and not asked for |

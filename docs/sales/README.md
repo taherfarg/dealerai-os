@@ -44,7 +44,7 @@ French). Every Phase 1 feature must be usable by their sales team in week one of
 | 08 | [Screens](08-screens.md) | Every screen: purpose, data, states, actions, roles, mobile, "done when" |
 | 09 | [Implementation plan](09-implementation-plan.md) | Slices S0–S7, the Meta track, definition of done; step-by-step plans in [`plans/`](plans/) |
 | 10 | [The staging day](10-staging.md) | Making staging, in order: the project, authentication, the API and the worker, the web app, the check, and the first sign-in |
-| 11 | [The new look](11-ui-refresh.md) | What the app will look like and how it gets there: colours, type, shared styles, the shell, every Sales screen, and how it is checked |
+| 11 | [The new look](11-ui-refresh.md) | What the app looks like and why: colours, type, shared styles, the shell, every Sales screen, and how it is checked |
 
 ---
 
