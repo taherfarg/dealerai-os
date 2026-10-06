@@ -37,5 +37,4 @@ export const WEB_ENV = {
   // Placeholders, as in CI's build: with the local sign-in on, nothing calls Supabase.
   NEXT_PUBLIC_SUPABASE_URL: "https://placeholder.supabase.co",
   NEXT_PUBLIC_SUPABASE_ANON_KEY: "placeholder-anon-key",
-  E2E: "1",
 };
