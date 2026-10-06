@@ -12,10 +12,13 @@ and what must be true before it is done. Every screen also obeys the seven rules
 
 **Route:** `app/[tenant]/layout.tsx` · **Who:** everyone
 
-- **Desktop:** a sidebar (collapsible to an icon rail) with the workspace name, the navigation, a
-  "Taking chats" switch, and the user menu (name, role, Arabic/English, sign out). A top bar holds
-  the page title and the notifications bell.
-- **Mobile:** a top bar plus a bottom navigation bar — Inbox, My day, Customers, Pipeline, More.
+- **Desktop:** a rail of icons down the side: the mark, the navigation, a "Taking chats" switch,
+  the notifications bell, and the person's own avatar, which opens the account menu (name,
+  Arabic/English, the workspace, sign out). There is no top bar; a page says its own title.
+- **Mobile:** one row across the top (the mark, the workspace name, the bell, the account) and a
+  bar floating above the bottom edge — Inbox, My day, Customers, Pipeline, Settings. An open
+  conversation has the whole screen, and both step aside for it.
+- How it is drawn is [11](11-ui-refresh.md) §4.
 - **Navigation, role-gated:** Inbox (unread badge) · My day · Customers · Pipeline · Tasks ·
   Dashboard (`dashboard.manager`) · Inventory · Approvals · Settings, with Command Center and Content
   in a "Marketing" group.

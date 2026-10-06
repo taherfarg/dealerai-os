@@ -72,8 +72,8 @@ app/[tenant]/
   inventory/ content/ approvals/   existing
 ```
 
-Desktop uses a sidebar and multi-pane layouts; mobile uses a bottom navigation bar and moves from
-list to detail as separate screens. The `[tenant]` segment stays in the URL so a pasted link opens
+Desktop uses a rail of icons and multi-pane layouts; a phone has a bar floating at the bottom and
+moves from list to detail as separate screens (§5). The `[tenant]` segment stays in the URL so a pasted link opens
 the same workspace for whoever clicks it.
 
 ---
