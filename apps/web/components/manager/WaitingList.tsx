@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { WaitingTimer } from "@/components/inbox/WaitingTimer";
 import { useAssignConversation, useMembers, type Conversation } from "@/lib/api/hooks";
+import { Avatar } from "@/components/Avatar";
 import { CustomerName } from "@/components/Bidi";
 import { useT } from "@/lib/i18n-client";
 
@@ -29,19 +30,23 @@ function WaitingRow({
     .sort((a, b) => Number(b.accepting_chats) - Number(a.accepting_chats));
 
   return (
-    <li className="flex flex-wrap items-center gap-2 border-b border-border py-2">
-      {/* min-w-24: who is waiting is the row's point, and on a phone the rest
-          of the row used to squeeze it to nothing. What does not fit beside
-          the name goes to the next line. */}
+    <li className="border-border flex flex-wrap items-center gap-x-2 gap-y-1 border-b py-2.5">
+      {/* Two lines on purpose ([11] § 5.3). First who is waiting, and for how
+          long: min-w-24 because that is the row's point, and on a phone the
+          rest of the row used to squeeze it to nothing. The flag rides on the
+          avatar, so the name beside it is given none. */}
+      <Avatar name={conversation.contact.name} country={conversation.contact.country} size="sm" />
       <CustomerName
-        country={conversation.contact.country}
+        country={null}
         name={conversation.contact.name}
-        className="min-w-24 flex-1 text-sm"
+        className="min-w-24 flex-1 text-sm font-medium"
       />
-      <span className="text-muted text-xs" dir="auto">
+      <WaitingTimer waitingSince={conversation.waiting_since} state={conversation.sla_state} />
+      {/* Then who has them, and what can be done about it. */}
+      <span aria-hidden className="basis-full" />
+      <span className="text-muted flex-1 text-xs" dir="auto">
         {conversation.assignee?.name ?? t("customers.nobody")}
       </span>
-      <WaitingTimer waitingSince={conversation.waiting_since} state={conversation.sla_state} />
       <Link
         href={`/${tenant}/inbox/${conversation.id}`}
         className="btn"

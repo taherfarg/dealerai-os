@@ -8,7 +8,7 @@ import { LOCALES, type Locale } from "@/lib/i18n";
  */
 export function LocaleToggle({ locale }: { locale: Locale }) {
   return (
-    <form action={setLocale} className="border-border flex overflow-hidden rounded-md border text-xs">
+    <form action={setLocale} className="border-border flex overflow-hidden rounded-full border text-xs">
       {LOCALES.map((l) => (
         <button
           key={l}

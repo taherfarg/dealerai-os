@@ -9,10 +9,12 @@ export function tone(seconds: number | null | undefined, target: number): Tone |
   return seconds <= 2 * target ? "warn" : "bad";
 }
 
-const EDGE: Record<Tone, string> = {
-  ok: "border-s-4 border-s-success",
-  warn: "border-s-4 border-s-warning",
-  bad: "border-s-4 border-s-danger",
+// The number wears the state ([11] § 5.3): a coloured edge down one side was
+// the shape the new look set out to lose.
+const INK: Record<Tone, string> = {
+  ok: "text-success",
+  warn: "text-warning",
+  bad: "text-danger",
 };
 
 /**
@@ -36,10 +38,10 @@ export function StatTile({
   tone?: Tone | null;
 }) {
   const body = (
-    <div className={`bg-surface border-border h-full rounded-lg border p-3 ${tone ? EDGE[tone] : ""}`}>
+    <div className="bg-surface h-full rounded-2xl p-4">
       {/* No dir here: a duration's units are the reader's, and a bare count
           reads the same either way. */}
-      <p className="text-xl font-semibold tabular-nums">
+      <p className={`text-2xl font-semibold tabular-nums ${tone ? INK[tone] : ""}`}>
         {value}
       </p>
       <p className="text-muted text-xs">{label}</p>

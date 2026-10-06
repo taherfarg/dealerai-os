@@ -9,12 +9,25 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
   const locale = ((await cookies()).get("locale")?.value ?? "en") as Locale;
   return (
     <LocaleProvider locale={locale}>
-      <main className="mx-auto flex min-h-screen w-full max-w-sm flex-col justify-center gap-6 p-6">
-        <div className="flex justify-end">
-          <LocaleToggle locale={locale} />
-        </div>
-        {children}
-      </main>
+      {/* The canvas, and on it one white card ([11] § 5.3): the same two
+          things every page inside a workspace is made of. */}
+      <div className="bg-ground min-h-screen">
+        <main className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center gap-4 p-4">
+          <div className="flex items-center justify-between">
+            <span
+              role="img"
+              aria-label="DealerAI"
+              className="bg-accent text-on-accent grid size-11 place-items-center rounded-xl text-lg font-semibold"
+            >
+              D
+            </span>
+            <LocaleToggle locale={locale} />
+          </div>
+          <div className="bg-background flex flex-col gap-6 rounded-[1.375rem] p-6 shadow-sm">
+            {children}
+          </div>
+        </main>
+      </div>
     </LocaleProvider>
   );
 }
