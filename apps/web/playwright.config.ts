@@ -39,6 +39,15 @@ export default defineConfig<Options>({
       testIgnore: [JOURNEY, /(visibility|live)\.e2e\.ts/],
       use: { ...phone, language: "ar" },
     },
+    // The checker once more, with the device set to dark
+    // (docs/sales/11-ui-refresh.md § 7): dark is where a contrast mistake
+    // hides, and nothing else here looks at it.
+    {
+      name: "dark-1440",
+      testMatch: /screens\.e2e\.ts/,
+      grep: /no page fails the checker/,
+      use: { ...desk, language: "en", colorScheme: "dark" },
+    },
   ],
   webServer: [
     {
