@@ -50,7 +50,7 @@ export default function PipelinePage({ params }: { params: Promise<{ tenant: str
             value={board?.id ?? ""}
             aria-label={t("pipeline.title")}
             onChange={(event) => setFilters({ pipeline: event.target.value })}
-            className="min-h-11 rounded-md border border-black/10 px-2 text-sm dark:border-white/15"
+            className="field px-3"
           >
             {boards.map((one) => (
               <option key={one.id} value={one.id}>
@@ -61,17 +61,19 @@ export default function PipelinePage({ params }: { params: Promise<{ tenant: str
         )}
         <input
           type="search"
-          value={filters.q}
+          // Its own text, not the address's: bound to the address it was put
+          // back between one letter and the next, and fast typing lost letters.
+          defaultValue={filters.q}
           placeholder={t("pipeline.search")}
           aria-label={t("pipeline.search")}
           onChange={(event) => setFilters({ q: event.target.value })}
-          className="min-h-11 flex-1 rounded-md border border-black/10 px-3 text-sm dark:border-white/15"
+          className="field field-soft flex-1"
         />
         <select
           value={filters.band}
           aria-label={t("customers.band")}
           onChange={(event) => setFilters({ band: event.target.value })}
-          className="min-h-11 rounded-md border border-black/10 px-2 text-sm dark:border-white/15"
+          className="field px-3"
         >
           <option value="">{t("customers.anyBand")}</option>
           {(["hot", "warm", "cold"] as const).map((band) => (
@@ -85,7 +87,7 @@ export default function PipelinePage({ params }: { params: Promise<{ tenant: str
             value={filters.owner_id}
             aria-label={t("customers.owner")}
             onChange={(event) => setFilters({ owner_id: event.target.value })}
-            className="min-h-11 rounded-md border border-black/10 px-2 text-sm dark:border-white/15"
+            className="field px-3"
           >
             <option value="">{t("pipeline.anyOwner")}</option>
             {(members.data ?? []).map((member) => (

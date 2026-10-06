@@ -149,6 +149,30 @@ def test_deleting_a_stage_that_still_holds_leads_says_how_many(client: TestClien
     assert _stages(_board(client)) == _stages(board), "a refused change changed nothing"
 
 
+def test_somebody_reading_arabic_is_refused_in_arabic(client: TestClient) -> None:
+    """The same refusal, with the same stage and the same count in it."""
+    board = _board(client)
+    doomed = next(stage for stage in board["stages"] if stage["name"] == "Contacted")
+    for _ in range(2):
+        asyncio.run(_a_lead_on(doomed["id"], board["id"]))
+
+    kept = [
+        {"id": stage["id"], "name": stage["name"], "category": stage["category"]}
+        for stage in board["stages"]
+        if stage["id"] != doomed["id"]
+    ]
+    response = client.put(
+        f"/v1/pipelines/{board['id']}/stages",
+        json={"stages": kept},
+        headers={**_auth(OWNER), "Accept-Language": "ar"},
+    )
+    assert response.status_code == 409, response.text
+    problem = response.json()
+    assert problem["type"].endswith("stage-in-use")
+    assert "Contacted" in problem["detail"] and "فرصتين" in problem["detail"]
+    assert "leads" not in problem["detail"]
+
+
 def test_an_empty_stage_can_be_removed(client: TestClient) -> None:
     board = _board(client)
     kept = [

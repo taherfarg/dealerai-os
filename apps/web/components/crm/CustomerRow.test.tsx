@@ -36,6 +36,11 @@ describe("CustomerRow", () => {
     expect(screen.getByText("3m")).toBeDefined();
   });
 
+  it("keeps the phone number the way it is dialled", () => {
+    show({});
+    expect(screen.getByText("+971500000101").getAttribute("dir")).toBe("ltr");
+  });
+
   it("says nobody owns them rather than leaving a gap", () => {
     show({ owner: null });
     expect(screen.getByText("Nobody")).toBeDefined();

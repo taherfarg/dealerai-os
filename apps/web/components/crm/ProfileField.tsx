@@ -4,6 +4,7 @@ import { useState } from "react";
 import { formatMoney } from "@/lib/format";
 import type { MessageKey } from "@/lib/i18n";
 import { useT } from "@/lib/i18n-client";
+import { word } from "@/lib/words";
 
 export type Field = {
   value: unknown;
@@ -24,6 +25,8 @@ function display(name: string, field: Field, t: (key: MessageKey) => string): st
     return formatMoney(value as { amount_minor: number; currency: string });
   }
   if (typeof value === "boolean") return value ? t("profile.yes") : t("profile.no");
+  // A choice is stored as a code and read as a word.
+  if (name in CHOICES) return word(t, `profile.${name}`, String(value));
   if (Array.isArray(value)) return value.join(", ");
   return String(value);
 }
@@ -57,7 +60,9 @@ export function ProfileField({
   const editable =
     name === "budget" && field?.value && typeof field.value === "object"
       ? String((field.value as { amount_minor: number }).amount_minor / 100)
-      : (shown ?? "");
+      : choices
+        ? String(field?.value ?? "")
+        : (shown ?? "");
 
   const save = (raw: string) => {
     setEditing(false);
@@ -75,7 +80,7 @@ export function ProfileField({
 
   return (
     <div
-      className="flex items-baseline justify-between gap-2 py-1.5"
+      className="flex items-center justify-between gap-2"
       data-field={name}
       data-source={field?.source ?? "none"}
     >
@@ -88,13 +93,13 @@ export function ProfileField({
             defaultValue={String(field?.value ?? "")}
             onChange={(event) => save(event.target.value)}
             onBlur={() => setEditing(false)}
-            className="min-h-11 rounded-md border border-black/10 px-2 text-sm dark:border-white/15"
+            className="field px-3"
             aria-label={t(`profile.${name}` as MessageKey)}
           >
             <option value="">{t("profile.unknown")}</option>
             {choices.map((choice) => (
               <option key={choice} value={choice}>
-                {choice}
+                {word(t, `profile.${name}`, choice)}
               </option>
             ))}
           </select>
@@ -108,7 +113,7 @@ export function ProfileField({
               if (event.key === "Enter") save(event.currentTarget.value);
               if (event.key === "Escape") setEditing(false);
             }}
-            className="min-h-11 w-40 rounded-md border border-black/10 px-2 text-end text-sm dark:border-white/15"
+            className="field w-40 px-3 text-end"
           />
         )
       ) : (
@@ -116,7 +121,7 @@ export function ProfileField({
           <button
             type="button"
             onClick={() => setEditing(true)}
-            className={`text-sm ${shown ? "" : "text-muted italic"}`}
+            className={`min-h-11 min-w-11 text-end text-sm ${shown ? "" : "text-muted italic"}`}
           >
             {shown ?? t("profile.unknown")}
           </button>
@@ -127,9 +132,12 @@ export function ProfileField({
               title={t("profile.evidence")}
               aria-label={t("profile.evidence")}
               onClick={() => field.evidence_message_id && onEvidence?.(field.evidence_message_id)}
-              className="rounded bg-blue-500/15 px-1 text-[10px] font-medium uppercase text-blue-700 disabled:opacity-60 dark:text-blue-300"
+              // The mark stays small; what a thumb presses is the height of the row.
+              className="inline-flex min-h-11 min-w-11 items-center justify-center disabled:opacity-60"
             >
-              {t("profile.fromAi")}
+              <span className="rounded bg-info-soft px-1 text-[10px] font-medium uppercase text-info">
+                {t("profile.fromAi")}
+              </span>
             </button>
           )}
         </span>

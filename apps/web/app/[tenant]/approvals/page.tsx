@@ -76,7 +76,7 @@ export default async function ApprovalsPage({
                 <form action={decide}>
                   <input type="hidden" name="id" value={a.id} />
                   <input type="hidden" name="action" value="approve" />
-                  <button className="bg-brand rounded-md px-3 py-1.5 text-sm text-white">
+                  <button className="bg-accent rounded-md px-3 py-1.5 text-sm text-on-accent">
                     {t(locale, "approvals.approve")}
                   </button>
                 </form>

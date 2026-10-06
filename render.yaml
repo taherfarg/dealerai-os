@@ -1,0 +1,111 @@
+# Staging on Render's free plan (docs/sales/10-staging.md § 4 and § 5): the API
+# and the worker in one container, and the web app beside them, in Singapore
+# beside staging's database.
+#
+# Written on 2026-10-05, when the owner asked for a host without a monthly
+# charge and chose this one, and not yet deployed: the field names were read from Render's
+# Blueprint reference that day, and the first deploy is what proves them. The
+# container itself was run as Render will run it — `python -m dealerai.both`,
+# PORT=10000 — and is known to work. The web app was added on 2026-10-06, and
+# its two commands were run the same way: from a clean copy of the repository,
+# in a container the size of a free instance.
+#
+# What free means here: a service is put to sleep after 15 minutes with no
+# request and takes about a minute to wake; it has a tenth of a CPU and 512 MB;
+# the two services share 750 hours a month; and Render has no free background
+# worker, which is why the API and the worker share the one container. Right
+# for staging, wrong for customers.
+#
+# No secret is in this file. A value marked `sync: false` is asked for by
+# Render's own form when the Blueprint is first applied, and lives only there.
+#
+# Each service is told the other's public address, which Render makes from its
+# name. If a name was taken, Render adds letters to it: then WEB_ORIGINS and
+# NEXT_PUBLIC_API_URL are put right in the dashboard, and both deployed again.
+
+services:
+  - type: web
+    name: dealerai-staging
+    runtime: docker
+    plan: free
+    region: singapore
+    branch: sales/phase-1
+    dockerfilePath: ./apps/api/Dockerfile
+    dockerContext: .
+    # The image's own command serves the API alone. This one keeps the worker
+    # running beside it (apps/api/src/dealerai/both.py).
+    dockerCommand: python -m dealerai.both
+    healthCheckPath: /internal/health
+    # A push is deployed once its checks have passed, not before.
+    autoDeployTrigger: checksPass
+    # A push that changes only what the image is not made of deploys nothing.
+    buildFilter:
+      ignoredPaths:
+        - "docs/**"
+        - "apps/web/**"
+    envVars:
+      - key: ENV
+        value: staging
+      - key: LOG_LEVEL
+        value: info
+      # A Free Supabase project takes 60 connections in all.
+      - key: DB_POOL_MAX
+        value: "5"
+      # Staging's Supabase project. Its address is not a secret.
+      - key: SUPABASE_URL
+        value: https://sqlshcesowlrmhiugnpf.supabase.co
+      # Signs invitation links and media links. Render makes it, and nobody
+      # ever needs to see it.
+      - key: SUPABASE_JWT_SECRET
+        generateValue: true
+      # Who may call the API from a browser: the web app below.
+      - key: WEB_ORIGINS
+        value: https://dealerai-staging-web.onrender.com
+      # The session pooler's address, as dealerai_app — never as postgres.
+      - key: DATABASE_URL
+        sync: false
+      # The model. Left empty, the app runs and writes no drafts.
+      - key: GOOGLE_API_KEY
+        sync: false
+      # Push to phones. Left empty, nothing is pushed and the bell still works.
+      - key: VAPID_PRIVATE_KEY
+        sync: false
+      - key: VAPID_SUBJECT
+        sync: false
+
+  # The web app. The architecture puts it on Vercel, and Vercel's free plan is
+  # for personal projects that earn nobody anything; this one is free too, and
+  # allowed. A page is slower here: a tenth of a CPU renders it.
+  - type: web
+    name: dealerai-staging-web
+    runtime: node
+    plan: free
+    region: singapore
+    branch: sales/phase-1
+    # Run from the repository's root, where an npm workspace's packages are
+    # installed. The build needs TypeScript and Tailwind, which are development
+    # packages, and a host that sets NODE_ENV=production leaves those out
+    # unless they are asked for.
+    buildCommand: npm ci --include=dev && npm run build --workspace web
+    # `next start` listens on PORT, which Render sets.
+    startCommand: npm run start --workspace web
+    autoDeployTrigger: checksPass
+    buildFilter:
+      ignoredPaths:
+        - "docs/**"
+        - "apps/api/**"
+    envVars:
+      # What CI builds and tests with. Without it Render takes the newest
+      # release that package.json's ">=22" allows.
+      - key: NODE_VERSION
+        value: "22"
+      # These three are written into the pages when they are built: changing
+      # one means building again.
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        value: https://sqlshcesowlrmhiugnpf.supabase.co
+      - key: NEXT_PUBLIC_API_URL
+        value: https://dealerai-staging.onrender.com
+      # The project's publishable key: public by design — row-level security
+      # is what protects the data — and still not kept in this file.
+      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+        sync: false

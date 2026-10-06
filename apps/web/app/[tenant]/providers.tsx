@@ -4,10 +4,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEffect, useState, type ReactNode } from "react";
 import { ApiError } from "@/lib/api/client";
 import { TenantApiProvider } from "@/lib/api/context";
-import { useNotifications } from "@/lib/api/hooks";
+import { useNotifications, useTellServerMyLanguage } from "@/lib/api/hooks";
 import type { Locale } from "@/lib/i18n";
 import { LiveEvents } from "@/lib/live";
-import { LocaleProvider } from "@/lib/i18n-client";
+import { LocaleProvider, useLocale } from "@/lib/i18n-client";
 import { titleWithUnread } from "@/lib/title";
 
 /**
@@ -33,6 +33,12 @@ function UnreadInTitle() {
     observer.observe(document.head, { subtree: true, childList: true, characterData: true });
     return () => observer.disconnect();
   }, [unread]);
+  return null;
+}
+
+/** The server keeps up with the language this person has on screen. */
+function ReaderLanguage() {
+  useTellServerMyLanguage(useLocale());
   return null;
 }
 
@@ -66,6 +72,7 @@ export function Providers({
         <LocaleProvider locale={locale}>
           <LiveEvents />
           <UnreadInTitle />
+          <ReaderLanguage />
           {children}
         </LocaleProvider>
       </TenantApiProvider>

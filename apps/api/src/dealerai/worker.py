@@ -15,7 +15,7 @@ import structlog
 # Imported for its side effects: this is what registers the handlers.
 from . import agents as _agents  # noqa: F401  registers the agents
 from . import tools as _tools  # noqa: F401  registers the agent tools
-from .config import get_settings
+from .config import assert_deployable, get_settings
 from .core.logging import configure_logging
 from .db import session
 from .events import handlers as _handlers  # noqa: F401
@@ -47,6 +47,7 @@ async def keep_the_clocks(stop: asyncio.Event) -> None:
 async def main() -> None:
     configure_logging()
     settings = get_settings()
+    assert_deployable(settings)
     await session.init_pool()
 
     stop = asyncio.Event()

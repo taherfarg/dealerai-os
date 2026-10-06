@@ -1603,11 +1603,13 @@
       "InviteCreate": {
         "properties": {
           "email": {
+            "maxLength": 254,
+            "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$",
             "title": "Email",
             "type": "string"
           },
           "role": {
-            "default": "marketer",
+            "default": "sales",
             "enum": [
               "viewer",
               "sales",
@@ -1618,6 +1620,15 @@
             ],
             "title": "Role",
             "type": "string"
+          },
+          "team_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 20,
+            "title": "Team Ids",
+            "type": "array"
           }
         },
         "required": [
@@ -1656,6 +1667,38 @@
           "role"
         ],
         "title": "InviteOut",
+        "type": "object"
+      },
+      "JoinedOut": {
+        "properties": {
+          "role": {
+            "enum": [
+              "viewer",
+              "sales",
+              "marketer",
+              "manager",
+              "admin",
+              "owner"
+            ],
+            "title": "Role",
+            "type": "string"
+          },
+          "tenant_id": {
+            "format": "uuid",
+            "title": "Tenant Id",
+            "type": "string"
+          },
+          "tenant_slug": {
+            "title": "Tenant Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tenant_id",
+          "tenant_slug",
+          "role"
+        ],
+        "title": "JoinedOut",
         "type": "object"
       },
       "LastMessage": {
@@ -2249,11 +2292,36 @@
         "title": "ManagerDashboard",
         "type": "object"
       },
+      "MeLocale": {
+        "properties": {
+          "locale": {
+            "enum": [
+              "en",
+              "ar"
+            ],
+            "title": "Locale",
+            "type": "string"
+          }
+        },
+        "required": [
+          "locale"
+        ],
+        "title": "MeLocale",
+        "type": "object"
+      },
       "MeOut": {
         "properties": {
           "accepting_chats": {
             "title": "Accepting Chats",
             "type": "boolean"
+          },
+          "locale": {
+            "enum": [
+              "en",
+              "ar"
+            ],
+            "title": "Locale",
+            "type": "string"
           },
           "permissions": {
             "items": {
@@ -2292,7 +2360,8 @@
           "scope",
           "team_ids",
           "permissions",
-          "accepting_chats"
+          "accepting_chats",
+          "locale"
         ],
         "title": "MeOut",
         "type": "object"
@@ -3047,6 +3116,122 @@
           "reason"
         ],
         "title": "PriceChange",
+        "type": "object"
+      },
+      "PushDevice": {
+        "description": "A device as its owner sees it — never the address or the keys.",
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "last_success_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Success At"
+          },
+          "user_agent": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Agent"
+          }
+        },
+        "required": [
+          "id",
+          "user_agent",
+          "created_at",
+          "last_success_at"
+        ],
+        "title": "PushDevice",
+        "type": "object"
+      },
+      "PushKey": {
+        "properties": {
+          "public_key": {
+            "title": "Public Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "public_key"
+        ],
+        "title": "PushKey",
+        "type": "object"
+      },
+      "PushSubscriptionIn": {
+        "description": "What the browser's PushSubscription holds.",
+        "properties": {
+          "auth": {
+            "maxLength": 64,
+            "title": "Auth",
+            "type": "string"
+          },
+          "endpoint": {
+            "maxLength": 2048,
+            "title": "Endpoint",
+            "type": "string"
+          },
+          "p256dh": {
+            "maxLength": 200,
+            "title": "P256Dh",
+            "type": "string"
+          },
+          "user_agent": {
+            "anyOf": [
+              {
+                "maxLength": 512,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Agent"
+          }
+        },
+        "required": [
+          "endpoint",
+          "p256dh",
+          "auth"
+        ],
+        "title": "PushSubscriptionIn",
+        "type": "object"
+      },
+      "PushTest": {
+        "properties": {
+          "failed": {
+            "title": "Failed",
+            "type": "integer"
+          },
+          "sent": {
+            "title": "Sent",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "sent",
+          "failed"
+        ],
+        "title": "PushTest",
         "type": "object"
       },
       "QueuedMessage": {
@@ -8396,7 +8581,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/dealerai__routes__tenants__MemberOut"
+                  "$ref": "#/components/schemas/JoinedOut"
                 }
               }
             },
@@ -8798,6 +8983,53 @@
           }
         },
         "summary": "Patch Me",
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/v1/me/locale": {
+      "put": {
+        "description": "The browser says which language is on screen. Nobody sets anyone else's:\nthe id is the caller's own, never one from the request.",
+        "operationId": "put_my_locale_v1_me_locale_put",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MeLocale"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put My Locale",
         "tags": [
           "me"
         ]
@@ -9226,6 +9458,239 @@
         "summary": "Replace Stages",
         "tags": [
           "pipelines"
+        ]
+      }
+    },
+    "/v1/push-subscriptions": {
+      "get": {
+        "operationId": "my_devices_v1_push_subscriptions_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PushDevice"
+                  },
+                  "title": "Response My Devices V1 Push Subscriptions Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "My Devices",
+        "tags": [
+          "push"
+        ]
+      },
+      "post": {
+        "description": "This device, for this person — whoever had it before (migration 0014).",
+        "operationId": "subscribe_v1_push_subscriptions_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PushSubscriptionIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushDevice"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Subscribe",
+        "tags": [
+          "push"
+        ]
+      }
+    },
+    "/v1/push-subscriptions/test": {
+      "post": {
+        "description": "A push to the caller's own devices, now — how somebody finds out whether\ntheir phone will tell them, before a customer is what finds out.",
+        "operationId": "test_push_v1_push_subscriptions_test_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushTest"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Test Push",
+        "tags": [
+          "push"
+        ]
+      }
+    },
+    "/v1/push-subscriptions/{device_id}": {
+      "delete": {
+        "operationId": "unsubscribe_v1_push_subscriptions__device_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "device_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Device Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Unsubscribe",
+        "tags": [
+          "push"
+        ]
+      }
+    },
+    "/v1/push/key": {
+      "get": {
+        "description": "The public half: what a browser subscribes with.",
+        "operationId": "push_key_v1_push_key_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushKey"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Push Key",
+        "tags": [
+          "push"
         ]
       }
     },

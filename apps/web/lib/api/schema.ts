@@ -705,6 +705,27 @@ export interface paths {
         patch: operations["patch_me_v1_me_patch"];
         trace?: never;
     };
+    "/v1/me/locale": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Put My Locale
+         * @description The browser says which language is on screen. Nobody sets anyone else's:
+         *     the id is the caller's own, never one from the request.
+         */
+        put: operations["put_my_locale_v1_me_locale_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/media/{token}": {
         parameters: {
             query?: never;
@@ -858,6 +879,85 @@ export interface paths {
          *     decision only a person can make, and the error says how many there are.
          */
         put: operations["replace_stages_v1_pipelines__pipeline_id__stages_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/push-subscriptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** My Devices */
+        get: operations["my_devices_v1_push_subscriptions_get"];
+        put?: never;
+        /**
+         * Subscribe
+         * @description This device, for this person — whoever had it before (migration 0014).
+         */
+        post: operations["subscribe_v1_push_subscriptions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/push-subscriptions/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Test Push
+         * @description A push to the caller's own devices, now — how somebody finds out whether
+         *     their phone will tell them, before a customer is what finds out.
+         */
+        post: operations["test_push_v1_push_subscriptions_test_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/push-subscriptions/{device_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Unsubscribe */
+        delete: operations["unsubscribe_v1_push_subscriptions__device_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/push/key": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Push Key
+         * @description The public half: what a browser subscribes with.
+         */
+        get: operations["push_key_v1_push_key_get"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -1928,10 +2028,12 @@ export interface components {
             email: string;
             /**
              * Role
-             * @default marketer
+             * @default sales
              * @enum {string}
              */
             role: "viewer" | "sales" | "marketer" | "manager" | "admin" | "owner";
+            /** Team Ids */
+            team_ids?: string[];
         };
         /** InviteOut */
         InviteOut: {
@@ -1947,6 +2049,21 @@ export interface components {
             role: "viewer" | "sales" | "marketer" | "manager" | "admin" | "owner";
             /** Token */
             token: string;
+        };
+        /** JoinedOut */
+        JoinedOut: {
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "viewer" | "sales" | "marketer" | "manager" | "admin" | "owner";
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
+            /** Tenant Slug */
+            tenant_slug: string;
         };
         /** LastMessage */
         LastMessage: {
@@ -2121,10 +2238,23 @@ export interface components {
             /** Waiting */
             waiting: components["schemas"]["ConversationSummary"][];
         };
+        /** MeLocale */
+        MeLocale: {
+            /**
+             * Locale
+             * @enum {string}
+             */
+            locale: "en" | "ar";
+        };
         /** MeOut */
         MeOut: {
             /** Accepting Chats */
             accepting_chats: boolean;
+            /**
+             * Locale
+             * @enum {string}
+             */
+            locale: "en" | "ar";
             /** Permissions */
             permissions: string[];
             /** Role */
@@ -2389,6 +2519,52 @@ export interface components {
             amount_minor: number;
             /** Reason */
             reason: string;
+        };
+        /**
+         * PushDevice
+         * @description A device as its owner sees it — never the address or the keys.
+         */
+        PushDevice: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Last Success At */
+            last_success_at: string | null;
+            /** User Agent */
+            user_agent: string | null;
+        };
+        /** PushKey */
+        PushKey: {
+            /** Public Key */
+            public_key: string;
+        };
+        /**
+         * PushSubscriptionIn
+         * @description What the browser's PushSubscription holds.
+         */
+        PushSubscriptionIn: {
+            /** Auth */
+            auth: string;
+            /** Endpoint */
+            endpoint: string;
+            /** P256Dh */
+            p256dh: string;
+            /** User Agent */
+            user_agent?: string | null;
+        };
+        /** PushTest */
+        PushTest: {
+            /** Failed */
+            failed: number;
+            /** Sent */
+            sent: number;
         };
         /** QueuedMessage */
         QueuedMessage: {
@@ -4680,7 +4856,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["dealerai__routes__tenants__MemberOut"];
+                    "application/json": components["schemas"]["JoinedOut"];
                 };
             };
             /** @description Validation Error */
@@ -4890,6 +5066,39 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["MeOut"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_my_locale_v1_me_locale_put: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MeLocale"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -5156,6 +5365,165 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Pipeline"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    my_devices_v1_push_subscriptions_get: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PushDevice"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    subscribe_v1_push_subscriptions_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PushSubscriptionIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PushDevice"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    test_push_v1_push_subscriptions_test_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PushTest"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    unsubscribe_v1_push_subscriptions__device_id__delete: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                device_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    push_key_v1_push_key_get: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PushKey"];
                 };
             };
             /** @description Validation Error */

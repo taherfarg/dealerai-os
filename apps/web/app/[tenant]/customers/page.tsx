@@ -41,18 +41,20 @@ export default function CustomersPage({ params }: { params: Promise<{ tenant: st
       <div className="mt-3 flex flex-wrap gap-2">
         <input
           type="search"
-          value={filters.q}
+          // Its own text, not the address's: bound to the address it was put
+          // back between one letter and the next, and fast typing lost letters.
+          defaultValue={filters.q}
           placeholder={t("customers.search")}
           aria-label={t("customers.search")}
           onChange={(event) => setFilters({ q: event.target.value })}
-          className="min-h-11 flex-1 rounded-md border border-black/10 px-3 text-sm dark:border-white/15"
+          className="field field-soft flex-1"
         />
         {canSeeOthers && (
           <select
             value={filters.owner_id}
             aria-label={t("customers.owner")}
             onChange={(event) => setFilters({ owner_id: event.target.value })}
-            className="min-h-11 rounded-md border border-black/10 px-2 text-sm dark:border-white/15"
+            className="field px-3"
           >
             <option value="">{t("customers.anyOwner")}</option>
             {(members.data ?? []).map((member) => (
@@ -66,7 +68,7 @@ export default function CustomersPage({ params }: { params: Promise<{ tenant: st
           value={filters.band}
           aria-label={t("customers.band")}
           onChange={(event) => setFilters({ band: event.target.value })}
-          className="min-h-11 rounded-md border border-black/10 px-2 text-sm dark:border-white/15"
+          className="field px-3"
         >
           <option value="">{t("customers.anyBand")}</option>
           {(["hot", "warm", "cold"] as const).map((band) => (

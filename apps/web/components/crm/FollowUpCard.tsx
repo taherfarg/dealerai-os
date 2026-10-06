@@ -70,7 +70,7 @@ export function FollowUpCard({
   };
 
   return (
-    <div className="mt-2 rounded-lg border border-blue-500/20 bg-blue-500/5 p-3 text-sm">
+    <div className="mt-2 rounded-lg border border-info/20 bg-info-soft p-3 text-sm">
       <p className="font-semibold" dir="auto">{reason}</p>
       {text && <p className="mt-2 whitespace-pre-wrap" dir="auto">{text}</p>}
       {templateId && preview && (
@@ -90,7 +90,7 @@ export function FollowUpCard({
               type="button"
               disabled={busy || sent}
               onClick={() => void send()}
-              className="bg-accent min-h-11 rounded-md px-3 font-semibold text-black disabled:opacity-50"
+              className="btn btn-primary"
             >
               {t("followup.send")}
             </button>
@@ -108,7 +108,7 @@ export function FollowUpCard({
                     // The conversation still opens if this browser blocks storage.
                   }
                 }}
-                className="min-h-11 rounded-md border border-black/15 px-3 py-3 dark:border-white/20"
+                className="min-h-11 rounded-md border border-border-strong px-3 py-3"
               >
                 {t("followup.edit")}
               </Link>
@@ -127,14 +127,14 @@ export function FollowUpCard({
             value={skipReason}
             onChange={(event) => setSkipReason(event.target.value)}
             aria-label={t("followup.skipReason")}
-            className="min-h-11 min-w-40 flex-1 rounded-md border border-black/15 bg-transparent px-2 dark:border-white/20"
+            className="field min-w-40 flex-1 px-3"
           />
-          <button type="button" disabled={!skipReason.trim() || busy} onClick={() => void skip()} className="min-h-11 rounded-md border border-black/15 px-3 disabled:opacity-50 dark:border-white/20">
+          <button type="button" disabled={!skipReason.trim() || busy} onClick={() => void skip()} className="btn">
             {t("followup.confirmSkip")}
           </button>
         </div>
       )}
-      {error && <p role="alert" className="mt-2 text-xs text-red-600 dark:text-red-400">{error}</p>}
+      {error && <p role="alert" className="mt-2 text-xs text-danger">{error}</p>}
     </div>
   );
 }

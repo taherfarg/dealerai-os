@@ -44,7 +44,9 @@ export function unwrap<T>(result: { data?: T; error?: unknown; response: Respons
 /**
  * The typed client. Every tenant route declares X-Tenant-Id as a required header,
  * so the generated types make each call state its tenant — the compiler, not a
- * middleware, guarantees it is never forgotten. This adds only the token.
+ * middleware, guarantees it is never forgotten. This adds the token, and the
+ * language on screen: what the API refuses, it refuses in the language of
+ * whoever it is refusing — the page's, which is not always the browser's.
  */
 export function createApiClient() {
   const client = createFetchClient<paths>({ baseUrl: API_BASE });
@@ -52,6 +54,7 @@ export function createApiClient() {
     async onRequest({ request }) {
       const token = await getBrowserAccessToken();
       if (token) request.headers.set("Authorization", `Bearer ${token}`);
+      request.headers.set("Accept-Language", document.documentElement.lang || "en");
       return request;
     },
   };

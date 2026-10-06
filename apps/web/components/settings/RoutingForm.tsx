@@ -56,7 +56,7 @@ export function RoutingForm() {
   const rules = current.routing_rules ?? [];
   const teamList = teams.data ?? [];
   const edit = (next: Partial<Routing>) => setDraft({ ...current, ...next });
-  const field = "min-h-11 rounded-md border border-black/10 px-2 dark:border-white/15";
+  const field = "field px-3";
 
   return (
     <div className="flex flex-col gap-6">
@@ -134,14 +134,14 @@ export function RoutingForm() {
               ],
             })
           }
-          className="hover:bg-background mt-2 min-h-11 rounded-md px-3 text-sm underline disabled:opacity-40"
+          className="btn btn-quiet mt-2"
         >
           {t("routing.addRule")}
         </button>
       </section>
 
       {(dirty || save.isError) && (
-        <div className="bg-surface border-border sticky bottom-16 flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3 shadow-lg md:bottom-0">
+        <div className="bg-surface border-border sticky bottom-28 flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3 shadow-lg md:bottom-0">
           <span role={save.isError ? "alert" : undefined} className="text-sm">
             {save.isError
               ? save.error instanceof ApiError
@@ -156,7 +156,7 @@ export function RoutingForm() {
                 setDraft(null);
                 save.reset();
               }}
-              className="min-h-11 px-3 text-sm"
+              className="btn btn-quiet"
             >
               {t("settings.discard")}
             </button>
@@ -164,7 +164,7 @@ export function RoutingForm() {
               type="button"
               disabled={!dirty || badDays(hours).length > 0 || save.isPending}
               onClick={() => save.mutate(patch, { onSuccess: () => setDraft(null) })}
-              className="bg-accent min-h-11 rounded-md px-4 text-sm font-medium text-black disabled:opacity-50"
+              className="btn btn-primary"
             >
               {t("common.save")}
             </button>

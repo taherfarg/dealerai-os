@@ -9,21 +9,15 @@ import { WaitingList } from "@/components/manager/WaitingList";
 import { useManagerDashboard, useMe, type ManagerDashboard } from "@/lib/api/hooks";
 import { useFilters } from "@/lib/filters";
 import { formatDuration } from "@/lib/format";
-import type { MessageKey } from "@/lib/i18n";
-import { useT } from "@/lib/i18n-client";
+import { Auto } from "@/components/Bidi";
+import { useLocale, useT } from "@/lib/i18n-client";
+import { word } from "@/lib/words";
 
 type Share = ManagerDashboard["phone_share"]["this_week"];
 
 function inboxShare(share: Share): string {
   const replies = share.inbox + share.phone;
   return replies ? `${Math.round((100 * share.inbox) / replies)}%` : "—";
-}
-
-/** A source the catalogue knows by name, or the value as recorded. */
-function sourceLabel(source: string, t: (key: MessageKey) => string): string {
-  const key = `source.${source}` as MessageKey;
-  const label = t(key);
-  return label === key ? source : label;
 }
 
 /**
@@ -34,6 +28,7 @@ function sourceLabel(source: string, t: (key: MessageKey) => string): string {
 export default function DashboardPage({ params }: { params: Promise<{ tenant: string }> }) {
   const { tenant } = use(params);
   const t = useT();
+  const locale = useLocale();
   const me = useMe();
   const [filters, setFilters] = useFilters({ date: "" });
   const permissions = me.data?.permissions ?? [];
@@ -43,7 +38,8 @@ export default function DashboardPage({ params }: { params: Promise<{ tenant: st
   if (me.data && !allowed) {
     return (
       <div className="mx-auto max-w-md p-6 text-sm">
-        <p>{t("dashboard.forManagers")}</p>
+        <h1 className="text-lg font-semibold">{t("nav.dashboard")}</h1>
+        <p className="mt-2">{t("dashboard.forManagers")}</p>
         <Link href={`/${tenant}/today`} className="mt-2 inline-block underline">
           {t("dashboard.openMyDay")}
         </Link>
@@ -52,7 +48,7 @@ export default function DashboardPage({ params }: { params: Promise<{ tenant: st
   }
   if (board.isError) {
     return (
-      <p role="alert" className="p-6 text-sm text-red-600 dark:text-red-400">
+      <p role="alert" className="p-6 text-sm text-danger">
         {board.error.message}
       </p>
     );
@@ -77,7 +73,7 @@ export default function DashboardPage({ params }: { params: Promise<{ tenant: st
             type="date"
             value={filters.date || board.data.date}
             onChange={(event) => setFilters({ date: event.target.value })}
-            className="min-h-11 rounded-md border border-black/10 px-2 text-sm dark:border-white/15"
+            className="field px-3"
           />
         </label>
       </header>
@@ -93,8 +89,8 @@ export default function DashboardPage({ params }: { params: Promise<{ tenant: st
         <StatTile label={t("tile.waitingNow")} value={String(tiles.waiting_now)} href={inbox} />
         <StatTile
           label={t("tile.median")}
-          value={median == null ? "—" : formatDuration(median)}
-          hint={`${t("tile.target")} ${formatDuration(target)}`}
+          value={median == null ? "—" : formatDuration(median, locale)}
+          hint={`${t("tile.target")} ${formatDuration(target, locale)}`}
           tone={tone(median, target)}
         />
         <StatTile label={t("tile.missed")} value={String(tiles.missed_targets)} />
@@ -126,8 +122,8 @@ export default function DashboardPage({ params }: { params: Promise<{ tenant: st
           <h2 className="text-sm font-semibold">{t("dashboard.pipeline")}</h2>
           {boards.map((stages) => (
             <div key={stages[0].pipeline_id} className="mt-2">
-              <h3 className="text-muted text-xs" dir="auto">
-                {stages[0].pipeline_name}
+              <h3 className="text-muted text-xs">
+                <Auto>{stages[0].pipeline_name}</Auto>
               </h3>
               <ul className="text-sm">
                 {stages.map((stage) => (
@@ -146,7 +142,7 @@ export default function DashboardPage({ params }: { params: Promise<{ tenant: st
           <ul className="mt-2 text-sm">
             {sources.map((source) => (
               <li key={source.source} className="flex justify-between gap-2 py-0.5">
-                <span>{sourceLabel(source.source, t)}</span>
+                <span>{word(t, "source", source.source)}</span>
                 <span className="tabular-nums">{source.leads}</span>
               </li>
             ))}

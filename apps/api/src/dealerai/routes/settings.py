@@ -106,7 +106,10 @@ async def change_sales_settings(ctx: Ctx, patch: SalesSettingsPatch) -> SalesSet
     changes = patch.model_dump(exclude_unset=True, mode="json")
     refused = sorted({WRITERS[key] for key in changes if not ctx.may(WRITERS[key])})
     if refused:
-        raise Forbidden(f"changing these settings requires {' and '.join(refused)}")
+        raise Forbidden(
+            f"changing these settings requires {' and '.join(refused)}",
+            ar=f"تغيير هذه الإعدادات يحتاج صلاحية {' و'.join(refused)}.",
+        )
     async with tenant_session(ctx.tenant_id, user_id=ctx.user.id, scope=ctx.scope) as conn:
         raw = dict(
             await conn.fetchval(
@@ -118,14 +121,20 @@ async def change_sales_settings(ctx: Ctx, patch: SalesSettingsPatch) -> SalesSet
         try:
             merged = SalesSettings.model_validate({**current, **changes})
         except ValidationError as exc:
-            raise Unusable(str(exc.errors()[0]["msg"])) from exc
+            raise Unusable(
+                str(exc.errors()[0]["msg"]),
+                ar="هذه الإعدادات غير صالحة. راجع ساعات العمل وقواعد التوزيع.",
+            ) from exc
         teams = {merged.default_team_id, *(rule.team_id for rule in merged.routing_rules)} - {None}
         if teams:
             known = await conn.fetchval(
                 "select count(*) from teams where id = any($1::uuid[])", list(teams)
             )
             if known != len(teams):
-                raise Unusable("routing names a team that does not exist")
+                raise Unusable(
+                    "routing names a team that does not exist",
+                    ar="يشير التوزيع إلى فريق غير موجود.",
+                )
         # Onto the raw column, so a key a newer deploy wrote survives an older one's save.
         await conn.execute(
             "update tenants set sales_settings = $2::jsonb where id = $1",

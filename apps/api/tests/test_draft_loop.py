@@ -404,6 +404,9 @@ async def test_a_wrong_price_is_blocked_rather_than_shown(
     row = await _one(su, thread["conversation"])
     assert row["status"] == "blocked"
     assert "199,000" in row["blocked_reason"]
+    # The check is named first: the screen says which one it was in its reader's
+    # language, and the detail after it is for the log.
+    assert row["blocked_reason"].startswith("price: ")
     assert row["text"] is None
 
 
@@ -490,7 +493,9 @@ async def test_a_model_that_answers_with_nothing_blocks(
     await copilot.on_draft_requested(_event(thread))
 
     row = await _one(su, thread["conversation"])
-    assert row["status"] == "blocked" and row["blocked_reason"] == "no usable draft"
+    # No check refused it, so there is no reason to name: the screen has its
+    # own sentence for a draft that simply was not produced.
+    assert row["status"] == "blocked" and row["blocked_reason"] is None
     assert model.calls == 1, "an empty answer is not worth a retry"
 
 

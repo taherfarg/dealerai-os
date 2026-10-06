@@ -70,12 +70,17 @@ async def upload_document(
         raise Unusable(f"kind is one of {', '.join(KINDS)}")
     mime = file.content_type or "application/octet-stream"
     if mime not in ACCEPTED:
-        raise Unusable("Upload a PDF, a Word file or a text file.")
+        raise Unusable(
+            "Upload a PDF, a Word file or a text file.", ar="ارفع ملف PDF أو Word أو ملفًا نصيًا."
+        )
     data = await file.read()
     if not data:
-        raise Unusable("That file is empty.")
+        raise Unusable("That file is empty.", ar="هذا الملف فارغ.")
     if len(data) > MAX_BYTES:
-        raise Unusable(f"That file is larger than {MAX_BYTES // (1024 * 1024)} MB.")
+        raise Unusable(
+            f"That file is larger than {MAX_BYTES // (1024 * 1024)} MB.",
+            ar=f"هذا الملف أكبر من {MAX_BYTES // (1024 * 1024)} ميغابايت.",
+        )
 
     path = storage.object_path(
         ctx.tenant_id, "documents", storage.extension_for(mime, file.filename)

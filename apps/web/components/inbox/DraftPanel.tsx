@@ -3,7 +3,9 @@
 import { useEffect, useState } from "react";
 import type { Suggestion } from "@/lib/api/hooks";
 import type { MessageKey } from "@/lib/i18n";
+import { Icon } from "@/components/Icon";
 import { useT } from "@/lib/i18n-client";
+import { blockedReasons } from "@/lib/words";
 
 export type DiscardReason = "wrong_info" | "wrong_tone" | "not_needed" | "other";
 type Source = Record<string, unknown>;
@@ -80,8 +82,11 @@ export function DraftPanel({
 
   if (suggestion.status === "blocked") {
     return (
-      <div className="text-muted border-border border-t px-3 py-2 text-sm" role="status" dir="auto">
-        {t("draft.blocked")}: {suggestion.blocked_reason ?? t("draft.unavailable")}
+      <div className="text-muted px-3 py-2 text-sm lg:px-5" role="status" dir="auto">
+        {t("draft.blocked")}:{" "}
+        {suggestion.blocked_reason
+          ? blockedReasons(t, suggestion.blocked_reason)
+          : t("draft.unavailable")}
       </div>
     );
   }
@@ -107,35 +112,38 @@ export function DraftPanel({
   };
 
   return (
-    <section className="border-border bg-surface border-t px-3 py-2" aria-label={t("draft.title")}>
+    // Still a region of its own, outside the log: always in view, and never
+    // read out as a message. Drawn as a bubble on our side that has not gone
+    // yet — white, with a dashed outline ([11] § 5.1).
+    <section className="px-3 pb-2 lg:px-5" aria-label={t("draft.title")}>
+      <div className="border-accent bg-background ms-auto max-w-2xl rounded-[1.375rem] rounded-ee-md border border-dashed px-4 py-2">
       <div className="flex items-center gap-2">
-        <span className="text-xs font-semibold uppercase tracking-wide">{t("draft.title")}</span>
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+        <span className="text-accent-ink inline-flex items-center gap-1.5 text-xs font-semibold">
+          <Icon name="spark" size={16} />
+          {t("draft.title")}
+        </span>
         {ready && suggestion.confidence && (
-          <span
-            className={`rounded px-2 py-0.5 text-xs font-medium ${
-              suggestion.confidence === "low"
-                ? "bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-100"
-                : "bg-blue-500/10 text-blue-700 dark:text-blue-200"
-            }`}
-          >
+          <span className={`pill ${suggestion.confidence === "low" ? "pill-warning" : "pill-accent"}`}>
             {t(`draft.confidence.${suggestion.confidence as "low" | "medium" | "high"}`)}
           </span>
         )}
         {suggestion.intent && (
-          <span className="text-muted text-xs">
+          <span className="pill">
             {INTENTS.has(suggestion.intent)
               ? t(`draft.intent.${suggestion.intent}` as MessageKey)
               : suggestion.intent.replaceAll("_", " ")}
           </span>
         )}
+        </div>
         {!low && (
           <button
             type="button"
-            className="text-muted ms-auto min-h-11 px-2 text-xs underline"
+            className="icon-btn text-muted shrink-0"
             aria-label={collapsed ? t("draft.expand") : t("draft.collapse")}
             onClick={() => setOpen(collapsed)}
           >
-            {collapsed ? t("draft.expand") : t("draft.collapse")}
+            <Icon name={collapsed ? "chevronDown" : "chevronUp"} />
           </button>
         )}
       </div>
@@ -143,7 +151,7 @@ export function DraftPanel({
         <div>
           {ready ? (
             <>
-              <p className="mt-1 whitespace-pre-wrap text-sm leading-6" dir="auto">{body}</p>
+              <p className="mt-1 whitespace-pre-wrap text-base leading-7 lg:text-[15px]" dir="auto">{body}</p>
               {templateName && (
                 <p className="text-muted mt-1 text-xs">{t("draft.template")}: {templateName}</p>
               )}
@@ -160,28 +168,29 @@ export function DraftPanel({
                     <span key={index}>
                       <button
                         type="button"
-                        className="rounded-full border border-black/15 px-2 py-1 dark:border-white/20"
+                        className="btn text-xs"
+                        dir="auto"
                         onClick={() => setOpenedDocument(openedDocument === String(index) ? null : String(index))}
                       >
                         {label}
                       </button>
                       {openedDocument === String(index) && excerpt && (
-                        <p className="text-muted mt-1 max-w-lg whitespace-pre-wrap rounded bg-black/5 p-2 dark:bg-white/5" dir="auto">
+                        <p className="text-muted mt-1 max-w-lg whitespace-pre-wrap rounded bg-surface p-2" dir="auto">
                           {excerpt}
                         </p>
                       )}
                     </span>
                   ) : (
-                    <span key={index} className="rounded-full border border-black/15 px-2 py-1 dark:border-white/20">
+                    <span key={index} dir="auto" className="pill">
                       {label}
                     </span>
                   );
                 })}
-                {noSources && <span className="text-amber-800 dark:text-amber-200">{t("draft.noSources")}</span>}
+                {noSources && <span className="text-warning">{t("draft.noSources")}</span>}
               </div>
               {suggestion.needs_human && (
                 <p
-                  className="mt-2 rounded-md bg-amber-100 p-2 text-sm text-amber-950 dark:bg-amber-900/40 dark:text-amber-100"
+                  className="mt-2 rounded-md bg-warning-soft p-2 text-sm text-foreground"
                   // Written in English for the team, inside an Arabic page:
                   // without it the full stop lands at the start of the line.
                   dir="auto"
@@ -207,36 +216,40 @@ export function DraftPanel({
                           setActionError(failure instanceof Error ? failure.message : t("draft.actionFailed"));
                         }
                       }}
-                      className="rounded-md border border-black/15 px-2 py-1 text-xs disabled:opacity-50 dark:border-white/20"
+                      className="btn text-xs"
+                      dir="auto"
                     >
                       {stringAt(action, "label") ?? t("draft.action")}
                     </button>
                   ))}
                 </div>
               )}
-              <div className="mt-3 flex flex-wrap gap-2 text-xs">
-                <button type="button" disabled={!canSend} onClick={() => onSend(suggestion)} className="bg-accent min-h-11 rounded-md px-3 font-semibold text-black disabled:opacity-50">
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button type="button" disabled={!canSend} onClick={() => onSend(suggestion)} className="btn btn-primary">
+                  <span aria-hidden className="inline-block rtl:-scale-x-100">
+                    <Icon name="send" size={16} />
+                  </span>
                   {t("draft.send")}
                 </button>
-                <button type="button" disabled={!suggestion.text} onClick={() => onEdit(suggestion)} className="min-h-11 rounded-md border border-black/15 px-3 disabled:opacity-50 dark:border-white/20">
+                <button type="button" disabled={!suggestion.text} onClick={() => onEdit(suggestion)} className="btn">
                   {t("draft.edit")}
                 </button>
-                <button type="button" onClick={onRegenerate} className="min-h-11 rounded-md border border-black/15 px-3 dark:border-white/20">
+                <button type="button" onClick={onRegenerate} className="btn btn-quiet">
                   {t("draft.regenerate")}
                 </button>
-                <button type="button" onClick={() => setDismiss(true)} className="min-h-11 rounded-md px-3 underline">
+                <button type="button" onClick={() => setDismiss(true)} className="btn btn-quiet">
                   {t("draft.dismiss")}
                 </button>
               </div>
               {sendDisabled && <p className="text-muted mt-1 text-xs">{t("draft.windowClosed")}</p>}
-              {(error || actionError) && <p role="alert" className="mt-1 text-xs text-red-600 dark:text-red-400">{error || actionError}</p>}
+              {(error || actionError) && <p role="alert" className="mt-1 text-xs text-danger">{error || actionError}</p>}
               {dismiss && (
                 <div className="mt-2 flex flex-wrap gap-2" role="group" aria-label={t("draft.dismissReason")}>
                   {REASONS.map((reason) => (
                     <button
                       key={reason}
                       type="button"
-                      className="min-h-11 rounded-md border border-black/15 px-2 text-xs dark:border-white/20"
+                      className="btn text-xs"
                       onClick={() => { onOutcome(suggestion.id, reason); setDismiss(false); }}
                     >
                       {t(`draft.reason.${reason}`)}
@@ -250,6 +263,7 @@ export function DraftPanel({
           )}
         </div>
       )}
+      </div>
     </section>
   );
 }

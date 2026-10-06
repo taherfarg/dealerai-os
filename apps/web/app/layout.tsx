@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
+import { ServiceWorker } from "@/components/ServiceWorker";
 import { dirFor, type Locale } from "@/lib/i18n";
+import { readex } from "./fonts";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -16,8 +18,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const locale = ((await store.get("locale")?.value) ?? "en") as Locale;
 
   return (
-    <html lang={locale} dir={dirFor(locale)}>
-      <body className="antialiased">{children}</body>
+    <html lang={locale} dir={dirFor(locale)} className={readex.variable}>
+      <body className="antialiased">
+        {children}
+        <ServiceWorker />
+      </body>
     </html>
   );
 }

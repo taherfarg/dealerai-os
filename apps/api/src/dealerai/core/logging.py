@@ -15,6 +15,12 @@ from ..config import get_settings
 def configure_logging() -> None:
     settings = get_settings()
     logging.basicConfig(format="%(message)s", level=settings.log_level.upper())
+    # httpx announces every request with its whole URL, and httpcore every
+    # header it reads back. Some of those addresses are secrets in themselves —
+    # a push subscription's endpoint is the address of somebody's phone — and
+    # our own events (model_call, pushed, …) already say what happened.
+    for client in ("httpx", "httpcore"):
+        logging.getLogger(client).setLevel(logging.WARNING)
     structlog.configure(
         processors=[
             structlog.contextvars.merge_contextvars,

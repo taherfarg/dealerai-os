@@ -29,7 +29,7 @@ export function HandOverBar({
   const colleagues = (members.data ?? []).filter((member) => member.role !== "viewer");
 
   return (
-    <div className="bg-surface border-border sticky bottom-16 z-10 mt-3 flex flex-wrap items-center gap-2 rounded-lg border p-3 text-sm shadow-lg md:bottom-4">
+    <div className="bg-surface border-border sticky bottom-28 z-10 mt-3 flex flex-wrap items-center gap-2 rounded-lg border p-3 text-sm shadow-lg md:bottom-4">
       <span className="font-medium">
         {ids.length} {t("bulk.selected")}
       </span>
@@ -37,7 +37,7 @@ export function HandOverBar({
         value={owner}
         aria-label={t("bulk.handOverTo")}
         onChange={(event) => setOwner(event.target.value)}
-        className="min-h-11 rounded-md border border-black/10 px-2 dark:border-white/15"
+        className="field px-3"
       >
         <option value="">{t("bulk.handOverTo")}</option>
         {colleagues.map((member) => (
@@ -62,7 +62,7 @@ export function HandOverBar({
             },
           );
         }}
-        className="bg-accent min-h-11 rounded-md px-4 font-medium text-black disabled:opacity-50"
+        className="btn btn-primary"
       >
         {t("bulk.handOver")}
       </button>
@@ -71,11 +71,11 @@ export function HandOverBar({
           {done} / {ids.length}
         </span>
       )}
-      <button type="button" onClick={onClear} className="min-h-11 px-3">
+      <button type="button" onClick={onClear} className="btn btn-quiet">
         {t("common.cancel")}
       </button>
       {failed.length > 0 && (
-        <p role="alert" className="w-full text-xs text-red-600 dark:text-red-400" dir="auto">
+        <p role="alert" className="w-full text-xs text-danger" dir="auto">
           {t("bulk.failed")} {failed.map((id) => names[id] ?? id).join("، ")}
         </p>
       )}

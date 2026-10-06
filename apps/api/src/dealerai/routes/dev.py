@@ -1,9 +1,10 @@
-"""Local-only sign-in as a seeded person.
+"""Local-only sign-in: as a seeded person, or as somebody new.
 
 Local Postgres has no Supabase Auth server, so without this nobody can see the
-app as Ahmed or Sara. It mints the token Supabase Auth would issue, through
-mint_test_token so the claim shape cannot drift from what decode_supabase_jwt
-verifies.
+app as Ahmed or Sara — nor sign up, so no invitation could ever be accepted
+here. It mints the token Supabase Auth would issue, through mint_test_token so
+the claim shape cannot drift from what decode_supabase_jwt verifies, and puts
+somebody new where Supabase would: in auth.users.
 
 Two locks, so a misconfigured deploy fails closed twice: main.create_app mounts
 this router only when ENV=local, and every handler re-checks. It is also kept
@@ -20,7 +21,14 @@ from pydantic import BaseModel
 from ..config import get_settings
 from ..core.errors import NotFound
 from ..core.security import AuthUnavailable, mint_test_token
-from ..scripts.seed_sales import PEOPLE, TENANT, TENANT_SLUG, person_email, person_id
+from ..scripts.seed_sales import (
+    PEOPLE,
+    TENANT,
+    TENANT_SLUG,
+    local_person,
+    person_email,
+    person_id,
+)
 
 router = APIRouter(prefix="/internal/dev", tags=["dev"], include_in_schema=False)
 
@@ -36,12 +44,14 @@ class DevPerson(BaseModel):
 
 class DevSessionIn(BaseModel):
     email: str
+    name: str | None = None
 
 
 class DevSession(BaseModel):
     access_token: str
-    tenant_id: UUID
-    tenant_slug: str
+    #: The seeded workspace for the seeded five; nobody's for anybody else.
+    tenant_id: UUID | None
+    tenant_slug: str | None
 
 
 def _local_only() -> None:
@@ -58,17 +68,29 @@ async def list_people() -> list[DevPerson]:
 @router.post("/session", response_model=DevSession)
 async def create_session(body: DevSessionIn) -> DevSession:
     _local_only()
-    by_email = {person_email(name): name for name, *_ in PEOPLE}
-    name = by_email.get(body.email)
-    if name is None:
-        raise NotFound("no seeded person with that email")
-    secret = get_settings().supabase_jwt_secret
+    settings = get_settings()
+    secret = settings.supabase_jwt_secret
     if not secret:
         raise AuthUnavailable("SUPABASE_JWT_SECRET is not set")
+    email = body.email.strip().lower()
+    seeded = {person_email(name): name for name, *_ in PEOPLE}.get(email)
+    if seeded:
+        token = mint_test_token(
+            person_id(seeded),
+            secret=secret,
+            email=email,
+            name=seeded,
+            expires_in_seconds=SESSION_SECONDS,
+        )
+        return DevSession(access_token=token, tenant_id=TENANT, tenant_slug=TENANT_SLUG)
+
+    # Somebody new: where Supabase would put them on sign-up.
+    user_id = await local_person(email)
     token = mint_test_token(
-        person_id(name),
+        user_id,
         secret=secret,
-        email=body.email,
+        email=email,
+        name=body.name,
         expires_in_seconds=SESSION_SECONDS,
     )
-    return DevSession(access_token=token, tenant_id=TENANT, tenant_slug=TENANT_SLUG)
+    return DevSession(access_token=token, tenant_id=None, tenant_slug=None)

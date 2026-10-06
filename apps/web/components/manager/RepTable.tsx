@@ -4,20 +4,23 @@ import Link from "next/link";
 import { Fragment, useState } from "react";
 import type { Conversation, RepRow } from "@/lib/api/hooks";
 import { formatDuration } from "@/lib/format";
-import { useT } from "@/lib/i18n-client";
+import { useLocale, useT } from "@/lib/i18n-client";
 import { tone } from "./StatTile";
 
 const TONE_TEXT = {
-  ok: "text-green-700 dark:text-green-400",
-  warn: "text-amber-700 dark:text-amber-400",
-  bad: "text-red-700 dark:text-red-400",
+  ok: "text-success",
+  warn: "text-warning",
+  bad: "text-danger",
 } as const;
 
 function Median({ seconds, target }: { seconds: number | null; target: number }) {
+  const locale = useLocale();
   const band = tone(seconds, target);
   return (
-    <span className={`tabular-nums ${band ? TONE_TEXT[band] : "text-muted"}`} dir="ltr">
-      {seconds == null ? "—" : formatDuration(seconds)}
+    // No dir here: the units are the reader's, and Arabic ones forced left to
+    // right come out in the wrong order.
+    <span className={`tabular-nums ${band ? TONE_TEXT[band] : "text-muted"}`}>
+      {seconds == null ? "—" : formatDuration(seconds, locale)}
     </span>
   );
 }
@@ -105,7 +108,7 @@ export function RepTable({
         <tbody>
           {team.map((rep) => (
             <Fragment key={rep.user.id}>
-              <tr className="border-t border-black/5 text-center dark:border-white/10">
+              <tr className="border-t border-border text-center">
                 <td className="py-1 text-start">
                   <button
                     type="button"

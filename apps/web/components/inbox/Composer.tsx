@@ -3,8 +3,10 @@
 import { useState } from "react";
 import { ApiError } from "@/lib/api/client";
 import { useAddNote, useQuickReplies, useSendMessage, type QuickReply } from "@/lib/api/hooks";
+import { Icon } from "@/components/Icon";
 import { useT } from "@/lib/i18n-client";
 import { filled, matching, QuickReplyMenu } from "./QuickReplyMenu";
+import { TemplatePicker } from "./TemplatePicker";
 
 /**
  * Where a reply is written.
@@ -15,6 +17,7 @@ import { filled, matching, QuickReplyMenu } from "./QuickReplyMenu";
  */
 export function Composer({
   conversationId,
+  channelId = null,
   windowOpen,
   disabled,
   draftToEdit,
@@ -23,6 +26,8 @@ export function Composer({
   customerName = null,
 }: {
   conversationId: string;
+  /** Whose templates to offer once the window has closed. */
+  channelId?: string | null;
   windowOpen: boolean;
   disabled?: boolean;
   draftToEdit?: { id?: string; text: string };
@@ -44,16 +49,18 @@ export function Composer({
   const replies = useQuickReplies(typingShortcut);
   const [dismissedAt, setDismissedAt] = useState<string | null>(null);
   const [active, setActive] = useState(0);
-  const options =
-    typingShortcut && dismissedAt !== text ? matching(replies.data ?? [], text) : [];
+  const options = typingShortcut && dismissedAt !== text ? matching(replies.data ?? [], text) : [];
   const pick = (reply: QuickReply) => {
     setText(filled(reply, language, customerName));
     setActive(0);
   };
 
   // Outside the 24-hour window WhatsApp takes only templates, so free text is
-  // refused here rather than failing after the customer expected an answer.
+  // refused here rather than failing after the customer expected an answer —
+  // and a template is offered in its place. A note goes to nobody's phone, so
+  // it can always be written.
   const blocked = disabled || (!isNote && !windowOpen);
+  const template = !disabled && !isNote && !windowOpen && channelId;
 
   const submit = () => {
     const body = text.trim();
@@ -77,84 +84,106 @@ export function Composer({
 
   return (
     <div
-      className={`border-t border-black/5 p-3 dark:border-white/10 ${
-        isNote ? "bg-amber-50 dark:bg-amber-950/30" : ""
+      className={`border-border border-t px-3 py-2 lg:px-5 ${
+        isNote ? "bg-warning-soft" : "bg-background"
       }`}
     >
-      <div className="mb-2 flex items-center gap-2">
+      {action.isError && (
+        <p className="mb-2 text-xs text-danger">
+          {action.error instanceof ApiError
+            ? (action.error.problem.detail ?? action.error.problem.title)
+            : t("thread.sendFailed")}
+        </p>
+      )}
+
+      {template && (
+        <TemplatePicker
+          conversationId={conversationId}
+          channelId={template}
+          language={language}
+          customerName={customerName}
+          onSent={onSent}
+        />
+      )}
+
+      <QuickReplyMenu
+        options={options}
+        active={Math.min(active, options.length - 1)}
+        onPick={pick}
+      />
+
+      {/* One row ([11] § 5.1): whether it is a note, the words, and the way
+          out. On a phone the note switch is its drawing; its words stay. */}
+      <div className="flex items-end gap-2">
         <button
           type="button"
           aria-pressed={isNote}
           onClick={() => setIsNote((was) => !was)}
-          className={`min-h-11 rounded-md px-3 text-sm ${
-            isNote ? "bg-amber-200 font-medium dark:bg-amber-800" : "hover:bg-background"
+          className={`btn max-sm:min-w-11 max-sm:px-0 ${
+            isNote ? "bg-warning text-background border-transparent" : "btn-quiet"
           }`}
         >
-          {t("thread.internalNote")}
+          <Icon name="note" size={18} />
+          <span className="max-sm:sr-only">{t("thread.internalNote")}</span>
         </button>
-        {action.isError && (
-          <span className="text-xs text-red-600 dark:text-red-400">
-            {action.error instanceof ApiError
-              ? (action.error.problem.detail ?? action.error.problem.title)
-              : t("thread.sendFailed")}
-          </span>
-        )}
-      </div>
-
-      <QuickReplyMenu options={options} active={Math.min(active, options.length - 1)} onPick={pick} />
-
-      <div className="flex items-end gap-2">
-        <textarea
-          value={text}
-          rows={2}
-          disabled={blocked}
-          onChange={(event) => setText(event.target.value)}
-          onKeyDown={(event) => {
-            // While the menu is open the keys are its: Enter picks a reply
-            // into the box — it never sends one unread.
-            if (options.length > 0) {
-              if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-                event.preventDefault();
-                const step = event.key === "ArrowDown" ? 1 : -1;
-                setActive((index) => (index + step + options.length) % options.length);
-                return;
+      {!template && (
+        <>
+          <textarea
+            value={text}
+            rows={1}
+            disabled={blocked}
+            onChange={(event) => setText(event.target.value)}
+            onKeyDown={(event) => {
+              // While the menu is open the keys are its: Enter picks a reply
+              // into the box — it never sends one unread.
+              if (options.length > 0) {
+                if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+                  event.preventDefault();
+                  const step = event.key === "ArrowDown" ? 1 : -1;
+                  setActive((index) => (index + step + options.length) % options.length);
+                  return;
+                }
+                if (event.key === "Enter" && !event.shiftKey && !event.altKey) {
+                  event.preventDefault();
+                  pick(options[Math.min(active, options.length - 1)]);
+                  return;
+                }
+                if (event.key === "Escape") {
+                  event.preventDefault();
+                  setDismissedAt(text);
+                  return;
+                }
               }
+              // Alt+Enter is the draft panel's: sending what is typed here as
+              // well would put two messages in front of the customer.
               if (event.key === "Enter" && !event.shiftKey && !event.altKey) {
                 event.preventDefault();
-                pick(options[Math.min(active, options.length - 1)]);
-                return;
+                submit();
               }
-              if (event.key === "Escape") {
-                event.preventDefault();
-                setDismissedAt(text);
-                return;
-              }
+            }}
+            placeholder={
+              blocked
+                ? t("thread.windowClosedHint")
+                : isNote
+                  ? t("thread.notePlaceholder")
+                  : t("thread.placeholder")
             }
-            // Alt+Enter is the draft panel's: sending what is typed here as
-            // well would put two messages in front of the customer.
-            if (event.key === "Enter" && !event.shiftKey && !event.altKey) {
-              event.preventDefault();
-              submit();
-            }
-          }}
-          placeholder={
-            blocked
-              ? t("thread.windowClosedHint")
-              : isNote
-                ? t("thread.notePlaceholder")
-                : t("thread.placeholder")
-          }
-          aria-label={isNote ? t("thread.internalNote") : t("thread.placeholder")}
-          className="min-h-11 flex-1 resize-none rounded-md border border-black/10 px-3 py-2 text-sm disabled:opacity-60 dark:border-white/15"
-        />
-        <button
-          type="button"
-          onClick={submit}
-          disabled={blocked || !text.trim() || action.isPending}
-          className="bg-accent min-h-11 rounded-md px-4 text-sm font-medium text-black disabled:opacity-50"
-        >
-          {t("thread.send")}
-        </button>
+            aria-label={isNote ? t("thread.internalNote") : t("thread.placeholder")}
+            className="field max-h-40 min-w-0 flex-1 resize-none [field-sizing:content] disabled:opacity-60"
+          />
+          <button
+            type="button"
+            onClick={submit}
+            disabled={blocked || !text.trim() || action.isPending}
+            aria-label={t("thread.send")}
+            className="icon-btn bg-accent text-on-accent hover:bg-accent shrink-0 disabled:opacity-50"
+          >
+            <span aria-hidden className="inline-block rtl:-scale-x-100">
+              <Icon name="send" />
+            </span>
+          </button>
+        </>
+      )}
       </div>
     </div>
   );

@@ -33,7 +33,7 @@ export function RuleEditor({
   const t = useT();
   const languages = rule.languages ?? [];
   const countries = (rule.countries ?? []).join(", ");
-  const field = "min-h-11 rounded-md border border-black/10 px-2 dark:border-white/15";
+  const field = "field px-3";
 
   return (
     <li className="bg-surface border-border rounded-lg border p-3 text-sm">
@@ -115,7 +115,7 @@ export function RuleEditor({
             aria-label={t("routing.moveUp")}
             disabled={first}
             onClick={() => onMove(-1)}
-            className="hover:bg-background min-h-11 min-w-11 rounded-md disabled:opacity-40"
+            className="icon-btn disabled:opacity-40"
           >
             ↑
           </button>
@@ -124,7 +124,7 @@ export function RuleEditor({
             aria-label={t("routing.moveDown")}
             disabled={last}
             onClick={() => onMove(1)}
-            className="hover:bg-background min-h-11 min-w-11 rounded-md disabled:opacity-40"
+            className="icon-btn disabled:opacity-40"
           >
             ↓
           </button>
@@ -132,7 +132,7 @@ export function RuleEditor({
             type="button"
             aria-label={t("routing.remove")}
             onClick={onRemove}
-            className="hover:bg-background min-h-11 min-w-11 rounded-md"
+            className="icon-btn"
           >
             ×
           </button>

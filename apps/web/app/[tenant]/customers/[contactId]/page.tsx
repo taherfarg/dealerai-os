@@ -17,8 +17,10 @@ import {
   useTasks,
 } from "@/lib/api/hooks";
 import { useFilters } from "@/lib/filters";
-import { countryFlag, formatMoney, formatRelative } from "@/lib/format";
-import { useT } from "@/lib/i18n-client";
+import { Avatar } from "@/components/Avatar";
+import { Auto, CustomerName, Ltr } from "@/components/Bidi";
+import { formatDue, formatMoney } from "@/lib/format";
+import { useLocale, useT } from "@/lib/i18n-client";
 
 const TABS = ["timeline", "leads", "tasks", "profile"] as const;
 const FIELDS = [
@@ -39,6 +41,7 @@ export default function CustomerPage({
 }) {
   const { tenant, contactId } = use(params);
   const t = useT();
+  const locale = useLocale();
   const router = useRouter();
   const me = useMe();
   const customer = useCustomer(contactId);
@@ -53,9 +56,16 @@ export default function CustomerPage({
     const keepId = problem?.errors?.[0]?.keep_id;
     return (
       <div className="p-6 text-sm">
-        <p className="text-red-600 dark:text-red-400">
-          {keepId ? t("customer.merged") : (problem?.detail ?? t("customer.gone"))}
-        </p>
+        {/* The page's heading: there is no customer to name. And for "not
+            yours" or "not there" — one answer from the API, in a developer's
+            words — the screen's own sentence. */}
+        <h1 className="font-normal text-danger">
+          {keepId
+            ? t("customer.merged")
+            : !problem || problem.status === 404
+              ? t("customer.gone")
+              : (problem.detail ?? t("customer.gone"))}
+        </h1>
         {keepId && (
           <Link href={`/${tenant}/customers/${keepId}`} className="mt-2 inline-block underline">
             {t("customer.full")}
@@ -74,19 +84,23 @@ export default function CustomerPage({
   return (
     <div className="mx-auto max-w-4xl">
       <header className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
+        {/* The flag rides on the avatar, so the name beside it is given none. */}
+        <Avatar name={record.name} country={record.country} size="xl" />
+        <div className="min-w-0 flex-1">
           <h1 className="text-lg font-semibold">
-            {countryFlag(record.country)} {record.name ?? t("inbox.unknownCustomer")}
+            <CustomerName country={null} name={record.name} wrap />
           </h1>
           <ul className="text-muted mt-1 flex flex-wrap gap-3 text-xs">
             {record.identities.map((identity) => (
-              <li key={identity.id}>{identity.value}</li>
+              <li key={identity.id}>
+                <Ltr>{identity.value}</Ltr>
+              </li>
             ))}
           </ul>
           <p className="text-muted mt-1 text-xs">
             {record.owner?.name ?? t("customers.nobody")}
             {record.opted_out && (
-              <span className="ms-2 rounded bg-red-500/15 px-1 text-red-700 dark:text-red-300">
+              <span className="ms-2 rounded bg-danger-soft px-1 text-danger">
                 {t("customer.optedOut")}
               </span>
             )}
@@ -97,7 +111,7 @@ export default function CustomerPage({
             <button
               type="button"
               onClick={() => setDialog("reassign")}
-              className="hover:bg-background min-h-11 rounded-md px-3 text-sm"
+              className="btn"
             >
               {t("customer.reassign")}
             </button>
@@ -106,7 +120,7 @@ export default function CustomerPage({
             <button
               type="button"
               onClick={() => setDialog("merge")}
-              className="hover:bg-background min-h-11 rounded-md px-3 text-sm"
+              className="btn"
             >
               {t("customer.merge")}
             </button>
@@ -118,7 +132,7 @@ export default function CustomerPage({
               type="button"
               onClick={() => exporting.mutate()}
               disabled={exporting.isPending}
-              className="hover:bg-background min-h-11 rounded-md px-3 text-sm"
+              className="btn"
             >
               {t("customer.export")}
             </button>
@@ -127,7 +141,7 @@ export default function CustomerPage({
             <button
               type="button"
               onClick={() => setDialog("erase")}
-              className="hover:bg-background min-h-11 rounded-md px-3 text-sm text-red-700 dark:text-red-400"
+              className="btn btn-quiet text-danger"
             >
               {t("customer.erase")}
             </button>
@@ -137,7 +151,7 @@ export default function CustomerPage({
 
       <div
         role="tablist"
-        className="mt-4 flex gap-1 overflow-x-auto border-b border-black/5 dark:border-white/10"
+        className="mt-4 flex gap-1 overflow-x-auto border-b border-border"
       >
         {TABS.map((name) => (
           <button
@@ -162,17 +176,20 @@ export default function CustomerPage({
           (record.leads.length === 0 ? (
             <p className="text-muted text-sm">{t("customer.noLeads")}</p>
           ) : (
-            <ul className="divide-y divide-black/5 dark:divide-white/10">
+            <ul className="divide-y divide-border">
               {record.leads.map((lead) => (
-                <li key={lead.id} className="py-2">
-                  <Link href={`/${tenant}/pipeline?lead=${lead.id}`} className="text-sm">
-                    {lead.vehicle?.label ?? lead.pipeline_name}
-                    <span className="text-muted ms-2 text-xs">{lead.stage.name}</span>
+                <li key={lead.id} className="py-1">
+                  <Link
+                    href={`/${tenant}/pipeline?lead=${lead.id}`}
+                    className="flex min-h-11 flex-wrap items-center gap-x-2 gap-y-1 text-sm"
+                  >
+                    <Auto>{lead.vehicle?.label ?? lead.pipeline_name}</Auto>
+                    <Auto className="text-muted text-xs">{lead.stage.name}</Auto>
                     {lead.budget && (
-                      <span className="text-muted ms-2 text-xs">{formatMoney(lead.budget)}</span>
+                      <Ltr className="text-muted text-xs">{formatMoney(lead.budget)}</Ltr>
                     )}
                     {lead.lost_reason && (
-                      <span className="text-muted ms-2 text-xs italic">{lead.lost_reason}</span>
+                      <Auto className="text-muted text-xs italic">{lead.lost_reason}</Auto>
                     )}
                   </Link>
                 </li>
@@ -184,12 +201,12 @@ export default function CustomerPage({
           (theirTasks.length === 0 ? (
             <p className="text-muted text-sm">{t("customer.noTasks")}</p>
           ) : (
-            <ul className="divide-y divide-black/5 dark:divide-white/10">
+            <ul className="divide-y divide-border">
               {theirTasks.map((task) => (
                 <li key={task.id} className="flex justify-between gap-2 py-2 text-sm">
-                  <span>{task.title}</span>
-                  <time className="text-muted text-xs" dateTime={task.due_at}>
-                    {formatRelative(task.due_at)}
+                  <Auto>{task.title}</Auto>
+                  <time className="text-muted shrink-0 text-xs" dateTime={task.due_at}>
+                    {formatDue(task.due_at, locale)}
                   </time>
                 </li>
               ))}
@@ -197,7 +214,7 @@ export default function CustomerPage({
           ))}
 
         {tab.tab === "profile" && (
-          <div className="max-w-md divide-y divide-black/5 dark:divide-white/10">
+          <div className="max-w-md divide-y divide-border">
             {FIELDS.map((name) => (
               <ProfileField
                 key={name}

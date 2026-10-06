@@ -41,6 +41,13 @@ beforeEach(() => {
 });
 
 describe("EraseDialog", () => {
+  it("is a dialog, named by what it is about to do", () => {
+    show();
+    expect(
+      screen.getByRole("dialog", { name: "Delete this customer for good" }).tagName,
+    ).toBe("DIALOG");
+  });
+
   it("keeps Delete disabled until the customer's name is typed", () => {
     show();
     const box = screen.getByRole("textbox");

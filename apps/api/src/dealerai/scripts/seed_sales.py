@@ -22,6 +22,7 @@ from zoneinfo import ZoneInfo
 import asyncpg
 
 from ..ai.embeddings import embed, literal
+from ..ai.gateway import MissingAPIKey
 from ..config import get_settings
 from ..db.session import close_pool, init_pool, pool_is_open
 from ..guards import commitments as commitments_guard
@@ -475,6 +476,31 @@ def person_id(full_name: str) -> UUID:
 
 def person_email(full_name: str) -> str:
     return full_name.split()[0].lower() + "@pollux.test"
+
+
+#: Ids for people the local sign-in creates, stable per address: a re-seed or a
+#: restart keeps whatever they joined.
+_NEWCOMERS = uuid5(NAMESPACE_URL, "dealerai-os/dev/newcomers")
+
+
+async def local_person(email: str) -> UUID:
+    """Somebody new for the local sign-in (routes/dev.py), put where Supabase
+    would put them on sign-up. The migration role, because the app role may not
+    write auth.users — nor should it; and local only, like the rest of this."""
+    settings = get_settings()
+    if settings.env != "local":
+        raise RuntimeError(f"refusing to create a person: ENV is {settings.env!r}")
+    user_id = uuid5(_NEWCOMERS, email)
+    conn = await asyncpg.connect(settings.migration_dsn)
+    try:
+        await conn.execute(
+            "insert into auth.users (id, email) values ($1, $2) on conflict do nothing",
+            user_id,
+            email,
+        )
+    finally:
+        await conn.close()
+    return user_id
 
 
 async def _seed(conn: asyncpg.Connection) -> list[tuple[int, str]]:
@@ -981,7 +1007,9 @@ async def _seed(conn: asyncpg.Connection) -> list[tuple[int, str]]:
     # The sentence the guard itself writes, about a draft it really blocks: the
     # muted line on screen is one the product can actually produce.
     refused = "Yes, the Hilux GR Sport is available, and it will be delivered to you tomorrow."
-    blocked_reason = "; ".join(finding.message for finding in commitments_guard.check(refused))
+    blocked_reason = "; ".join(
+        f"{finding.guard}: {finding.message}" for finding in commitments_guard.check(refused)
+    )
     await conn.execute(
         """insert into ai_suggestions
              (tenant_id, conversation_id, for_message_id, status, language,
@@ -1129,11 +1157,19 @@ async def seed() -> int:
             vectors = await embed(
                 [content for _, content in document_chunks], tenant_id=TENANT, kind="document"
             )
+        except MissingAPIKey:
+            # No key, no vectors. The policies are listed and can be read; retrieval,
+            # which needs the same key to embed the question, finds nothing in them
+            # until the workspace is seeded again with one. Never a made-up vector:
+            # that would answer every question with whichever passage came first.
+            vectors = []
+            print("no GOOGLE_API_KEY: the policies are seeded without embeddings")
         finally:
             if opened:
                 await close_pool()
         async with conn.transaction():
-            for (chunk_id, _), vector in zip(document_chunks, vectors, strict=True):
+            embedded = zip(document_chunks, vectors, strict=True) if vectors else ()
+            for (chunk_id, _), vector in embedded:
                 await conn.execute(
                     "update doc_chunks set embedding = $2::vector where id = $1",
                     chunk_id,

@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
-from fastapi import APIRouter
+from fastapi import APIRouter, status
 from pydantic import BaseModel
 
 from ..db.session import tenant_session
@@ -39,10 +39,17 @@ class MeOut(BaseModel):
     team_ids: list[UUID]
     permissions: list[str]
     accepting_chats: bool
+    #: The language this person reads the app in — what a notification written
+    #: for them while they are away is written in.
+    locale: Literal["en", "ar"]
 
 
 class MePatch(BaseModel):
     accepting_chats: bool
+
+
+class MeLocale(BaseModel):
+    locale: Literal["en", "ar"]
 
 
 async def _load(ctx: Ctx) -> MeOut:
@@ -58,7 +65,7 @@ async def _load(ctx: Ctx) -> MeOut:
             ctx.tenant_id,
         )
         member = await conn.fetchrow(
-            """select m.accepting_chats, p.full_name, p.email, p.avatar_url
+            """select m.accepting_chats, p.full_name, p.email, p.avatar_url, p.locale
                from memberships m
                left join profiles p on p.id = m.user_id
                where m.tenant_id = $1 and m.user_id = $2""",
@@ -80,6 +87,8 @@ async def _load(ctx: Ctx) -> MeOut:
         team_ids=[t["team_id"] for t in teams],
         permissions=sorted(ctx.permissions),
         accepting_chats=bool(data.get("accepting_chats", True)),
+        # Nobody without a profile has said yet, and the app starts in English.
+        locale=data.get("locale") or "en",
     )
 
 
@@ -99,3 +108,11 @@ async def patch_me(ctx: Ctx, patch: MePatch) -> MeOut:
             patch.accepting_chats,
         )
     return await _load(ctx)
+
+
+@router.put("/me/locale", status_code=status.HTTP_204_NO_CONTENT)
+async def put_my_locale(ctx: Ctx, body: MeLocale) -> None:
+    """The browser says which language is on screen. Nobody sets anyone else's:
+    the id is the caller's own, never one from the request."""
+    async with tenant_session(ctx.tenant_id, user_id=ctx.user.id, scope=ctx.scope) as conn:
+        await conn.execute("select app.set_locale($1, $2)", ctx.user.id, body.locale)

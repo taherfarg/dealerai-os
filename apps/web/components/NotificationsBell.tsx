@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useTenantApi } from "@/lib/api/context";
 import { useMarkNotificationsRead, useNotifications } from "@/lib/api/hooks";
+import { Sentence } from "@/components/Bidi";
+import { Icon } from "@/components/Icon";
 import { formatRelative } from "@/lib/format";
-import { useT } from "@/lib/i18n-client";
+import { useLocale, useT } from "@/lib/i18n-client";
 
 /** Older than this and it is history, not news. */
 const SHOWN = 20;
@@ -20,8 +22,10 @@ const SHOWN = 20;
  */
 export function NotificationsBell() {
   const t = useT();
+  const locale = useLocale();
   const { slug } = useTenantApi();
   const [open, setOpen] = useState(false);
+  const button = useRef<HTMLButtonElement>(null);
   const notifications = useNotifications();
   const markRead = useMarkNotificationsRead();
 
@@ -36,30 +40,34 @@ export function NotificationsBell() {
       onBlur={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);
       }}
+      // A menu, not a modal: Escape puts it away and hands focus back to the
+      // bell, so the keyboard is where it was before the list opened.
+      onKeyDown={(event) => {
+        if (event.key !== "Escape" || !open) return;
+        setOpen(false);
+        button.current?.focus();
+      }}
     >
       <button
+        ref={button}
         type="button"
         aria-expanded={open}
         aria-label={unread ? `${t("notifications.title")} (${unread})` : t("notifications.title")}
         onClick={() => setOpen((was) => !was)}
-        className="hover:bg-background relative min-h-11 rounded-md px-2 text-lg"
+        className="icon-btn"
       >
-        <span aria-hidden>🔔</span>
-        {unread > 0 && (
-          <span className="bg-accent absolute end-0 top-1 min-w-4 rounded-full px-1 text-[11px] font-medium leading-4 text-black">
-            {unread}
-          </span>
-        )}
+        <Icon name="bell" size={22} />
+        {unread > 0 && <span className="badge absolute end-0.5 top-0.5">{unread}</span>}
       </button>
 
       {open && (
         <div
           role="dialog"
           aria-label={t("notifications.title")}
-          // Anchored to the start edge on desktop because the bell lives in the
-          // sidebar: an end-anchored popover would open off the side of the
-          // screen. On a phone it spans the width instead of overflowing it.
-          className="border-border bg-surface fixed inset-x-3 top-16 z-20 max-h-96 overflow-y-auto rounded-md border shadow-lg md:absolute md:inset-x-auto md:start-0 md:top-full md:mt-1 md:w-80"
+          // Under the top row on a phone, across its width; beside the foot of
+          // the rail on a desk, where the bell is. Fixed at both sizes: the rail
+          // scrolls inside itself, and would cut off anything positioned in it.
+          className="border-border bg-background fixed inset-x-3 top-14 z-20 max-h-96 overflow-y-auto rounded-lg border shadow-lg md:inset-x-auto md:start-24 md:top-auto md:bottom-3 md:w-80"
         >
           <div className="border-border flex items-center justify-between gap-2 border-b px-3 py-2">
             <span className="text-sm font-medium">{t("notifications.title")}</span>
@@ -86,12 +94,16 @@ export function NotificationsBell() {
                 const inside = (
                   <>
                     <span className="flex items-baseline justify-between gap-2">
-                      <span className="text-sm font-medium">{row.title}</span>
+                      <Sentence className="text-sm font-medium">{row.title}</Sentence>
                       <time className="text-muted shrink-0 text-xs" dateTime={row.created_at}>
-                        {formatRelative(row.created_at)}
+                        {formatRelative(row.created_at, locale)}
                       </time>
                     </span>
-                    {row.body && <span className="text-muted block text-sm">{row.body}</span>}
+                    {row.body && (
+                      <span className="text-muted block text-sm">
+                        <Sentence>{row.body}</Sentence>
+                      </span>
+                    )}
                   </>
                 );
                 return (
@@ -106,7 +118,7 @@ export function NotificationsBell() {
                       <Link
                         href={`/${slug}${row.href}`}
                         onClick={seen}
-                        className="hover:bg-background block px-3 py-2"
+                        className="hover:bg-surface block px-3 py-2"
                       >
                         {inside}
                       </Link>
@@ -114,7 +126,7 @@ export function NotificationsBell() {
                       <button
                         type="button"
                         onClick={seen}
-                        className="hover:bg-background block w-full px-3 py-2 text-start"
+                        className="hover:bg-surface block w-full px-3 py-2 text-start"
                       >
                         {inside}
                       </button>

@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { WaitingTimer } from "@/components/inbox/WaitingTimer";
 import { useAssignConversation, useMembers, type Conversation } from "@/lib/api/hooks";
-import { countryFlag } from "@/lib/format";
+import { Avatar } from "@/components/Avatar";
+import { CustomerName } from "@/components/Bidi";
 import { useT } from "@/lib/i18n-client";
 
 /** Enough to act on from the dashboard; the inbox has the rest. */
@@ -29,18 +30,26 @@ function WaitingRow({
     .sort((a, b) => Number(b.accepting_chats) - Number(a.accepting_chats));
 
   return (
-    <li className="flex flex-wrap items-center gap-2 border-b border-black/5 py-2 dark:border-white/10">
-      <span className="min-w-0 flex-1 truncate text-sm" dir="auto">
-        {countryFlag(conversation.contact.country)}{" "}
-        {conversation.contact.name ?? t("inbox.unknownCustomer")}
-      </span>
-      <span className="text-muted text-xs" dir="auto">
+    <li className="border-border flex flex-wrap items-center gap-x-2 gap-y-1 border-b py-2.5">
+      {/* Two lines on purpose ([11] § 5.3). First who is waiting, and for how
+          long: min-w-24 because that is the row's point, and on a phone the
+          rest of the row used to squeeze it to nothing. The flag rides on the
+          avatar, so the name beside it is given none. */}
+      <Avatar name={conversation.contact.name} country={conversation.contact.country} size="sm" />
+      <CustomerName
+        country={null}
+        name={conversation.contact.name}
+        className="min-w-24 flex-1 text-sm font-medium"
+      />
+      <WaitingTimer waitingSince={conversation.waiting_since} state={conversation.sla_state} />
+      {/* Then who has them, and what can be done about it. */}
+      <span aria-hidden className="basis-full" />
+      <span className="text-muted flex-1 text-xs" dir="auto">
         {conversation.assignee?.name ?? t("customers.nobody")}
       </span>
-      <WaitingTimer waitingSince={conversation.waiting_since} state={conversation.sla_state} />
       <Link
         href={`/${tenant}/inbox/${conversation.id}`}
-        className="hover:bg-background inline-flex min-h-11 items-center rounded-md px-3 text-sm"
+        className="btn"
       >
         {t("dashboard.open")}
       </Link>
@@ -50,7 +59,7 @@ function WaitingRow({
           value=""
           disabled={assign.isPending}
           onChange={(event) => event.target.value && assign.mutate(event.target.value)}
-          className="min-h-11 rounded-md border border-black/10 px-2 text-sm dark:border-white/15"
+          className="field px-3"
         >
           <option value="">{t("dashboard.reassign")}</option>
           {colleagues.map((member) => (
