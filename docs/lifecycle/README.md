@@ -88,7 +88,7 @@ Each ends in something a dealer can use. The order is the order every later stag
 
 | # | Slice | Scope | Exit criterion |
 |---|---|---|---|
-| **L1** | **Purchase and unit economics** | Acquisition record, cost ledger in any currency, landed cost, margin at list and at floor, the buy side in Postgres, an AI that reads a purchase invoice into cost lines for a person to confirm, the inventory screens | A car bought at auction, with five cost lines entered **from a photograph of the invoice in one confirmation**, shows its landed cost and its margin at list and at floor — and a salesperson's session cannot read any of it, even with SQL |
+| **L1** ✅ | **Purchase and unit economics** | Acquisition record, cost ledger in any currency, landed cost, margin at list and at floor, the buy side in Postgres, an AI that reads a purchase invoice into cost lines for a person to confirm, the inventory screens | A car bought at auction, with five cost lines entered **from a photograph of the invoice in one confirmation**, shows its landed cost and its margin at list and at floor — and a salesperson's session cannot read any of it, even with SQL |
 | **L2** | Pricing intelligence | Recommended list price and floor; aging re-price proposals through approvals; the floor written from cost and target margin | A car 60 days in stock gets a re-price proposal a manager approves in one click, and the published content that quoted the old price is flagged |
 | **L3** | Reconditioning | Inspection, work orders, repair estimates from inspection photos, budget alerts, ready-to-sell date | A repair over budget raises an approval before the money is spent |
 | **L4** | Inbound | Shipments, customs, transport, registration milestones; document checklist; fees flow into the ledger | A US-auction car shows where it is and what is missing, and its landed cost is complete the day it arrives |
@@ -152,6 +152,13 @@ Two mechanical checks run before a proposal is shown:
   margin, and *Add from a document*: upload, read, check, confirm.
 
 ---
+
+## Status
+
+| Slice | State |
+|---|---|
+| **L1** | **Done.** Migration `0016`, `routes/acquisition.py`, `lifecycle/invoices.py`, the inventory and vehicle screens. The buy-side wall is tested as the application role; the invoice reader is tested live (`npm run eval:invoice`) — every line of an auction invoice read exactly, no exchange rate invented, and a line removed from the printout caught by the total. |
+| L2–L8 | Not started. L2 (pricing intelligence) is next. |
 
 ## Open questions for Pollux
 

@@ -7,6 +7,7 @@ import {
   formatDuration,
   formatMoney,
   formatRelative,
+  parseMajor,
   formatUntil,
 } from "./format";
 
@@ -18,6 +19,32 @@ describe("formatMoney", () => {
   it("keeps fils when there are some", () => {
     expect(formatMoney({ amount_minor: 16500050, currency: "AED" })).toBe("AED 165,000.50");
   });
+
+  it("reads a dinar as a thousand fils, not a hundred", () => {
+    expect(formatMoney({ amount_minor: 1250500, currency: "KWD" })).toBe("KWD 1,250.500");
+    expect(formatMoney({ amount_minor: 1250000, currency: "KWD" })).toBe("KWD 1,250");
+  });
+});
+
+describe("parseMajor", () => {
+  it.each([
+    ["12,500.00", "USD", 1250000],
+    ["12500", "AED", 1250000],
+    ["1,250.10", "AED", 125010],
+    ["0.1", "AED", 10],
+    ["١٢٥٠", "AED", 125000],
+    ["1.250", "KWD", 1250],
+    ["5", "JPY", 5],
+  ])("reads %s %s as %d minor units", (text, currency, minor) => {
+    expect(parseMajor(text, currency)).toBe(minor);
+  });
+
+  it.each([["12.505", "AED"], ["abc", "AED"], ["-5", "AED"], ["", "AED"], ["1.5", "JPY"]])(
+    "refuses %s %s rather than rounding or guessing",
+    (text, currency) => {
+      expect(parseMajor(text, currency)).toBeNull();
+    },
+  );
 });
 
 describe("formatDuration", () => {
