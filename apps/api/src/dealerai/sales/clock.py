@@ -24,6 +24,9 @@ from ..events.bus import emit
 
 BRIEF_AT = time(8, 0)
 RETENTION_AT = time(3, 0)
+#: An hour before the brief, so proposals made overnight are waiting when the
+#: owner opens the app — docs/lifecycle/README.md § L2.
+PRICING_AT = time(7, 0)
 
 
 def zone(name: str | None) -> ZoneInfo:
@@ -59,6 +62,16 @@ async def schedule(conn: Any, tenant_id: UUID, tz: ZoneInfo, now: datetime) -> N
         dedupe_key=f"brief:{brief_day}",
         run_after=brief,
         priority=1,
+    )
+    pricing = next_at(PRICING_AT, tz, now)
+    pricing_day = pricing.astimezone(tz).date().isoformat()
+    await emit(
+        conn,
+        "pricing.sweep_due",
+        {"date": pricing_day},
+        tenant_id=tenant_id,
+        dedupe_key=f"pricing:{pricing_day}",
+        run_after=pricing,
     )
     sweep = next_at(RETENTION_AT, tz, now)
     sweep_day = sweep.astimezone(tz).date().isoformat()

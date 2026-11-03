@@ -89,7 +89,7 @@ Each ends in something a dealer can use. The order is the order every later stag
 | # | Slice | Scope | Exit criterion |
 |---|---|---|---|
 | **L1** ✅ | **Purchase and unit economics** | Acquisition record, cost ledger in any currency, landed cost, margin at list and at floor, the buy side in Postgres, an AI that reads a purchase invoice into cost lines for a person to confirm, the inventory screens | A car bought at auction, with five cost lines entered **from a photograph of the invoice in one confirmation**, shows its landed cost and its margin at list and at floor — and a salesperson's session cannot read any of it, even with SQL |
-| **L2** | Pricing intelligence | Recommended list price and floor; aging re-price proposals through approvals; the floor written from cost and target margin | A car 60 days in stock gets a re-price proposal a manager approves in one click, and the published content that quoted the old price is flagged |
+| **L2** ✅ | **Pricing intelligence** | Recommended list price and floor; aging re-price proposals through approvals; the floor written from cost and target margin | A car 60 days in stock gets a re-price proposal an owner or admin approves in one click, and the published content that quoted the old price is flagged |
 | **L3** | Reconditioning | Inspection, work orders, repair estimates from inspection photos, budget alerts, ready-to-sell date | A repair over budget raises an approval before the money is spent |
 | **L4** | Inbound | Shipments, customs, transport, registration milestones; document checklist; fees flow into the ledger | A US-auction car shows where it is and what is missing, and its landed cost is complete the day it arrives |
 | **L5** | Appraisal and sourcing | Valuation from own history, trade-in appraisal with damage read from photos, maximum bid, a buying list from unmet demand | The buying list names cars customers asked for this month that the dealer does not have |
@@ -153,12 +153,57 @@ Two mechanical checks run before a proposal is shown:
 
 ---
 
+## L2 — Pricing intelligence
+
+### Data
+
+`supabase/migrations/0017_lifecycle_pricing.sql`: `tenants.pricing_settings` (the dealer's rules,
+validated by `PricingSettings`), two notification kinds (`price_proposed`, `content_stale`) and an
+index that makes "one pending proposal per car" cheap to check.
+
+### The rules — code, not a model
+
+`lifecycle/pricing.py`. A price is arithmetic on facts the dealer can check; a model adds nothing
+there but a way to be wrong. Every number is integer minor units, rounded **up** to the dealer's
+rounding unit so a rounded price never keeps less margin than the rule.
+
+- **Target** — the price that keeps the target margin on landed cost (default 12%).
+- **Floor** — the same at the floor margin (default 5%). Proposed when the car has none or its
+  floor keeps less; a higher floor the dealer set is never lowered.
+- **The aging ladder** — after 45, 60 and 90 days in stock the target is cut by 3%, 3% and 5%. Only
+  age moves a price down: a new car above target holds, and the screen says there is room to
+  negotiate.
+- **Demand holds** — a car with three or more leads in 30 days keeps its price.
+- **Below the floor, no cost, another currency, not for sale** — said, never proposed.
+
+### The loop
+
+1. **07:00 tenant time**, before the brief, `pricing.sweep_due` prices every car in stock and puts
+   each one that should move into the approval queue — one pending proposal per car, carrying the
+   before, the after, the floor and the reasons. One notification per morning, to owners and admins.
+2. **An owner or admin approves** (`APPROVER_ROLE["price_change"] = "admin"`). The worker applies it
+   in one transaction — only if the price is still the one the proposal started from; a price that
+   moved in between leaves the proposal stale, never overwritten.
+3. **Every price change** — approved, or typed on the vehicle screen — writes price history and
+   emits `vehicle.price_changed`. Unpublished content that quotes the old price is rejected (the
+   same price guard that checks every draft); published content that quotes it is listed in a
+   notification to whoever owns content, because a published post is the dealer's to edit.
+
+### Screens
+
+- **Vehicle → Pricing** — the recommendation, its reasons in words, and *Send for approval*.
+- **Settings → Pricing** — target, floor, rounding, the demand hold and the ladder. Changing them
+  changes tomorrow's proposals, never a price.
+
+---
+
 ## Status
 
 | Slice | State |
 |---|---|
 | **L1** | **Done.** Migration `0016`, `routes/acquisition.py`, `lifecycle/invoices.py`, the inventory and vehicle screens. The buy-side wall is tested as the application role; the invoice reader is tested live (`npm run eval:invoice`) — every line of an auction invoice read exactly, no exchange rate invented, and a line removed from the printout caught by the total. |
-| L2–L8 | Not started. L2 (pricing intelligence) is next. |
+| **L2** | **Done.** Migration `0017`, `lifecycle/pricing.py`, `events/handlers/lifecycle.py`, the pricing card and settings screen. Tested end to end in the browser: a 60-day car proposed, approved by the owner, applied by the worker. In the suite: a manager may propose but not approve, a price that moved before the decision is never overwritten, stale drafts are rejected. |
+| L3–L8 | Not started. L3 (reconditioning) is next. |
 
 ## Open questions for Pollux
 

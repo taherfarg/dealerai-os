@@ -7,6 +7,7 @@ from uuid import UUID
 import structlog
 
 from ...db.session import tenant_session
+from ...lifecycle import pricing
 from ...orchestrator.executor import execute_run
 from ..bus import Event, emit, handler
 
@@ -58,6 +59,17 @@ async def on_approval_decided(event: Event) -> None:
     has its output, so approval simply completes it.
     """
     tenant_id = event.tenant_id
+    if tenant_id is not None and event.payload.get("kind") == pricing.KIND:
+        # One handler per event type (bus.register refuses a second), so a
+        # price proposal is dispatched from here rather than from its own.
+        if event.payload.get("decision") == "approved":
+            async with tenant_session(tenant_id) as conn, conn.transaction():
+                outcome = await pricing.apply_decision(
+                    conn, tenant_id, UUID(str(event.payload["approval_id"]))
+                )
+            log.info("price_proposal_decided", outcome=outcome)
+        return
+
     task_id = event.payload.get("task_id")
     if tenant_id is None or not task_id:
         return  # an approval not tied to a task — nothing to resume

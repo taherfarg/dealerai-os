@@ -27,7 +27,7 @@ from ..core.errors import NotFound, Unusable
 from ..core.money import Money
 from ..db.session import tenant_session
 from ..deps import TenantContext, require_permission
-from ..lifecycle import invoices
+from ..lifecycle import invoices, pricing
 from ..media import storage
 
 log = structlog.get_logger()
@@ -606,3 +606,108 @@ async def extract_costs(
         "warnings": proposal.warnings,
         "document_path": document_path,
     }
+
+
+# --------------------------------------------------------------------------
+# pricing — docs/lifecycle/README.md § L2
+# --------------------------------------------------------------------------
+
+
+class RecommendationOut(BaseModel):
+    action: str
+    price: MoneyOut | None
+    floor: MoneyOut | None
+    ideal: MoneyOut | None
+    target: MoneyOut | None
+    reasons: list[str]
+    #: A proposal already waiting in the approvals queue for this car.
+    pending_approval_id: UUID | None
+
+
+class ProposalOut(BaseModel):
+    approval_id: UUID | None
+    #: Why nothing was proposed, when nothing was: the price is already where
+    #: it should be, or a proposal is already waiting.
+    note: str | None
+
+
+async def _recommendation(
+    conn: asyncpg.Connection, ctx: TenantContext, vehicle_id: UUID
+) -> tuple[pricing.Facts, pricing.Recommendation]:
+    facts = await pricing.facts_for(conn, vehicle_id)
+    if facts is None:
+        raise NotFound("no such vehicle", ar="لا توجد سيارة بهذا الرقم.")
+    settings = await pricing.settings_for(conn, ctx.tenant_id)
+    return facts, pricing.recommend(facts, settings)
+
+
+@router.get("/{vehicle_id}/pricing", response_model=RecommendationOut)
+async def get_pricing(vehicle_id: UUID, ctx: Viewer) -> dict[str, Any]:
+    """What the price should be now, and why. Changes nothing."""
+    async with _session(ctx) as conn:
+        _facts, rec = await _recommendation(conn, ctx, vehicle_id)
+        pending = await conn.fetchval(
+            """select id from approvals
+                where entity_id = $1 and kind = $2 and status = 'pending'""",
+            vehicle_id,
+            pricing.KIND,
+        )
+    return {
+        "action": rec.action,
+        "price": _money(rec.price_minor, rec.currency),
+        "floor": _money(rec.floor_minor, rec.currency),
+        "ideal": _money(rec.ideal_minor, rec.currency),
+        "target": _money(rec.target_minor, rec.currency),
+        "reasons": rec.reasons,
+        "pending_approval_id": pending,
+    }
+
+
+@router.post("/{vehicle_id}/pricing/propose", response_model=ProposalOut)
+async def propose_pricing(vehicle_id: UUID, ctx: Viewer) -> dict[str, Any]:
+    """Put today's recommendation in the approvals queue now, rather than at
+    tomorrow's sweep. Whoever may change prices still decides."""
+    async with _session(ctx) as conn, conn.transaction():
+        facts, rec = await _recommendation(conn, ctx, vehicle_id)
+        approval_id = await pricing.propose(conn, ctx.tenant_id, vehicle_id, rec, facts=facts)
+    if approval_id is not None:
+        return {"approval_id": approval_id, "note": None}
+    note = (
+        "nothing to propose: " + rec.action
+        if rec.action not in pricing.PROPOSED
+        else "a proposal for this car is already waiting"
+    )
+    return {"approval_id": None, "note": note}
+
+
+settings_router = APIRouter(prefix="/v1/settings/pricing", tags=["acquisition"])
+
+
+@settings_router.get("", response_model=pricing.PricingSettings)
+async def get_pricing_settings(
+    ctx: Annotated[TenantContext, Depends(require_permission("settings.pricing"))],
+) -> pricing.PricingSettings:
+    async with _session(ctx) as conn:
+        return await pricing.settings_for(conn, ctx.tenant_id)
+
+
+@settings_router.put("", response_model=pricing.PricingSettings)
+async def put_pricing_settings(
+    body: pricing.PricingRules,
+    ctx: Annotated[TenantContext, Depends(require_permission("settings.pricing"))],
+) -> pricing.PricingSettings:
+    # Checked here rather than left to the model: a validation error reaches
+    # the screen as "a field failed", and this one needs saying in words.
+    if body.floor_margin_bps > body.target_margin_bps:
+        raise Unusable(
+            "the floor's margin cannot be above the target margin",
+            ar="هامش الحد الأدنى لا يمكن أن يكون أعلى من الهامش المستهدف.",
+        )
+    settings = pricing.PricingSettings.model_validate(body.model_dump())
+    async with _session(ctx) as conn:
+        await conn.execute(
+            "update tenants set pricing_settings = $2 where id = $1",
+            ctx.tenant_id,
+            settings.model_dump(),
+        )
+    return settings

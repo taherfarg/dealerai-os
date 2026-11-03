@@ -1395,3 +1395,62 @@ export function useReadInvoice(vehicleId: string) {
   });
 }
 
+// --------------------------------------------------------------------------
+// Pricing — docs/lifecycle/README.md § L2
+// --------------------------------------------------------------------------
+
+export type Recommendation = components["schemas"]["RecommendationOut"];
+export type PricingSettings = components["schemas"]["PricingSettings"];
+
+export function usePricing(vehicleId: string, enabled: boolean) {
+  const { api, tenantId, header } = useTenantApi();
+  return useQuery({
+    queryKey: keys.pricing(tenantId, vehicleId),
+    enabled,
+    queryFn: async () =>
+      unwrap(
+        await api.GET("/v1/vehicles/{vehicle_id}/pricing", {
+          params: { header, path: { vehicle_id: vehicleId } },
+        }),
+      ),
+  });
+}
+
+/** Puts today's recommendation in the approvals queue. Changes no price. */
+export function useProposePricing(vehicleId: string) {
+  const { api, tenantId, header } = useTenantApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () =>
+      unwrap(
+        await api.POST("/v1/vehicles/{vehicle_id}/pricing/propose", {
+          params: { header, path: { vehicle_id: vehicleId } },
+        }),
+      ),
+    onSettled: () =>
+      queryClient.invalidateQueries({ queryKey: keys.pricing(tenantId, vehicleId) }),
+  });
+}
+
+export function usePricingSettings() {
+  const { api, tenantId, header } = useTenantApi();
+  return useQuery({
+    queryKey: keys.pricingSettings(tenantId),
+    queryFn: async () => unwrap(await api.GET("/v1/settings/pricing", { params: { header } })),
+  });
+}
+
+export function useSavePricingSettings() {
+  const { api, tenantId, header } = useTenantApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: PricingSettings) =>
+      unwrap(await api.PUT("/v1/settings/pricing", { params: { header }, body })),
+    onSuccess: (saved) => {
+      queryClient.setQueryData(keys.pricingSettings(tenantId), saved);
+      // Every recommendation on screen was made under the old rules.
+      queryClient.invalidateQueries({ queryKey: keys.buySide(tenantId) });
+    },
+  });
+}
+

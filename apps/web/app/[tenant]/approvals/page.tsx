@@ -65,7 +65,8 @@ export default async function ApprovalsPage({
               <div className="min-w-0">
                 <p className="text-sm font-medium">{a.summary}</p>
                 <p className="text-muted mt-1 text-xs">
-                  {a.kind} · {t(locale, "approvals.requires")} {a.required_role}
+                  {a.kind === "price_change" ? t(locale, "approvals.kind.price_change") : a.kind}{" "}
+                  · {t(locale, "approvals.requires")} {a.required_role}
                 </p>
               </div>
 

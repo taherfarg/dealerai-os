@@ -43,6 +43,7 @@ from ...sales.runs import Run, agent_run
 from ...sales.settings import SalesSettings
 from ...sales.timeline import event_line
 from ..bus import Event, emit, handler
+from . import lifecycle
 from .notify import notify
 
 log = structlog.get_logger()
@@ -859,9 +860,14 @@ async def on_followup_check(event: Event) -> None:
 
 @handler("vehicle.price_changed")
 async def on_price_changed(event: Event) -> None:
-    """A price that went *down* is news. One that went up is not."""
+    """A price that went *down* is news. One that went up is not.
+
+    Either way, content quoting the old figure is stopped first: that is about
+    every price change, and the bus allows this event one handler.
+    """
     if event.tenant_id is None:
         raise ValueError("vehicle.price_changed requires a tenant")
+    await lifecycle.after_price_change(event)
     before = event.payload.get("before_minor")
     after = event.payload.get("after_minor")
     if before is None or after is None or int(after) >= int(before):
