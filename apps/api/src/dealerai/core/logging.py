@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import io
 import logging
+import sys
 import uuid
 from collections.abc import Awaitable, Callable
 
@@ -14,6 +16,14 @@ from ..config import get_settings
 
 def configure_logging() -> None:
     settings = get_settings()
+    # UTF-8 whatever the platform says. On Windows a piped stdout is cp1252,
+    # which has no Arabic and no arrow, so a log line quoting a customer's
+    # message raised inside the handler that wrote it — and the event failed,
+    # retried and dead-lettered over a line of logging. Production on Linux
+    # never saw it; every Windows development machine did.
+    for stream in (sys.stdout, sys.stderr):
+        if isinstance(stream, io.TextIOWrapper):
+            stream.reconfigure(encoding="utf-8", errors="backslashreplace")
     logging.basicConfig(format="%(message)s", level=settings.log_level.upper())
     # httpx announces every request with its whole URL, and httpcore every
     # header it reads back. Some of those addresses are secrets in themselves —

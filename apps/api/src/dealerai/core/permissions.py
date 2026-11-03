@@ -29,6 +29,7 @@ _ADMIN = frozenset(
         # paid is the number a salesperson must never negotiate down to.
         "costs.view",
         "costs.edit",
+        "settings.pricing",
     }
 )
 

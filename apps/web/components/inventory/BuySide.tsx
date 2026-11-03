@@ -15,6 +15,7 @@ import {
 } from "@/lib/api/hooks";
 import { formatMoney, parseMajor } from "@/lib/format";
 import { useT } from "@/lib/i18n-client";
+import { PricingCard } from "./PricingCard";
 import { ReadInvoice } from "./ReadInvoice";
 
 export const CATEGORIES: readonly CostIn["category"][] = [
@@ -118,6 +119,8 @@ export function BuySide({ vehicleId, canEdit }: { vehicleId: string; canEdit: bo
           )}
         </section>
       )}
+
+      <PricingCard vehicleId={vehicleId} />
 
       <AcquisitionForm vehicleId={vehicleId} canEdit={canEdit} />
 

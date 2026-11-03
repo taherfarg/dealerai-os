@@ -164,6 +164,29 @@
         "title": "AcquisitionOut",
         "type": "object"
       },
+      "AgeStep": {
+        "properties": {
+          "cut_bps": {
+            "description": "Cut from the target, in basis points.",
+            "maximum": 5000.0,
+            "minimum": 1.0,
+            "title": "Cut Bps",
+            "type": "integer"
+          },
+          "days": {
+            "maximum": 3650.0,
+            "minimum": 1.0,
+            "title": "Days",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "days",
+          "cut_bps"
+        ],
+        "title": "AgeStep",
+        "type": "object"
+      },
       "ApprovalOut": {
         "properties": {
           "created_at": {
@@ -3869,6 +3892,135 @@
         "title": "PriceChange",
         "type": "object"
       },
+      "PricingRules": {
+        "description": "A dealership's pricing rules as they arrive from a settings screen —\nshape checked, consistency not yet. See PricingSettings.",
+        "properties": {
+          "enabled": {
+            "default": true,
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "floor_margin_bps": {
+            "default": 500,
+            "maximum": 9000.0,
+            "minimum": 0.0,
+            "title": "Floor Margin Bps",
+            "type": "integer"
+          },
+          "hold_if_leads_30d": {
+            "default": 3,
+            "maximum": 1000.0,
+            "minimum": 0.0,
+            "title": "Hold If Leads 30D",
+            "type": "integer"
+          },
+          "round_to_major": {
+            "default": 500,
+            "maximum": 100000.0,
+            "minimum": 1.0,
+            "title": "Round To Major",
+            "type": "integer"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/AgeStep"
+            },
+            "maxItems": 10,
+            "title": "Steps",
+            "type": "array"
+          },
+          "target_margin_bps": {
+            "default": 1200,
+            "maximum": 9000.0,
+            "minimum": 0.0,
+            "title": "Target Margin Bps",
+            "type": "integer"
+          }
+        },
+        "title": "PricingRules",
+        "type": "object"
+      },
+      "PricingSettings": {
+        "description": "A dealership's pricing rules. The defaults are a used-car norm, not\nadvice: every one of them is the dealer's to change.",
+        "properties": {
+          "enabled": {
+            "default": true,
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "floor_margin_bps": {
+            "default": 500,
+            "maximum": 9000.0,
+            "minimum": 0.0,
+            "title": "Floor Margin Bps",
+            "type": "integer"
+          },
+          "hold_if_leads_30d": {
+            "default": 3,
+            "maximum": 1000.0,
+            "minimum": 0.0,
+            "title": "Hold If Leads 30D",
+            "type": "integer"
+          },
+          "round_to_major": {
+            "default": 500,
+            "maximum": 100000.0,
+            "minimum": 1.0,
+            "title": "Round To Major",
+            "type": "integer"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/AgeStep"
+            },
+            "maxItems": 10,
+            "title": "Steps",
+            "type": "array"
+          },
+          "target_margin_bps": {
+            "default": 1200,
+            "maximum": 9000.0,
+            "minimum": 0.0,
+            "title": "Target Margin Bps",
+            "type": "integer"
+          }
+        },
+        "title": "PricingSettings",
+        "type": "object"
+      },
+      "ProposalOut": {
+        "properties": {
+          "approval_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval Id"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "required": [
+          "approval_id",
+          "note"
+        ],
+        "title": "ProposalOut",
+        "type": "object"
+      },
       "ProposedLineOut": {
         "properties": {
           "amount_minor": {
@@ -4164,6 +4316,84 @@
           "owner_id"
         ],
         "title": "ReassignIn",
+        "type": "object"
+      },
+      "RecommendationOut": {
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "floor": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MoneyOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ideal": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MoneyOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pending_approval_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pending Approval Id"
+          },
+          "price": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MoneyOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reasons": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Reasons",
+            "type": "array"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MoneyOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "action",
+          "price",
+          "floor",
+          "ideal",
+          "target",
+          "reasons",
+          "pending_approval_id"
+        ],
+        "title": "RecommendationOut",
         "type": "object"
       },
       "RepRow": {
@@ -10927,6 +11157,100 @@
         ]
       }
     },
+    "/v1/settings/pricing": {
+      "get": {
+        "operationId": "get_pricing_settings_v1_settings_pricing_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PricingSettings"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Pricing Settings",
+        "tags": [
+          "acquisition"
+        ]
+      },
+      "put": {
+        "operationId": "put_pricing_settings_v1_settings_pricing_put",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PricingRules"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PricingSettings"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Pricing Settings",
+        "tags": [
+          "acquisition"
+        ]
+      }
+    },
     "/v1/settings/sales": {
       "get": {
         "operationId": "read_sales_settings_v1_settings_sales_get",
@@ -13111,6 +13435,114 @@
         "summary": "Change Price",
         "tags": [
           "vehicles"
+        ]
+      }
+    },
+    "/v1/vehicles/{vehicle_id}/pricing": {
+      "get": {
+        "description": "What the price should be now, and why. Changes nothing.",
+        "operationId": "get_pricing_v1_vehicles__vehicle_id__pricing_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "vehicle_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Vehicle Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecommendationOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Pricing",
+        "tags": [
+          "acquisition"
+        ]
+      }
+    },
+    "/v1/vehicles/{vehicle_id}/pricing/propose": {
+      "post": {
+        "description": "Put today's recommendation in the approvals queue now, rather than at\ntomorrow's sweep. Whoever may change prices still decides.",
+        "operationId": "propose_pricing_v1_vehicles__vehicle_id__pricing_propose_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "vehicle_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Vehicle Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProposalOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Propose Pricing",
+        "tags": [
+          "acquisition"
         ]
       }
     },

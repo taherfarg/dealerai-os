@@ -1060,6 +1060,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/settings/pricing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Pricing Settings */
+        get: operations["get_pricing_settings_v1_settings_pricing_get"];
+        /** Put Pricing Settings */
+        put: operations["put_pricing_settings_v1_settings_pricing_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/settings/sales": {
         parameters: {
             query?: never;
@@ -1630,6 +1648,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/vehicles/{vehicle_id}/pricing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Pricing
+         * @description What the price should be now, and why. Changes nothing.
+         */
+        get: operations["get_pricing_v1_vehicles__vehicle_id__pricing_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/vehicles/{vehicle_id}/pricing/propose": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Propose Pricing
+         * @description Put today's recommendation in the approvals queue now, rather than at
+         *     tomorrow's sweep. Whoever may change prices still decides.
+         */
+        post: operations["propose_pricing_v1_vehicles__vehicle_id__pricing_propose_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/vehicles/{vehicle_id}/status": {
         parameters: {
             query?: never;
@@ -1714,6 +1773,16 @@ export interface components {
              * Format: uuid
              */
             vehicle_id: string;
+        };
+        /** AgeStep */
+        AgeStep: {
+            /**
+             * Cut Bps
+             * @description Cut from the target, in basis points.
+             */
+            cut_bps: number;
+            /** Days */
+            days: number;
         };
         /** ApprovalOut */
         ApprovalOut: {
@@ -2852,6 +2921,81 @@ export interface components {
             /** Reason */
             reason: string;
         };
+        /**
+         * PricingRules
+         * @description A dealership's pricing rules as they arrive from a settings screen —
+         *     shape checked, consistency not yet. See PricingSettings.
+         */
+        PricingRules: {
+            /**
+             * Enabled
+             * @default true
+             */
+            enabled: boolean;
+            /**
+             * Floor Margin Bps
+             * @default 500
+             */
+            floor_margin_bps: number;
+            /**
+             * Hold If Leads 30D
+             * @default 3
+             */
+            hold_if_leads_30d: number;
+            /**
+             * Round To Major
+             * @default 500
+             */
+            round_to_major: number;
+            /** Steps */
+            steps?: components["schemas"]["AgeStep"][];
+            /**
+             * Target Margin Bps
+             * @default 1200
+             */
+            target_margin_bps: number;
+        };
+        /**
+         * PricingSettings
+         * @description A dealership's pricing rules. The defaults are a used-car norm, not
+         *     advice: every one of them is the dealer's to change.
+         */
+        PricingSettings: {
+            /**
+             * Enabled
+             * @default true
+             */
+            enabled: boolean;
+            /**
+             * Floor Margin Bps
+             * @default 500
+             */
+            floor_margin_bps: number;
+            /**
+             * Hold If Leads 30D
+             * @default 3
+             */
+            hold_if_leads_30d: number;
+            /**
+             * Round To Major
+             * @default 500
+             */
+            round_to_major: number;
+            /** Steps */
+            steps?: components["schemas"]["AgeStep"][];
+            /**
+             * Target Margin Bps
+             * @default 1200
+             */
+            target_margin_bps: number;
+        };
+        /** ProposalOut */
+        ProposalOut: {
+            /** Approval Id */
+            approval_id: string | null;
+            /** Note */
+            note: string | null;
+        };
         /** ProposedLineOut */
         ProposedLineOut: {
             /** Amount Minor */
@@ -2980,6 +3124,19 @@ export interface components {
              * Format: uuid
              */
             owner_id: string;
+        };
+        /** RecommendationOut */
+        RecommendationOut: {
+            /** Action */
+            action: string;
+            floor: components["schemas"]["MoneyOut"] | null;
+            ideal: components["schemas"]["MoneyOut"] | null;
+            /** Pending Approval Id */
+            pending_approval_id: string | null;
+            price: components["schemas"]["MoneyOut"] | null;
+            /** Reasons */
+            reasons: string[];
+            target: components["schemas"]["MoneyOut"] | null;
         };
         /** RepRow */
         RepRow: {
@@ -6151,6 +6308,72 @@ export interface operations {
             };
         };
     };
+    get_pricing_settings_v1_settings_pricing_get: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PricingSettings"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_pricing_settings_v1_settings_pricing_put: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PricingRules"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PricingSettings"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     read_sales_settings_v1_settings_sales_get: {
         parameters: {
             query?: never;
@@ -7403,6 +7626,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["VehicleOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_pricing_v1_vehicles__vehicle_id__pricing_get: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                vehicle_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecommendationOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    propose_pricing_v1_vehicles__vehicle_id__pricing_propose_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                vehicle_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProposalOut"];
                 };
             };
             /** @description Validation Error */
