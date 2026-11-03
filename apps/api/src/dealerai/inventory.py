@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import csv
 import io
-from decimal import Decimal, InvalidOperation
 from typing import Any, Literal
 from uuid import UUID
 
@@ -24,7 +23,7 @@ from .ai.gateway import SystemLayers, complete
 from .ai.models import TaskKind
 from .ai.prompts import load
 from .core.money import Money
-from .core.text import ascii_digits
+from .core.text import parse_number
 from .routes.vehicles import VehicleCreate
 
 #: Beyond this the request stops being a request. A dealer with a bigger file
@@ -149,47 +148,14 @@ def read_rows(text: str) -> tuple[list[str], list[dict[str, str]]]:
 # --------------------------------------------------------------------------
 
 
-def _number(raw: str) -> Decimal:
-    """A number out of whatever the spreadsheet had in the cell.
-
-    Separator rules, in order:
-      * both `,` and `.` present — the last one is the decimal point
-      * one separator with exactly three digits after it — thousands ("165.000")
-      * one separator with one or two digits after it — decimal ("165.50")
-
-    The middle rule is the one that matters: reading "165.000" as 165 prices a
-    Land Cruiser at 165 dirhams, and it is the failure a dealer would not spot
-    until a customer arrived to buy it.
-    """
-    # ponytail: this misreads a genuine 3-decimal KWD amount as thousands. No
-    # car costs 1.5 KWD, so the trade is right; revisit if fils-level prices
-    # ever appear in an import.
-    text = ascii_digits(raw).strip()
-    kept = "".join(c for c in text if c.isdigit() or c in ",.-")
-    if not any(c.isdigit() for c in kept):
-        raise ValueError(f"no number in {raw!r}")
-
-    last = max(kept.rfind(","), kept.rfind("."))
-    if last == -1:
-        cleaned = kept
-    else:
-        after = len(kept) - last - 1
-        head = kept[:last].replace(",", "").replace(".", "")
-        cleaned = f"{head}.{kept[last + 1 :]}" if 1 <= after <= 2 else head + kept[last + 1 :]
-    try:
-        return Decimal(cleaned)
-    except InvalidOperation as exc:
-        raise ValueError(f"could not read a number from {raw!r}") from exc
-
-
 def coerce(field: str, raw: str, currency: str) -> tuple[str, Any]:
     """One cell to one field value. Returns the *record* field name, which is
     not always the CSV one — `price` becomes `price_minor`."""
     value = raw.strip()
     if field in MONEY_FIELDS:
-        return MONEY_FIELDS[field], Money.from_major(_number(value), currency).amount_minor
+        return MONEY_FIELDS[field], Money.from_major(parse_number(value), currency).amount_minor
     if field in INT_FIELDS:
-        return field, int(_number(value))
+        return field, int(parse_number(value))
     if field in LIST_FIELDS:
         return field, [
             p.strip() for p in value.replace(";", ",").replace("|", ",").split(",") if p.strip()

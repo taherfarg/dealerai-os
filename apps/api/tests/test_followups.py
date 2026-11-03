@@ -131,13 +131,18 @@ def test_a_closed_showroom_defers_rather_than_refuses() -> None:
     """A follow-up landing at 02:00 is a number that gets blocked."""
     settings = {"business_hours": {"mon": {"open": "09:00", "close": "18:00"}}}
     monday_dawn = datetime(2026, 9, 21, 1, 0, tzinfo=ZoneInfo("Asia/Dubai"))
-    verdict = _verdict(_lead(), settings=settings, now=monday_dawn)
+    # The lead's age is measured from this test's clock, not the real one: built
+    # from today it passed this fixed Monday on 2026-10-21 and the cadence rule
+    # answered instead of the opening-hours one.
+    lead = _lead(lead_created_at=monday_dawn - timedelta(days=30))
+    verdict = _verdict(lead, settings=settings, now=monday_dawn)
     assert not verdict.allowed and verdict.because == "the showroom is closed"
     assert verdict.retry_at is not None and verdict.retry_at.hour == 9
 
 
 def test_a_dealership_with_no_hours_is_always_open() -> None:
-    assert _verdict(_lead(), now=datetime(2026, 9, 21, 3, 0, tzinfo=UTC)).allowed
+    at = datetime(2026, 9, 21, 3, 0, tzinfo=UTC)
+    assert _verdict(_lead(lead_created_at=at - timedelta(days=30)), now=at).allowed
 
 
 # ---------------------------------------------------------------------------

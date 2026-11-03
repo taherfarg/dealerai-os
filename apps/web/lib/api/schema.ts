@@ -1396,6 +1396,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/vehicles/economics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Economics
+         * @description Landed cost and margin for every car, for the inventory screen's columns.
+         */
+        get: operations["list_economics_v1_vehicles_economics_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/vehicles/import": {
         parameters: {
             query?: never;
@@ -1483,6 +1503,109 @@ export interface paths {
         patch: operations["update_vehicle_v1_vehicles__vehicle_id__patch"];
         trace?: never;
     };
+    "/v1/vehicles/{vehicle_id}/acquisition": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Acquisition
+         * @description How the car was bought, or null if nobody has recorded it yet.
+         */
+        get: operations["get_acquisition_v1_vehicles__vehicle_id__acquisition_get"];
+        /** Put Acquisition */
+        put: operations["put_acquisition_v1_vehicles__vehicle_id__acquisition_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/vehicles/{vehicle_id}/costs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Costs */
+        get: operations["list_costs_v1_vehicles__vehicle_id__costs_get"];
+        put?: never;
+        /**
+         * Add Costs
+         * @description Record cost lines — typed by hand, or confirmed from a reading.
+         *
+         *     All or nothing: a batch is one invoice, and half an invoice recorded is a
+         *     landed cost that is wrong by an amount nobody can see.
+         */
+        post: operations["add_costs_v1_vehicles__vehicle_id__costs_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/vehicles/{vehicle_id}/costs/extract": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Extract Costs
+         * @description Read a purchase document into proposed cost lines. Writes nothing.
+         *
+         *     The vehicle is described to the model so it can pick this car's lines out of
+         *     a shipping invoice that covers a whole container.
+         */
+        post: operations["extract_costs_v1_vehicles__vehicle_id__costs_extract_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/vehicles/{vehicle_id}/costs/{cost_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Cost */
+        delete: operations["delete_cost_v1_vehicles__vehicle_id__costs__cost_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Cost */
+        patch: operations["update_cost_v1_vehicles__vehicle_id__costs__cost_id__patch"];
+        trace?: never;
+    };
+    "/v1/vehicles/{vehicle_id}/economics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Economics */
+        get: operations["get_economics_v1_vehicles__vehicle_id__economics_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/vehicles/{vehicle_id}/price": {
         parameters: {
             query?: never;
@@ -1543,6 +1666,54 @@ export interface components {
             /** Days */
             days: number;
             overall: components["schemas"]["IntentAcceptance"];
+        };
+        /** Acquisition */
+        Acquisition: {
+            /** Notes */
+            notes?: string | null;
+            /**
+             * Purchased At
+             * Format: date
+             */
+            purchased_at: string;
+            /** Reference */
+            reference?: string | null;
+            /** Seller */
+            seller?: string | null;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "auction" | "trade_in" | "private" | "dealer" | "import" | "other";
+        };
+        /** AcquisitionOut */
+        AcquisitionOut: {
+            /** Notes */
+            notes?: string | null;
+            /**
+             * Purchased At
+             * Format: date
+             */
+            purchased_at: string;
+            /** Reference */
+            reference?: string | null;
+            /** Seller */
+            seller?: string | null;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "auction" | "trade_in" | "private" | "dealer" | "import" | "other";
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /**
+             * Vehicle Id
+             * Format: uuid
+             */
+            vehicle_id: string;
         };
         /** ApprovalOut */
         ApprovalOut: {
@@ -1634,6 +1805,13 @@ export interface components {
             en?: string | null;
             /** Fr */
             fr?: string | null;
+        };
+        /** Body_extract_costs_v1_vehicles__vehicle_id__costs_extract_post */
+        Body_extract_costs_v1_vehicles__vehicle_id__costs_extract_post: {
+            /** File */
+            file: string;
+            /** Note */
+            note?: string | null;
         };
         /** Body_preview_v1_vehicles_import_preview_post */
         Body_preview_v1_vehicles_import_preview_post: {
@@ -1822,6 +2000,101 @@ export interface components {
             /** Window Expires At */
             window_expires_at: string | null;
         };
+        /** CostBatch */
+        CostBatch: {
+            /** Lines */
+            lines: components["schemas"]["CostIn"][];
+        };
+        /** CostIn */
+        CostIn: {
+            /** Amount Minor */
+            amount_minor: number;
+            /**
+             * Category
+             * @enum {string}
+             */
+            category: "purchase" | "auction_fee" | "transport" | "shipping" | "customs" | "registration" | "inspection" | "repair" | "parts" | "detailing" | "photography" | "storage" | "commission" | "other";
+            /** Currency */
+            currency: string;
+            /** Description */
+            description?: string | null;
+            /** Document Path */
+            document_path?: string | null;
+            /** Fx Rate */
+            fx_rate?: string | null;
+            /**
+             * Incurred At
+             * Format: date
+             */
+            incurred_at: string;
+            /**
+             * Source
+             * @default manual
+             * @enum {string}
+             */
+            source: "manual" | "document";
+            /**
+             * Status
+             * @default actual
+             * @enum {string}
+             */
+            status: "estimate" | "actual";
+            /** Vendor */
+            vendor?: string | null;
+        };
+        /** CostOut */
+        CostOut: {
+            amount: components["schemas"]["MoneyOut"];
+            amount_tenant: components["schemas"]["MoneyOut"];
+            /** Category */
+            category: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Description */
+            description: string | null;
+            /** Document Path */
+            document_path: string | null;
+            /** Fx Rate */
+            fx_rate: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Incurred At
+             * Format: date
+             */
+            incurred_at: string;
+            /** Source */
+            source: string;
+            /** Status */
+            status: string;
+            /** Vendor */
+            vendor: string | null;
+        };
+        /** CostPatch */
+        CostPatch: {
+            /** Amount Minor */
+            amount_minor?: number | null;
+            /** Category */
+            category?: ("purchase" | "auction_fee" | "transport" | "shipping" | "customs" | "registration" | "inspection" | "repair" | "parts" | "detailing" | "photography" | "storage" | "commission" | "other") | null;
+            /** Currency */
+            currency?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Fx Rate */
+            fx_rate?: string | null;
+            /** Incurred At */
+            incurred_at?: string | null;
+            /** Status */
+            status?: ("estimate" | "actual") | null;
+            /** Vendor */
+            vendor?: string | null;
+        };
         /** CustomerDetail */
         CustomerDetail: {
             /** Band */
@@ -1935,6 +2208,58 @@ export interface components {
             status: string;
             /** Title */
             title: string | null;
+        };
+        /** Economics */
+        Economics: {
+            cost_actual: components["schemas"]["MoneyOut"];
+            cost_estimate: components["schemas"]["MoneyOut"];
+            /** Cost Lines */
+            cost_lines: number;
+            /** Days In Stock */
+            days_in_stock: number;
+            floor: components["schemas"]["MoneyOut"] | null;
+            /** Has Acquisition */
+            has_acquisition: boolean;
+            landed_cost: components["schemas"]["MoneyOut"];
+            margin_at_floor: components["schemas"]["MoneyOut"] | null;
+            margin_at_price: components["schemas"]["MoneyOut"] | null;
+            /** Margin Bps At Price */
+            margin_bps_at_price: number | null;
+            /** Margin Note */
+            margin_note: string | null;
+            price: components["schemas"]["MoneyOut"] | null;
+            /** Status */
+            status: string;
+            /**
+             * Vehicle Id
+             * Format: uuid
+             */
+            vehicle_id: string;
+        };
+        /** ExtractionOut */
+        ExtractionOut: {
+            /** Currency */
+            currency: string;
+            /** Document Path */
+            document_path: string | null;
+            /** Fx Rate */
+            fx_rate: string | null;
+            /** Incurred At */
+            incurred_at: string | null;
+            /** Lines */
+            lines: components["schemas"]["ProposedLineOut"][];
+            /** Needs Fx Rate */
+            needs_fx_rate: boolean;
+            /** Reference */
+            reference: string | null;
+            /** Tenant Currency */
+            tenant_currency: string;
+            /** Total Minor */
+            total_minor: number | null;
+            /** Vendor */
+            vendor: string | null;
+            /** Warnings */
+            warnings: string[];
         };
         /** GenerateAccepted */
         GenerateAccepted: {
@@ -2413,6 +2738,13 @@ export interface components {
             /** Currency */
             currency: string;
         };
+        /** MoneyOut */
+        MoneyOut: {
+            /** Amount Minor */
+            amount_minor: number;
+            /** Currency */
+            currency: string;
+        };
         /** MyDay */
         MyDay: {
             /** Accepting Chats */
@@ -2519,6 +2851,19 @@ export interface components {
             amount_minor: number;
             /** Reason */
             reason: string;
+        };
+        /** ProposedLineOut */
+        ProposedLineOut: {
+            /** Amount Minor */
+            amount_minor: number;
+            /** Category */
+            category: string;
+            /** Currency */
+            currency: string;
+            /** Description */
+            description: string;
+            /** Quote */
+            quote: string;
         };
         /**
          * PushDevice
@@ -6546,6 +6891,37 @@ export interface operations {
             };
         };
     };
+    list_economics_v1_vehicles_economics_get: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Economics"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     run_import_v1_vehicles_import_post: {
         parameters: {
             query?: never;
@@ -6710,6 +7086,286 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["VehicleOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_acquisition_v1_vehicles__vehicle_id__acquisition_get: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                vehicle_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AcquisitionOut"] | null;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_acquisition_v1_vehicles__vehicle_id__acquisition_put: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                vehicle_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Acquisition"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AcquisitionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_costs_v1_vehicles__vehicle_id__costs_get: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                vehicle_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CostOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_costs_v1_vehicles__vehicle_id__costs_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                vehicle_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CostBatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CostOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    extract_costs_v1_vehicles__vehicle_id__costs_extract_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                vehicle_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_extract_costs_v1_vehicles__vehicle_id__costs_extract_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExtractionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_cost_v1_vehicles__vehicle_id__costs__cost_id__delete: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                vehicle_id: string;
+                cost_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_cost_v1_vehicles__vehicle_id__costs__cost_id__patch: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                vehicle_id: string;
+                cost_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CostPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CostOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_economics_v1_vehicles__vehicle_id__economics_get: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                vehicle_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Economics"];
                 };
             };
             /** @description Validation Error */
