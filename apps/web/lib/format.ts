@@ -12,14 +12,46 @@ import type { Locale } from "./i18n";
  */
 export type Money = { amount_minor: number; currency: string };
 
+/**
+ * Minor units per major unit, as the API's core/money.py has them. The Gulf is
+ * not all two-decimal: a dinar has a thousand fils, and dividing a KWD cost by
+ * a hundred shows it ten times larger than what was paid.
+ */
+const EXPONENT: Record<string, number> = { KWD: 3, BHD: 3, OMR: 3, JPY: 0 };
+
+export function exponentOf(currency: string): number {
+  return EXPONENT[currency.toUpperCase()] ?? 2;
+}
+
 export function formatMoney(money: Money): string {
-  const major = money.amount_minor / 100;
-  const digits = Number.isInteger(major) ? 0 : 2;
+  const places = exponentOf(money.currency);
+  const major = money.amount_minor / 10 ** places;
+  const digits = Number.isInteger(major) ? 0 : places;
   const amount = major.toLocaleString("en-US", {
     minimumFractionDigits: digits,
     maximumFractionDigits: digits,
   });
   return `${money.currency} ${amount}`;
+}
+
+/**
+ * What a person typed as an amount, in minor units — or null if it is not one.
+ *
+ * Done on the digits as text, never through a float: 0.1 + 0.2 is not 0.3, and
+ * a cost typed as 1,250.10 must arrive as 125010 and nothing else. Commas are
+ * grouping; a dot is the decimal point; more decimals than the currency has is
+ * refused rather than rounded, because rounding a figure someone typed changes
+ * what they said.
+ */
+export function parseMajor(text: string, currency: string): number | null {
+  const places = exponentOf(currency);
+  const cleaned = text.replace(/[,\s]/g, "").replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x0660));
+  const match = /^(\d+)(?:\.(\d*))?$/.exec(cleaned);
+  if (!match) return null;
+  const [, whole, fraction = ""] = match;
+  if (fraction.length > places) return null;
+  const minor = Number(whole + fraction.padEnd(places, "0"));
+  return Number.isSafeInteger(minor) ? minor : null;
 }
 
 const DATE_LOCALE = { en: "en-GB", ar: "ar-AE-u-nu-latn" } as const;

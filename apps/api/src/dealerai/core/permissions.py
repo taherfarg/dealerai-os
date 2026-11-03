@@ -25,6 +25,10 @@ _ADMIN = frozenset(
         "settings.quick_replies",
         "settings.knowledge",
         "settings.ai",
+        # The buy side — docs/lifecycle/README.md § Decisions. What the dealer
+        # paid is the number a salesperson must never negotiate down to.
+        "costs.view",
+        "costs.edit",
     }
 )
 
@@ -41,6 +45,9 @@ PERMISSIONS: dict[str, frozenset[str]] = {
             "dashboard.manager",
             "settings.routing",
             "settings.quick_replies",
+            # A manager approves deals, and a deal is approved on its margin.
+            # Seeing cost is not editing it: that stays with owner and admin.
+            "costs.view",
         }
     ),
     "sales": frozenset({"inbox.send", "leads.mark_won_lost"}),
