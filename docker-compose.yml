@@ -5,6 +5,9 @@
 # Port 54332, not the Supabase CLI default 54322: a Supabase stack for another
 # project may already hold that port, and two projects fighting over it is a
 # 20-minute debugging session nobody needs.
+# DB_PORT moves it: Windows sometimes reserves the range that holds 54332 after
+# a restart (netsh interface ipv4 show excludedportrange protocol=tcp). Set
+# DB_PORT in .env and use the same port in its two database URLs.
 
 services:
   db:
@@ -13,7 +16,7 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: dealerai
     ports:
-      - "54332:5432"
+      - "${DB_PORT:-54332}:5432"
     volumes:
       - db_data:/var/lib/postgresql/data
     healthcheck:
