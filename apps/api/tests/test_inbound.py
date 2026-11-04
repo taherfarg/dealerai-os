@@ -227,6 +227,17 @@ async def test_a_new_car_arrives_without_a_title(
     ]
 
 
+async def test_a_new_car_from_a_local_trader_has_only_its_bill_of_sale(
+    db: None, seeded: None, su: asyncpg.Connection
+) -> None:
+    """Bought new from a trader in DUCAMZ: nobody has registered it yet."""
+    vehicle_id = await _car(su, vin=None, condition="new")
+    async with session.tenant_session(TENANT_A) as conn:
+        await inbound.start(conn, TENANT_A, vehicle_id, "local")
+    papers = await su.fetch("select code from inbound_documents where vehicle_id = $1", vehicle_id)
+    assert [p["code"] for p in papers] == ["bill_of_sale"]
+
+
 async def test_changing_the_route_keeps_what_both_routes_share(
     db: None, seeded: None, su: asyncpg.Connection
 ) -> None:

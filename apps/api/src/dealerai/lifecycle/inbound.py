@@ -56,8 +56,9 @@ MILESTONES: dict[str, tuple[str, ...]] = {
 ARRIVAL: dict[str, str] = {"import": "delivered", "local": "collected"}
 
 #: The papers a car arrives with: what a UAE import and a local purchase carry.
-#: The title is a used car's (a US auction's, typically); a new car has none —
-#: Pollux sells new cars (docs/lifecycle/pollux.md), so it is left off theirs.
+#: The title and the registration card are a used car's; a new car — imported,
+#: or bought from a trader in DUCAMZ before anybody registered it — has neither
+#: (docs/lifecycle/pollux.md), so both are left off a new car's list.
 DOCUMENTS: dict[str, tuple[str, ...]] = {
     "import": (
         "bill_of_sale",
@@ -68,6 +69,10 @@ DOCUMENTS: dict[str, tuple[str, ...]] = {
     ),
     "local": ("bill_of_sale", "registration_card"),
 }
+
+
+#: Papers only a car that has been owned before can have.
+USED_ONLY = frozenset({"title", "registration_card"})
 
 
 def expected_costs(route: str, source: str | None) -> list[str]:
@@ -123,7 +128,7 @@ async def start(conn: asyncpg.Connection, tenant_id: UUID, vehicle_id: UUID, rou
         "select vehicle_condition from vehicles where id = $1", vehicle_id
     )
     documents = tuple(
-        code for code in DOCUMENTS[route] if not (code == "title" and condition == "new")
+        code for code in DOCUMENTS[route] if not (condition == "new" and code in USED_ONLY)
     )
     await conn.execute(
         "delete from inbound_documents where vehicle_id = $1 and code <> all($2::text[])",

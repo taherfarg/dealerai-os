@@ -98,7 +98,7 @@ Each ends in something a dealer can use. The order is the order every later stag
 | **L3** ✅ | **Reconditioning** | Inspection, work orders, repair estimates from inspection photos, budget alerts, ready-to-sell date | A repair over budget raises an approval before the money is spent |
 | **L4** ✅ | **Inbound** | Shipments, customs, transport, registration milestones; document checklist; fees flow into the ledger | A US-auction car shows where it is and what is missing, and its landed cost is complete the day it arrives |
 | **L5** | Appraisal and sourcing | Valuation from own history, trade-in appraisal with damage read from photos, maximum bid, a buying list from unmet demand | The buying list names cars customers asked for this month that the dealer does not have |
-| **L6** | Deal desk | Offers inside the floor, reservations by deposit, payment in stages (deposit, balance on inspection and documents, logistics as it ships), an invoice that separates price, fees, freight and duties; trade-ins and finance packets for local buyers | An offer below the floor cannot be sent; a deposit reserves the car and stops its marketing |
+| **L6** | Deal desk | Offers inside the floor, reservations by deposit, payment in stages (deposit, balance on inspection and documents, logistics as it ships), an invoice that separates price, fees, freight and duties, transfer receipts read into payments; no bank finance (Q3) | An offer below the floor cannot be sent; a deposit reserves the car and stops its marketing |
 | **L7** | Handover and export | The export file per destination — Pollux's own procedures for Algeria, Tunisia and everywhere else ([pollux.md](pollux.md)): RTA export inspection and certificate, export plates, customs card, bill of lading draft then original, Dubai Chamber certificate, commercial invoice — as an outbound journey on L4's machinery; RTA transfer and delivery checklist for a local sale | Every document for one sale is drafted from the record and a person signs it, and an export car shows which step of its destination's procedure it is on |
 | **L8** | After the sale, and the numbers | After-sale programme, service reminders, trade-back signals; per-car P&L, gross per unit, turn, holding cost in the dashboard and the morning brief | The owner's morning brief says what the month made and which cars are costing money to keep |
 
@@ -333,7 +333,7 @@ another car cannot be applied. A sailing date in the future is a schedule, not a
 
 | # | Question | Changes |
 |---|---|---|
-| Q1 | ~~Which sources do you buy from most?~~ New cars, Chinese-spec and GCC-spec ([pollux.md](pollux.md)). Still open: are the Chinese-spec cars imported by Pollux itself, or bought from traders in DUCAMZ? | L4's route for them |
-| Q2 | Should a manager see cost, or only the owner? | `costs.view` for the manager role |
-| Q3 | ~~Do you finance through partner banks?~~ Export buyers pay in stages, with no bank ([pollux.md](pollux.md)). Still open: finance for buyers in the UAE. | L6's finance packet |
+| Q1 | ~~Which sources do you buy from most?~~ **Answered (2026-11-04):** new cars, Chinese-spec and GCC-spec ([pollux.md](pollux.md)); Pollux both imports from China itself and buys from traders in DUCAMZ — L4's two routes, import and local. | L4's routes |
+| Q2 | ~~Should a manager see cost, or only the owner?~~ **Answered (2026-11-04):** both — `costs.view` stays with the manager. | `costs.view` for the manager role |
+| Q3 | ~~Do you finance through partner banks?~~ **Answered (2026-11-04):** no bank finance, for export or local buyers; export buyers pay in stages ([pollux.md](pollux.md)). L6 has no finance packet. | L6's finance packet |
 | Q4 | ~~For export, which documents does each destination need?~~ Answered by Pollux's own procedures for Algeria, Tunisia and other countries ([pollux.md](pollux.md)). | L7's document set |

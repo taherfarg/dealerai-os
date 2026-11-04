@@ -64,8 +64,8 @@ charging standard for the destination and software version.
 
 | Before | Now |
 |---|---|
-| Q1 — where Pollux buys: unknown, assumed US auctions | New cars, Chinese-spec and GCC-spec. **Still unknown:** whether the Chinese-spec cars are imported by Pollux itself or bought from traders in DUCAMZ. |
-| Q3 — bank finance | Export buyers pay in three stages; no bank. **Still unknown:** finance for buyers in the UAE. |
+| Q1 — where Pollux buys: unknown, assumed US auctions | New cars, Chinese-spec and GCC-spec — imported from China by Pollux itself **and** bought from traders in DUCAMZ (Pollux, 2026-11-04). |
+| Q3 — bank finance | Export buyers pay in three stages; **no bank finance for anybody**, in the UAE either (Pollux, 2026-11-04). |
 | Q4 — export documents per destination | Answered above, for Algeria, Tunisia and everywhere else. |
 | L3 — reconditioning a used car | For a new car the same machinery is the **pre-shipment inspection**: photos read into findings, accessories checked, a budget only for transport damage. Nothing to rebuild. |
 | L4 — a US-auction car's papers | A new car has no title: its import checklist leaves the title out (done). |
