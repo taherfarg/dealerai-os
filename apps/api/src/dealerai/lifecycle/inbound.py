@@ -55,8 +55,9 @@ MILESTONES: dict[str, tuple[str, ...]] = {
 #: The milestone that means "it is on our lot".
 ARRIVAL: dict[str, str] = {"import": "delivered", "local": "collected"}
 
-#: The papers. docs/lifecycle/README.md Q4 asks Pollux which each destination
-#: needs; until then, what a UAE import and a local purchase always carry.
+#: The papers a car arrives with: what a UAE import and a local purchase carry.
+#: The title is a used car's (a US auction's, typically); a new car has none —
+#: Pollux sells new cars (docs/lifecycle/pollux.md), so it is left off theirs.
 DOCUMENTS: dict[str, tuple[str, ...]] = {
     "import": (
         "bill_of_sale",
@@ -118,7 +119,12 @@ async def start(conn: asyncpg.Connection, tenant_id: UUID, vehicle_id: UUID, rou
             "done" if done else "pending",
             purchased_on if done else None,
         )
-    documents = DOCUMENTS[route]
+    condition = await conn.fetchval(
+        "select vehicle_condition from vehicles where id = $1", vehicle_id
+    )
+    documents = tuple(
+        code for code in DOCUMENTS[route] if not (code == "title" and condition == "new")
+    )
     await conn.execute(
         "delete from inbound_documents where vehicle_id = $1 and code <> all($2::text[])",
         vehicle_id,

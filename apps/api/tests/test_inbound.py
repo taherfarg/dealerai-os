@@ -146,14 +146,18 @@ def test_a_customs_declaration_proves_clearance() -> None:
 # --------------------------------------------------------------------------
 
 
-async def _car(su: asyncpg.Connection, *, vin: str | None = VIN) -> uuid.UUID:
+async def _car(
+    su: asyncpg.Connection, *, vin: str | None = VIN, condition: str = "used"
+) -> uuid.UUID:
     vehicle_id = uuid.uuid4()
     await su.execute(
-        """insert into vehicles (id, tenant_id, make, model, model_year, vin, price_minor, status)
-           values ($1, $2, 'Jeep', 'Grand Cherokee', 2021, $3, 14500000, 'draft')""",
+        """insert into vehicles (id, tenant_id, make, model, model_year, vin, price_minor, status,
+                                 vehicle_condition)
+           values ($1, $2, 'Jeep', 'Grand Cherokee', 2021, $3, 14500000, 'draft', $4)""",
         vehicle_id,
         TENANT_A,
         vin,
+        condition,
     )
     await su.execute(
         """insert into vehicle_acquisitions (vehicle_id, tenant_id, source, purchased_at)
@@ -203,6 +207,24 @@ async def test_starting_a_journey_knows_the_car_was_bought(
         vehicle_id,
     )
     assert (row["status"], row["done_on"]) == ("done", date(2026, 10, 1))
+
+
+async def test_a_new_car_arrives_without_a_title(
+    db: None, seeded: None, su: asyncpg.Connection
+) -> None:
+    """A title is a used car's paper. A new Chinese-spec BYD has none to wait for."""
+    vehicle_id = await _car(su, vin=None, condition="new")
+    async with session.tenant_session(TENANT_A) as conn:
+        await inbound.start(conn, TENANT_A, vehicle_id, "import")
+    papers = await su.fetch(
+        "select code from inbound_documents where vehicle_id = $1 order by position", vehicle_id
+    )
+    assert [p["code"] for p in papers] == [
+        "bill_of_sale",
+        "bill_of_lading",
+        "customs_declaration",
+        "customs_certificate",
+    ]
 
 
 async def test_changing_the_route_keeps_what_both_routes_share(
