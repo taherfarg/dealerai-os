@@ -33,6 +33,10 @@ _ADMIN = frozenset(
         "recon.edit",
         "settings.recon",
         "inbound.edit",
+        # The deal desk — docs/lifecycle/README.md § L6. Money received is what
+        # reserves and sells a car, so recording it is not every seller's.
+        "orders.edit",
+        "payments.record",
     }
 )
 
@@ -57,9 +61,11 @@ PERMISSIONS: dict[str, frozenset[str]] = {
             "recon.edit",
             # And the yard: where a bought car is, and the papers it arrives with.
             "inbound.edit",
+            "orders.edit",
+            "payments.record",
         }
     ),
-    "sales": frozenset({"inbox.send", "leads.mark_won_lost"}),
+    "sales": frozenset({"inbox.send", "leads.mark_won_lost", "orders.edit"}),
     "marketer": frozenset(),
     #: Read-only everything, and the numbers are part of everything
     #: (docs/sales/06-api-contract.md § 12). Every write on the dashboard needs
