@@ -1608,3 +1608,124 @@ export function useSaveReconSettings() {
     },
   });
 }
+
+// --------------------------------------------------------------------------
+// Inbound — docs/lifecycle/README.md § L4
+// --------------------------------------------------------------------------
+
+export type Inbound = components["schemas"]["InboundOut"];
+export type Journey = components["schemas"]["Journey"];
+export type MilestoneIn = components["schemas"]["MilestoneIn"];
+export type ShippingReading = components["schemas"]["ShippingOut"];
+export type ShippingConfirmation = components["schemas"]["Confirmation"];
+type MilestoneCode = components["schemas"]["Step"]["code"];
+type PaperCode = components["schemas"]["Paper"]["code"];
+
+/** Where the car is — for everybody; its papers and missing fees only for the buy side. */
+export function useInbound(vehicleId: string) {
+  const { api, tenantId, header } = useTenantApi();
+  return useQuery({
+    queryKey: keys.inbound(tenantId, vehicleId),
+    queryFn: async () =>
+      unwrap(
+        await api.GET("/v1/vehicles/{vehicle_id}/inbound", {
+          params: { header, path: { vehicle_id: vehicleId } },
+        }),
+      ),
+  });
+}
+
+/** Every inbound write answers with the whole journey: it goes straight on screen. */
+function useJourneyWrite<In>(vehicleId: string, run: (input: In) => Promise<Inbound>) {
+  const { tenantId } = useTenantApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: run,
+    onSuccess: (journey) => queryClient.setQueryData(keys.inbound(tenantId, vehicleId), journey),
+  });
+}
+
+export function useSaveJourney(vehicleId: string) {
+  const { api, header } = useTenantApi();
+  return useJourneyWrite(vehicleId, async (body: Journey) =>
+    unwrap(
+      await api.PATCH("/v1/vehicles/{vehicle_id}/inbound", {
+        params: { header, path: { vehicle_id: vehicleId } },
+        body,
+      }),
+    ),
+  );
+}
+
+export function useMoveMilestone(vehicleId: string) {
+  const { api, header } = useTenantApi();
+  return useJourneyWrite(vehicleId, async ({ code, ...body }: MilestoneIn & { code: MilestoneCode }) =>
+    unwrap(
+      await api.POST("/v1/vehicles/{vehicle_id}/inbound/milestones/{code}", {
+        params: { header, path: { vehicle_id: vehicleId, code } },
+        body,
+      }),
+    ),
+  );
+}
+
+export function useSetPaper(vehicleId: string) {
+  const { api, header } = useTenantApi();
+  return useJourneyWrite(
+    vehicleId,
+    async ({ code, status }: { code: PaperCode; status: "missing" | "received" | "not_needed" }) =>
+      unwrap(
+        await api.PATCH("/v1/vehicles/{vehicle_id}/inbound/documents/{code}", {
+          params: { header, path: { vehicle_id: vehicleId, code } },
+          body: { status },
+        }),
+      ),
+  );
+}
+
+export function useUploadPaper(vehicleId: string) {
+  const { api, header } = useTenantApi();
+  return useJourneyWrite(vehicleId, async ({ code, file }: { code: PaperCode; file: File }) => {
+    const form = new FormData();
+    form.append("file", file);
+    return unwrap(
+      await api.POST("/v1/vehicles/{vehicle_id}/inbound/documents/{code}/file", {
+        params: { header, path: { vehicle_id: vehicleId, code } },
+        // The typed body describes the fields; the serializer sends the form.
+        body: { file: "" },
+        bodySerializer: () => form,
+      }),
+    );
+  });
+}
+
+/** Reads a shipping document. Applies nothing — confirming is useConfirmShipping. */
+export function useReadShipping(vehicleId: string) {
+  const { api, header } = useTenantApi();
+  return useMutation({
+    mutationFn: async (file: File) => {
+      const form = new FormData();
+      form.append("file", file);
+      return unwrap(
+        await api.POST("/v1/vehicles/{vehicle_id}/inbound/read", {
+          params: { header, path: { vehicle_id: vehicleId } },
+          body: { file: "" },
+          bodySerializer: () => form,
+        }),
+      );
+    },
+  });
+}
+
+export function useConfirmShipping(vehicleId: string) {
+  const { api, header } = useTenantApi();
+  return useJourneyWrite(vehicleId, async (body: ShippingConfirmation) =>
+    unwrap(
+      await api.POST("/v1/vehicles/{vehicle_id}/inbound/confirm", {
+        params: { header, path: { vehicle_id: vehicleId } },
+        body,
+      }),
+    ),
+  );
+}
+

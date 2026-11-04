@@ -79,6 +79,9 @@ see it negotiates down to it; a customer who learns it never pays the asking pri
   "sees what we paid".
 - `recon.edit`: owner, admin, manager — a manager runs the workshop. The **budget** a repair is
   measured against is `costs.edit`: whoever commits the work cannot be whoever moves the line.
+- **Where a car is, is not the buy side.** Its journey and ETA are readable by every member — a
+  salesperson promising a customer a date needs them. Its papers (a bill of sale is the price,
+  printed) and what its landed cost is missing are. `inbound.edit`: owner, admin, manager.
 - **No customer-facing agent may read the buy side.** A test fails the build if a tool queries
   it, and the price guard would block a cost figure in a reply anyway — two locks, not one.
 
@@ -93,15 +96,19 @@ Each ends in something a dealer can use. The order is the order every later stag
 | **L1** ✅ | **Purchase and unit economics** | Acquisition record, cost ledger in any currency, landed cost, margin at list and at floor, the buy side in Postgres, an AI that reads a purchase invoice into cost lines for a person to confirm, the inventory screens | A car bought at auction, with five cost lines entered **from a photograph of the invoice in one confirmation**, shows its landed cost and its margin at list and at floor — and a salesperson's session cannot read any of it, even with SQL |
 | **L2** ✅ | **Pricing intelligence** | Recommended list price and floor; aging re-price proposals through approvals; the floor written from cost and target margin | A car 60 days in stock gets a re-price proposal an owner or admin approves in one click, and the published content that quoted the old price is flagged |
 | **L3** ✅ | **Reconditioning** | Inspection, work orders, repair estimates from inspection photos, budget alerts, ready-to-sell date | A repair over budget raises an approval before the money is spent |
-| **L4** | Inbound | Shipments, customs, transport, registration milestones; document checklist; fees flow into the ledger | A US-auction car shows where it is and what is missing, and its landed cost is complete the day it arrives |
+| **L4** ✅ | **Inbound** | Shipments, customs, transport, registration milestones; document checklist; fees flow into the ledger | A US-auction car shows where it is and what is missing, and its landed cost is complete the day it arrives |
 | **L5** | Appraisal and sourcing | Valuation from own history, trade-in appraisal with damage read from photos, maximum bid, a buying list from unmet demand | The buying list names cars customers asked for this month that the dealer does not have |
-| **L6** | Deal desk | Offers inside the floor, trade-in on the sale, reservations and deposits recorded, finance and insurance packets | An offer below the floor cannot be sent; a deposit reserves the car and stops its marketing |
-| **L7** | Handover | Invoice, sale agreement, RTA transfer or export papers, delivery checklist — drafted and checked against the record | Every document for one sale is drafted from the record and a person signs it |
+| **L6** | Deal desk | Offers inside the floor, reservations by deposit, payment in stages (deposit, balance on inspection and documents, logistics as it ships), an invoice that separates price, fees, freight and duties, transfer receipts read into payments; no bank finance (Q3) | An offer below the floor cannot be sent; a deposit reserves the car and stops its marketing |
+| **L7** | Handover and export | The export file per destination — Pollux's own procedures for Algeria, Tunisia and everywhere else ([pollux.md](pollux.md)): RTA export inspection and certificate, export plates, customs card, bill of lading draft then original, Dubai Chamber certificate, commercial invoice — as an outbound journey on L4's machinery; RTA transfer and delivery checklist for a local sale | Every document for one sale is drafted from the record and a person signs it, and an export car shows which step of its destination's procedure it is on |
 | **L8** | After the sale, and the numbers | After-sale programme, service reminders, trade-back signals; per-car P&L, gross per unit, turn, holding cost in the dashboard and the morning brief | The owner's morning brief says what the month made and which cars are costing money to keep |
 
 **L1 first** because every later slice reads cost: pricing needs a floor that comes from it, the
 deal desk needs a margin, the numbers need both. **L2 next** because it is the fastest way to sell
 a car sooner, and the AI pipeline it needs already exists.
+
+**After L4: L6 and L7 before L5.** Pollux sells new cars and exports most of them
+([pollux.md](pollux.md)): a deposit, staged payments and a ten-step export file are every sale,
+while a trade-in appraisal is the occasional one. L5 keeps its place in the plan, after them.
 
 ---
 
@@ -258,6 +265,60 @@ is listed once. What it cannot — whether the damage is there — a person conf
 
 ---
 
+## L4 — Inbound
+
+### Data
+
+`supabase/migrations/0019_lifecycle_inbound.sql`.
+
+- **`vehicle_inbound`** — one per car: `route` (import or local), carrier, B/L or booking number,
+  vessel, container, ports, `eta`, `arrived_at`. Tenant-wide.
+- **`inbound_milestones`** — the journey, in order, each pending, done (with the date) or skipped.
+  An import: bought, paid, picked up, at the port of loading, shipped, at the port of discharge,
+  cleared customs, delivered to the lot, registered. A local car: bought, paid, collected,
+  registered. Tenant-wide.
+- **`inbound_documents`** — the papers: an import needs the bill of sale, title, bill of lading,
+  customs declaration and customs certificate; a local car the bill of sale and registration card.
+  Missing, received (with the file) or not needed. **Buy side.**
+
+The templates live in `lifecycle/inbound.py` and are a guess until Pollux answers Q1 and Q4.
+Changing a car's route keeps what the two routes share.
+
+### Where it is, what is missing
+
+- **Where it is** — the step after the furthest one reached: a car marked shipped is at sea
+  whether or not anybody ticked "paid". **Late** — past its ETA and not on the lot.
+- **What is missing** — papers not received, and the landed cost checked against the fees the
+  route always has: the purchase, the auction's fees for an auction car, and for every import
+  transport, shipping and customs. A fee recorded only as an estimate is listed as an estimate:
+  it is not what the car cost.
+- **The day it arrives** — reaching the lot records `arrived_at` and emits `inbound.arrived`, once.
+  Owners, admins and managers are told what is still missing — or that nothing is. Every morning
+  at 07:00 tenant time, the cars past their ETA are named in one notice (`inbound.sweep_due`).
+- **Fees flow into the ledger** through the invoice reader from L1: a shipping invoice or a
+  customs receipt is read on the cost tab, and the landed-cost check sees it at once.
+
+### The AI: reading a shipping document
+
+`POST /v1/vehicles/{id}/inbound/read` takes a bill of lading, booking confirmation, arrival notice
+or customs declaration and returns what it says: carrier, reference, vessel, container, ports, the
+sailing date, the ETA, the step it proves and the paper it is. It writes nothing but the file;
+`/inbound/confirm` applies what a person accepted, in one transaction.
+
+What the model is not trusted with is **which car the paper is for**. It is not told the VIN. It
+lists every VIN it reads, each with the line it read it from, and code keeps a VIN only when it is
+17 characters with no I, O or Q and appears in that line — then the paper is this car's only if
+this car's VIN is among them. A container of six cars matches the one on it; a bill of lading for
+another car cannot be applied. A sailing date in the future is a schedule, not a departure.
+
+### Screens
+
+- **Vehicle → Arrival** — where the car is and its ETA (everybody); details, the journey with a
+  date per step, the papers, the landed-cost check and *Read a shipping document* (for those who
+  may see and move them).
+
+---
+
 ## Status
 
 | Slice | State |
@@ -265,13 +326,14 @@ is listed once. What it cannot — whether the damage is there — a person conf
 | **L1** | **Done.** Migration `0016`, `routes/acquisition.py`, `lifecycle/invoices.py`, the inventory and vehicle screens. The buy-side wall is tested as the application role; the invoice reader is tested live (`npm run eval:invoice`) — every line of an auction invoice read exactly, no exchange rate invented, and a line removed from the printout caught by the total. |
 | **L2** | **Done.** Migration `0017`, `lifecycle/pricing.py`, `events/handlers/lifecycle.py`, the pricing card and settings screen. Tested end to end in the browser: a 60-day car proposed, approved by the owner, applied by the worker. In the suite: a manager may propose but not approve, a price that moved before the decision is never overwritten, stale drafts are rejected. |
 | **L3** | **Done.** Migration `0018`, `lifecycle/recon.py`, `routes/recon.py`, the reconditioning tab and settings screen. Tested end to end in the browser: AED 1,500 of paint approved inside a AED 2,000 budget, AED 900 of tyres sent for approval, approved by the owner and applied by the worker, the tyres finished at AED 1,100 and the owner told of the overrun, the car marked ready and put on sale; a photo read by the live model and priced from the rate card. The reader is tested live (`npm run eval:inspection`): nothing invented on a photo with no car, the damage found on the photo that shows it. |
-| L4–L8 | Not started. L4 (inbound: shipping, customs, registration) is next. |
+| **L4** | **Done.** Migration `0019`, `lifecycle/inbound.py`, `routes/inbound.py`, the arrival tab. Tested end to end in the browser as a manager: an auction car's journey started from its purchase, a bill of lading read by the live model and applied in one confirmation (shipped on its date, ETA and carrier filled, the paper received), the car delivered, and the owner and manager told it arrived with customs still unrecorded and four papers missing. The reader is tested live (`npm run eval:shipping`): both VINs on a two-car bill of lading read as printed, the right car matched, another car refused. |
+| L5–L8 | Not started. L6 (deal desk) is next, then L7 (handover and export) — see the note under Slices. |
 
 ## Open questions for Pollux
 
 | # | Question | Changes |
 |---|---|---|
-| Q1 | Which sources do you buy from most — US auctions (Copart, IAA), Emirates Auction, trade-ins, Korean or Japanese exporters? | L4's milestones and L5's sources |
-| Q2 | Should a manager see cost, or only the owner? | `costs.view` for the manager role |
-| Q3 | Do you finance through partner banks, and which? | L6's finance packet |
-| Q4 | For export, which documents does each destination need (export certificate, certificate of origin, bill of lading)? | L7's document set |
+| Q1 | ~~Which sources do you buy from most?~~ **Answered (2026-11-04):** new cars, Chinese-spec and GCC-spec ([pollux.md](pollux.md)); Pollux both imports from China itself and buys from traders in DUCAMZ — L4's two routes, import and local. | L4's routes |
+| Q2 | ~~Should a manager see cost, or only the owner?~~ **Answered (2026-11-04):** both — `costs.view` stays with the manager. | `costs.view` for the manager role |
+| Q3 | ~~Do you finance through partner banks?~~ **Answered (2026-11-04):** no bank finance, for export or local buyers; export buyers pay in stages ([pollux.md](pollux.md)). L6 has no finance packet. | L6's finance packet |
+| Q4 | ~~For export, which documents does each destination need?~~ Answered by Pollux's own procedures for Algeria, Tunisia and other countries ([pollux.md](pollux.md)). | L7's document set |

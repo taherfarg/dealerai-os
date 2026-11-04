@@ -56,4 +56,7 @@ export const keys = {
   pricingSettings: (tenantId: string) => ["pricing-settings", tenantId] as const,
   recon: (tenantId: string, id: string) => ["buy-side", tenantId, "recon", id] as const,
   reconSettings: (tenantId: string) => ["recon-settings", tenantId] as const,
+  /** Under the buy side's prefix although a salesperson reads it too: a cost
+   *  recorded anywhere changes what this car's landed cost is still missing. */
+  inbound: (tenantId: string, id: string) => ["buy-side", tenantId, "inbound", id] as const,
 };

@@ -285,6 +285,7 @@ def test_no_customer_facing_code_reads_the_buy_side() -> None:
         "v_vehicle_economics",
         "vehicle_recon",
         "recon_items",
+        "inbound_documents",
     )
     offenders = [
         f"{path.relative_to(src)} reads {name}"
