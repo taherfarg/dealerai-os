@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+from contextlib import AbstractAsyncContextManager
 from datetime import UTC, datetime
 from typing import Any, Literal
 from uuid import UUID
 
+import asyncpg
 from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
 
@@ -57,6 +59,12 @@ _COLUMNS = """
 """
 
 
+def _session(ctx: Ctx) -> AbstractAsyncContextManager[asyncpg.Connection]:
+    """As the person, so an approval that names what a repair costs is behind
+    the buy-side wall for whoever is not cleared (0018_lifecycle_recon.sql)."""
+    return tenant_session(ctx.tenant_id, user_id=ctx.user.id, buy_side=ctx.may("costs.view"))
+
+
 def _present(row: Any) -> dict[str, Any]:
     """Expiry is computed on read rather than swept by a job.
 
@@ -80,7 +88,7 @@ async def list_approvals(
     status: Status = "pending",
     limit: int = Query(default=50, le=200),
 ) -> list[dict[str, Any]]:
-    async with tenant_session(ctx.tenant_id) as conn:
+    async with _session(ctx) as conn:
         rows = await conn.fetch(
             f"""select {_COLUMNS} from approvals
                 where tenant_id = $1
@@ -94,7 +102,7 @@ async def list_approvals(
 
 @router.get("/{approval_id}", response_model=ApprovalOut)
 async def get_approval(approval_id: UUID, ctx: Ctx) -> dict[str, Any]:
-    async with tenant_session(ctx.tenant_id) as conn:
+    async with _session(ctx) as conn:
         row = await conn.fetchrow(
             f"select {_COLUMNS} from approvals where id = $1",  # noqa: S608
             approval_id,
@@ -110,7 +118,7 @@ async def _decide(
     outcome: Literal["approved", "rejected"],
     note: str | None,
 ) -> dict[str, Any]:
-    async with tenant_session(ctx.tenant_id) as conn, conn.transaction():
+    async with _session(ctx) as conn, conn.transaction():
         # FOR UPDATE so two people clicking Approve at once cannot both win and
         # publish the same content twice.
         row = await conn.fetchrow(

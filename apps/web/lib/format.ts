@@ -54,6 +54,12 @@ export function parseMajor(text: string, currency: string): number | null {
   return Number.isSafeInteger(minor) ? minor : null;
 }
 
+/** Minor units back to the text a person would type, for an editable field:
+ *  parseMajor's inverse. */
+export function asTyped(minor: number, currency: string): string {
+  return formatMoney({ amount_minor: minor, currency }).replace(`${currency} `, "");
+}
+
 const DATE_LOCALE = { en: "en-GB", ar: "ar-AE-u-nu-latn" } as const;
 
 // Arabic abbreviates a unit to its first letter, as WhatsApp does: ثانية، دقيقة، ساعة، يوم.

@@ -30,6 +30,8 @@ _ADMIN = frozenset(
         "costs.view",
         "costs.edit",
         "settings.pricing",
+        "recon.edit",
+        "settings.recon",
     }
 )
 
@@ -49,6 +51,9 @@ PERMISSIONS: dict[str, frozenset[str]] = {
             # A manager approves deals, and a deal is approved on its margin.
             # Seeing cost is not editing it: that stays with owner and admin.
             "costs.view",
+            # A manager runs the workshop: inspects, commits work inside the
+            # budget, records what it cost. The budget itself is costs.edit.
+            "recon.edit",
         }
     ),
     "sales": frozenset({"inbox.send", "leads.mark_won_lost"}),

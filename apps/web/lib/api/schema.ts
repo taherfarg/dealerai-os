@@ -1078,6 +1078,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/settings/recon": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Recon Settings */
+        get: operations["get_recon_settings_v1_settings_recon_get"];
+        /**
+         * Put Recon Settings
+         * @description Changing these changes the budget new records start with and tomorrow's
+         *     estimates. A car's own budget stays what it was set to.
+         */
+        put: operations["put_recon_settings_v1_settings_recon_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/settings/sales": {
         parameters: {
             query?: never;
@@ -1689,6 +1711,164 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/vehicles/{vehicle_id}/recon": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Recon */
+        get: operations["get_recon_v1_vehicles__vehicle_id__recon_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Patch Recon */
+        patch: operations["patch_recon_v1_vehicles__vehicle_id__recon_patch"];
+        trace?: never;
+    };
+    "/v1/vehicles/{vehicle_id}/recon/inspect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Inspect
+         * @description Read inspection photos into proposed work, priced from the dealer's own
+         *     rates or history. Writes no item.
+         */
+        post: operations["inspect_v1_vehicles__vehicle_id__recon_inspect_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/vehicles/{vehicle_id}/recon/items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add Items
+         * @description Record proposed work — typed, or confirmed from an inspection. Proposed
+         *     commits no money; all or nothing, like a batch of costs.
+         */
+        post: operations["add_items_v1_vehicles__vehicle_id__recon_items_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/vehicles/{vehicle_id}/recon/items/{item_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Item
+         * @description Correct proposed work. Once committed, an estimate is what was agreed:
+         *     changing it is declining the item and proposing it again.
+         */
+        patch: operations["update_item_v1_vehicles__vehicle_id__recon_items__item_id__patch"];
+        trace?: never;
+    };
+    "/v1/vehicles/{vehicle_id}/recon/items/{item_id}/commit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Commit Item
+         * @description Promise the money: approved inside the budget, sent for approval over it.
+         */
+        post: operations["commit_item_v1_vehicles__vehicle_id__recon_items__item_id__commit_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/vehicles/{vehicle_id}/recon/items/{item_id}/decline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Decline Item */
+        post: operations["decline_item_v1_vehicles__vehicle_id__recon_items__item_id__decline_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/vehicles/{vehicle_id}/recon/items/{item_id}/done": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Complete Item
+         * @description The work is done; this is what it cost. The ledger's estimate becomes it.
+         */
+        post: operations["complete_item_v1_vehicles__vehicle_id__recon_items__item_id__done_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/vehicles/{vehicle_id}/recon/ready": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mark Ready
+         * @description The work is finished. A car still in draft goes on sale.
+         */
+        post: operations["mark_ready_v1_vehicles__vehicle_id__recon_ready_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/vehicles/{vehicle_id}/status": {
         parameters: {
             query?: never;
@@ -1882,6 +2062,13 @@ export interface components {
             /** Note */
             note?: string | null;
         };
+        /** Body_inspect_v1_vehicles__vehicle_id__recon_inspect_post */
+        Body_inspect_v1_vehicles__vehicle_id__recon_inspect_post: {
+            /** Files */
+            files: string[];
+            /** Note */
+            note?: string | null;
+        };
         /** Body_preview_v1_vehicles_import_preview_post */
         Body_preview_v1_vehicles_import_preview_post: {
             /** File */
@@ -1976,6 +2163,13 @@ export interface components {
             name: string | null;
             /** Platform */
             platform: string;
+        };
+        /** CommitOut */
+        CommitOut: {
+            /** Approval Id */
+            approval_id: string | null;
+            item: components["schemas"]["ItemOut"];
+            over: components["schemas"]["MoneyOut"] | null;
         };
         /** ContactSummary */
         ContactSummary: {
@@ -2278,6 +2472,13 @@ export interface components {
             /** Title */
             title: string | null;
         };
+        /** DoneIn */
+        DoneIn: {
+            /** Actual Minor */
+            actual_minor: number;
+            /** Vendor */
+            vendor?: string | null;
+        };
         /** Economics */
         Economics: {
             cost_actual: components["schemas"]["MoneyOut"];
@@ -2329,6 +2530,28 @@ export interface components {
             vendor: string | null;
             /** Warnings */
             warnings: string[];
+        };
+        /** FindingOut */
+        FindingOut: {
+            /** Area */
+            area: string;
+            /** Description */
+            description: string;
+            estimate: components["schemas"]["MoneyOut"] | null;
+            /** Estimate Source */
+            estimate_source: string | null;
+            /** Operation */
+            operation: string;
+            /** Photo */
+            photo: number;
+            /** Photo Path */
+            photo_path: string | null;
+            /** Quantity */
+            quantity: number;
+            /** Seen */
+            seen: string;
+            /** Severity */
+            severity: string;
         };
         /** GenerateAccepted */
         GenerateAccepted: {
@@ -2394,6 +2617,13 @@ export interface components {
             /** Errors */
             errors: components["schemas"]["RowError"][];
         };
+        /** InspectionOut */
+        InspectionOut: {
+            /** Findings */
+            findings: components["schemas"]["FindingOut"][];
+            /** Warnings */
+            warnings: string[];
+        };
         /** IntentAcceptance */
         IntentAcceptance: {
             /** Decided */
@@ -2443,6 +2673,102 @@ export interface components {
             role: "viewer" | "sales" | "marketer" | "manager" | "admin" | "owner";
             /** Token */
             token: string;
+        };
+        /** ItemBatch */
+        ItemBatch: {
+            /** Items */
+            items: components["schemas"]["ItemIn"][];
+        };
+        /** ItemIn */
+        ItemIn: {
+            /**
+             * Area
+             * @enum {string}
+             */
+            area: "exterior" | "interior" | "mechanical" | "tyres_wheels" | "glass" | "electrical" | "other";
+            /** Description */
+            description: string;
+            /** Estimate Minor */
+            estimate_minor?: number | null;
+            /**
+             * Operation
+             * @enum {string}
+             */
+            operation: "paint_panel" | "dent_repair" | "scratch_polish" | "replace_part" | "tyre" | "windscreen" | "wheel_refurb" | "interior_clean" | "upholstery" | "mechanical" | "service" | "detailing" | "other";
+            /** Photo Path */
+            photo_path?: string | null;
+            /**
+             * Quantity
+             * @default 1
+             */
+            quantity: number;
+            /** Severity */
+            severity?: ("minor" | "moderate" | "major") | null;
+            /**
+             * Source
+             * @default manual
+             * @enum {string}
+             */
+            source: "manual" | "photo";
+            /** Vendor */
+            vendor?: string | null;
+        };
+        /** ItemOut */
+        ItemOut: {
+            actual: components["schemas"]["MoneyOut"] | null;
+            /** Approval Id */
+            approval_id: string | null;
+            /** Area */
+            area: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Description */
+            description: string;
+            /** Done At */
+            done_at: string | null;
+            estimate: components["schemas"]["MoneyOut"] | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Operation */
+            operation: string;
+            /** Photo Path */
+            photo_path: string | null;
+            /** Quantity */
+            quantity: number;
+            /** Severity */
+            severity: string | null;
+            /** Source */
+            source: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "proposed" | "awaiting_approval" | "approved" | "done" | "declined";
+            /** Vendor */
+            vendor: string | null;
+        };
+        /** ItemPatch */
+        ItemPatch: {
+            /** Area */
+            area?: ("exterior" | "interior" | "mechanical" | "tyres_wheels" | "glass" | "electrical" | "other") | null;
+            /** Description */
+            description?: string | null;
+            /** Estimate Minor */
+            estimate_minor?: number | null;
+            /** Operation */
+            operation?: ("paint_panel" | "dent_repair" | "scratch_polish" | "replace_part" | "tyre" | "windscreen" | "wheel_refurb" | "interior_clean" | "upholstery" | "mechanical" | "service" | "detailing" | "other") | null;
+            /** Quantity */
+            quantity?: number | null;
+            /** Severity */
+            severity?: ("minor" | "moderate" | "major") | null;
+            /** Vendor */
+            vendor?: string | null;
         };
         /** JoinedOut */
         JoinedOut: {
@@ -3137,6 +3463,55 @@ export interface components {
             /** Reasons */
             reasons: string[];
             target: components["schemas"]["MoneyOut"] | null;
+        };
+        /** ReconOut */
+        ReconOut: {
+            budget: components["schemas"]["MoneyOut"] | null;
+            committed: components["schemas"]["MoneyOut"];
+            /** Currency */
+            currency: string;
+            /** Days */
+            days: number | null;
+            /** Items */
+            items: components["schemas"]["ItemOut"][];
+            /** Notes */
+            notes: string | null;
+            /** Over Budget */
+            over_budget: boolean;
+            /** Overdue */
+            overdue: boolean;
+            /** Ready At */
+            ready_at: string | null;
+            /** Ready By */
+            ready_by: string | null;
+            remaining: components["schemas"]["MoneyOut"] | null;
+            spent: components["schemas"]["MoneyOut"];
+            /**
+             * Vehicle Id
+             * Format: uuid
+             */
+            vehicle_id: string;
+        };
+        /** ReconPatch */
+        ReconPatch: {
+            /** Budget Minor */
+            budget_minor?: number | null;
+            /** Notes */
+            notes?: string | null;
+            /** Ready By */
+            ready_by?: string | null;
+        };
+        /**
+         * ReconSettings
+         * @description A dealership's reconditioning rules, in its own currency's minor units.
+         */
+        ReconSettings: {
+            /** Default Budget Minor */
+            default_budget_minor?: number | null;
+            /** Rates */
+            rates?: {
+                [key: string]: number;
+            };
         };
         /** RepRow */
         RepRow: {
@@ -6374,6 +6749,72 @@ export interface operations {
             };
         };
     };
+    get_recon_settings_v1_settings_recon_get: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReconSettings"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_recon_settings_v1_settings_recon_put: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReconSettings"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReconSettings"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     read_sales_settings_v1_settings_sales_get: {
         parameters: {
             query?: never;
@@ -7692,6 +8133,327 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProposalOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_recon_v1_vehicles__vehicle_id__recon_get: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                vehicle_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReconOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_recon_v1_vehicles__vehicle_id__recon_patch: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                vehicle_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReconPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReconOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    inspect_v1_vehicles__vehicle_id__recon_inspect_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                vehicle_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_inspect_v1_vehicles__vehicle_id__recon_inspect_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InspectionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_items_v1_vehicles__vehicle_id__recon_items_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                vehicle_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ItemBatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_item_v1_vehicles__vehicle_id__recon_items__item_id__patch: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                vehicle_id: string;
+                item_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ItemPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    commit_item_v1_vehicles__vehicle_id__recon_items__item_id__commit_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                vehicle_id: string;
+                item_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommitOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    decline_item_v1_vehicles__vehicle_id__recon_items__item_id__decline_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                vehicle_id: string;
+                item_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    complete_item_v1_vehicles__vehicle_id__recon_items__item_id__done_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                vehicle_id: string;
+                item_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DoneIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    mark_ready_v1_vehicles__vehicle_id__recon_ready_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                vehicle_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReconOut"];
                 };
             };
             /** @description Validation Error */
