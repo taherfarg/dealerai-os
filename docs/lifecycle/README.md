@@ -86,6 +86,9 @@ see it negotiates down to it; a customer who learns it never pays the asking pri
   `payments.record` (owner, admin, manager) records money received — which is what reserves and
   sells a car — and lets go of a car a buyer paid to hold. A price under the floor is an owner's or
   admin's to clear.
+- **A signature is a manager's.** `orders.sign` (owner, admin, manager) signs a commercial invoice;
+  `orders.edit` moves the export file along and keeps its papers. `settings.documents` (owner,
+  admin) sets what the documents say about the seller.
 - **No customer-facing agent may read the buy side.** A test fails the build if a tool queries
   it, and the price guard would block a cost figure in a reply anyway — two locks, not one.
 
@@ -103,7 +106,7 @@ Each ends in something a dealer can use. The order is the order every later stag
 | **L4** ✅ | **Inbound** | Shipments, customs, transport, registration milestones; document checklist; fees flow into the ledger | A US-auction car shows where it is and what is missing, and its landed cost is complete the day it arrives |
 | **L5** | Appraisal and sourcing | Valuation from own history, trade-in appraisal with damage read from photos, maximum bid, a buying list from unmet demand | The buying list names cars customers asked for this month that the dealer does not have |
 | **L6** ✅ | **Deal desk** | Offers inside the floor, reservations by deposit, payment in stages (deposit, balance on inspection and documents, logistics as it ships), an invoice that separates price, fees, freight and duties, transfer receipts read into payments; no bank finance (Q3) | An offer below the floor cannot be sent; a deposit reserves the car and stops its marketing |
-| **L7** | Handover and export | The export file per destination — Pollux's own procedures for Algeria, Tunisia and everywhere else ([pollux.md](pollux.md)): RTA export inspection and certificate, export plates, customs card, bill of lading draft then original, Dubai Chamber certificate, commercial invoice — as an outbound journey on L4's machinery; RTA transfer and delivery checklist for a local sale | Every document for one sale is drafted from the record and a person signs it, and an export car shows which step of its destination's procedure it is on |
+| **L7** ✅ | **Handover and export** | The export file per destination — Pollux's own procedures for Algeria, Tunisia and everywhere else ([pollux.md](pollux.md)): RTA export inspection and certificate, export plates, customs card, bill of lading draft then original, Dubai Chamber certificate, commercial invoice — as an outbound journey on L4's machinery; RTA transfer and delivery checklist for a local sale | Every document for one sale is drafted from the record and a person signs it, and an export car shows which step of its destination's procedure it is on |
 | **L8** | After the sale, and the numbers | After-sale programme, service reminders, trade-back signals; per-car P&L, gross per unit, turn, holding cost in the dashboard and the morning brief | The owner's morning brief says what the month made and which cars are costing money to keep |
 
 **L1 first** because every later slice reads cost: pricing needs a floor that comes from it, the
@@ -373,6 +376,65 @@ prints one.** It records nothing; `POST /payments` records what a person confirm
 
 ---
 
+## L7 — Handover and export
+
+### Data
+
+`supabase/migrations/0021_lifecycle_export.sql`.
+
+- **`order_steps`** — the procedure of one order, in order: pending, done (with the date) or
+  skipped, and the paper the step produced, in storage under `{tenant}/exports/`.
+- **`sale_orders`** gains the consignee (name, address, phone), the port of discharge and the
+  shipping method, and the signed invoice: its number, what it said, who signed it and when.
+- **`tenants.document_settings`** — the seller block: legal name, address, phone, email, TRN, the
+  invoice number prefix. Pollux's is seeded from what its website publishes; its TRN is not public.
+
+### The procedures are Pollux's
+
+From `polluxmotors.com/export-services` ([pollux.md](pollux.md)), in `lifecycle/export.py`:
+**Algeria** 11 steps (the Dubai Chamber certificate), **Tunisia** 11 (Dubai export plates, no
+Chamber certificate), **everywhere else** 9 (the customs card). A local sale is the buyer's
+documents, the car assigned, RTA registration, the invoice and the handover.
+
+- **The deposit lays the procedure out.** The payment that reserves the car starts the file at step
+  one, asking the buyer for their documents; an order reserved earlier can be laid out by hand.
+- **Where it is** — the step after the furthest one reached, as for a car coming in.
+- **A step's paper** is uploaded on the step, which is then done, and can be downloaded again for
+  the file the buyer is sent — from the path recorded on the step, never one the browser names.
+- **The file is delivered last**: refused while any step before it is still to do.
+
+### The commercial invoice — drafted from the record, signed by a person
+
+`GET /v1/orders/{id}/invoice` drafts it from the order and nothing else: the seller block, the
+buyer and consignee, the car with its VIN, the destination, port and shipping method, the order's
+own lines, and their sum as the total. It is written in English, the language customs and the
+buyer's bank read, whatever language the person printing it uses; the page prints or saves as PDF.
+
+It cannot be signed while customs would stop it: no VIN, an export without a consignee or the
+consignee's address, or no seller address. **Signing** gives it the next number
+(`INV-2026-0001`, under a lock so two signatures cannot take one number), keeps what it said
+— a later change to the order changes nothing signed, and the consignee is frozen — and marks the
+step done. It is done in no other way, and it is signed once.
+
+### The AI: checking the bill of lading draft
+
+Step 7 of Pollux's procedure is confirming the bill of lading draft with the buyer — the last
+moment a wrong consignee or a mistyped chassis number is free to fix. `POST
+/v1/orders/{id}/export/bl-check` reads the shipping line's draft with L4's shipping reader (now
+also reading the shipper and consignee) and compares it with the order **in code**: the VIN must
+be on it; the consignee and the port are compared as names, case and punctuation aside. The draft
+is kept on its step, and the step stays to do: confirming is the buyer's.
+
+### Screens
+
+- **Vehicle → Sale**, on a held order: the destination's procedure with a date per step, upload and
+  download of each paper, the consignee, *Check a draft*, and *Open the invoice*.
+- **The invoice** — the document, a draft until signed; *Print or save as PDF*; *Sign the invoice*
+  for those who may, with what stops it listed.
+- **Settings → Documents** — the seller block.
+
+---
+
 ## Status
 
 | Slice | State |
@@ -382,7 +444,8 @@ prints one.** It records nothing; `POST /payments` records what a person confirm
 | **L3** | **Done.** Migration `0018`, `lifecycle/recon.py`, `routes/recon.py`, the reconditioning tab and settings screen. Tested end to end in the browser: AED 1,500 of paint approved inside a AED 2,000 budget, AED 900 of tyres sent for approval, approved by the owner and applied by the worker, the tyres finished at AED 1,100 and the owner told of the overrun, the car marked ready and put on sale; a photo read by the live model and priced from the rate card. The reader is tested live (`npm run eval:inspection`): nothing invented on a photo with no car, the damage found on the photo that shows it. |
 | **L4** | **Done.** Migration `0019`, `lifecycle/inbound.py`, `routes/inbound.py`, the arrival tab. Tested end to end in the browser as a manager: an auction car's journey started from its purchase, a bill of lading read by the live model and applied in one confirmation (shipped on its date, ETA and carrier filled, the paper received), the car delivered, and the owner and manager told it arrived with customs still unrecorded and four papers missing. The reader is tested live (`npm run eval:shipping`): both VINs on a two-car bill of lading read as printed, the right car matched, another car refused. |
 | **L6** | **Done.** Migration `0020`, `lifecycle/deals.py`, `routes/deals.py`, the sale tab. Tested end to end in the browser as a manager: a quote under the floor refused any payment and asked the owner; a quote at the list price plus freight reserved the car on its deposit; the worker archived the car's scheduled post and told the owner a published one still advertises it. The receipt reader is tested live (`npm run eval:receipt`): a SWIFT copy read at its instructed amount, not its charge, with no rate supplied. |
-| L5, L7, L8 | Not started. L7 (handover and export) is next. |
+| **L7** | **Done.** Migration `0021`, `lifecycle/export.py`, `routes/export.py`, the export file on the sale tab, the invoice page, Settings → Documents. Tested end to end in the browser as a manager: a deposit from an Algerian buyer laid out the 11-step Algeria procedure; a bill of lading draft read by the live model was caught naming the wrong consignee; the commercial invoice drafted from the record was signed as INV-2026-0001 and its step marked done. The reader is tested live for the consignee too (`npm run eval:shipping`). |
+| L5, L8 | Not started. L8 (the numbers) or L5 (appraisal and sourcing) next. |
 
 ## Open questions for Pollux
 

@@ -37,6 +37,9 @@ _ADMIN = frozenset(
         # reserves and sells a car, so recording it is not every seller's.
         "orders.edit",
         "payments.record",
+        # The export file — § L7. A commercial invoice is somebody's signature.
+        "orders.sign",
+        "settings.documents",
     }
 )
 
@@ -63,6 +66,7 @@ PERMISSIONS: dict[str, frozenset[str]] = {
             "inbound.edit",
             "orders.edit",
             "payments.record",
+            "orders.sign",
         }
     ),
     "sales": frozenset({"inbox.send", "leads.mark_won_lost", "orders.edit"}),

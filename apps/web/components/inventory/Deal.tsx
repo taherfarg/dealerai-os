@@ -17,6 +17,7 @@ import {
 } from "@/lib/api/hooks";
 import { asTyped, exponentOf, formatMoney, parseMajor, type Money } from "@/lib/format";
 import { useT } from "@/lib/i18n-client";
+import { ExportFile } from "./ExportFile";
 
 type Stage = PaymentIn["stage"];
 type ChargeKind = OrderIn["charges"] extends (infer C)[] | undefined
@@ -225,6 +226,10 @@ function OrderCard({
         // Keyed on the payments so far: after each one the form starts again
         // at the next stage owed.
         <PaymentForm key={order.payments.length} vehicleId={vehicleId} order={order} />
+      )}
+
+      {(order.status === "reserved" || order.status === "completed") && (
+        <ExportFile order={order} canEdit={canQuote} />
       )}
 
       {open && (canTakePayment || mayCancel) && (
