@@ -1729,3 +1729,108 @@ export function useConfirmShipping(vehicleId: string) {
   );
 }
 
+// --------------------------------------------------------------------------
+// The deal desk — docs/lifecycle/README.md § L6
+// --------------------------------------------------------------------------
+
+export type Order = components["schemas"]["OrderOut"];
+export type OrderIn = components["schemas"]["OrderIn"];
+export type OrderPatch = components["schemas"]["OrderPatch"];
+export type PaymentIn = components["schemas"]["PaymentIn"];
+export type Receipt = components["schemas"]["ReceiptOut"];
+
+export function useOrders(vehicleId: string) {
+  const { api, tenantId, header } = useTenantApi();
+  return useQuery({
+    queryKey: keys.orders(tenantId, vehicleId),
+    queryFn: async () =>
+      unwrap(
+        await api.GET("/v1/vehicles/{vehicle_id}/orders", {
+          params: { header, path: { vehicle_id: vehicleId } },
+        }),
+      ),
+  });
+}
+
+/** An order write can reserve or sell the car: its orders and its own status both refresh. */
+function useOrderWrite<In, Out>(vehicleId: string, run: (input: In) => Promise<Out>) {
+  const { tenantId } = useTenantApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: run,
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: keys.orders(tenantId, vehicleId) });
+      queryClient.invalidateQueries({ queryKey: keys.vehicle(tenantId, vehicleId) });
+      queryClient.invalidateQueries({ queryKey: keys.vehicleList(tenantId) });
+    },
+  });
+}
+
+export function useCreateOrder(vehicleId: string) {
+  const { api, header } = useTenantApi();
+  return useOrderWrite(vehicleId, async (body: OrderIn) =>
+    unwrap(
+      await api.POST("/v1/vehicles/{vehicle_id}/orders", {
+        params: { header, path: { vehicle_id: vehicleId } },
+        body,
+      }),
+    ),
+  );
+}
+
+export function useUpdateOrder(vehicleId: string) {
+  const { api, header } = useTenantApi();
+  return useOrderWrite(vehicleId, async ({ orderId, ...body }: OrderPatch & { orderId: string }) =>
+    unwrap(
+      await api.PATCH("/v1/orders/{order_id}", {
+        params: { header, path: { order_id: orderId } },
+        body,
+      }),
+    ),
+  );
+}
+
+export function useRecordPayment(vehicleId: string) {
+  const { api, header } = useTenantApi();
+  return useOrderWrite(vehicleId, async ({ orderId, ...body }: PaymentIn & { orderId: string }) =>
+    unwrap(
+      await api.POST("/v1/orders/{order_id}/payments", {
+        params: { header, path: { order_id: orderId } },
+        body,
+      }),
+    ),
+  );
+}
+
+/** Reads a transfer receipt. Records nothing — confirming is useRecordPayment. */
+export function useReadReceipt() {
+  const { api, header } = useTenantApi();
+  return useMutation({
+    mutationFn: async ({ orderId, file }: { orderId: string; file: File }) => {
+      const form = new FormData();
+      form.append("file", file);
+      return unwrap(
+        await api.POST("/v1/orders/{order_id}/payments/read", {
+          params: { header, path: { order_id: orderId } },
+          // The typed body describes the fields; the serializer sends the form.
+          body: { file: "" },
+          bodySerializer: () => form,
+        }),
+      );
+    },
+  });
+}
+
+export function useFinishOrder(vehicleId: string) {
+  const { api, header } = useTenantApi();
+  return useOrderWrite(
+    vehicleId,
+    async ({ orderId, cancel }: { orderId: string; cancel?: string }) => {
+      const params = { header, path: { order_id: orderId } };
+      return cancel
+        ? unwrap(await api.POST("/v1/orders/{order_id}/cancel", { params, body: { reason: cancel } }))
+        : unwrap(await api.POST("/v1/orders/{order_id}/complete", { params }));
+    },
+  );
+}
+
