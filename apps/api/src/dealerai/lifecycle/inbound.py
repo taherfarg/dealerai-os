@@ -297,6 +297,8 @@ class ShippingReading(BaseModel):
     )
     reference_quote: str | None = Field(default=None, max_length=300)
     carrier: str | None = Field(default=None, max_length=120)
+    shipper: str | None = Field(default=None, max_length=200)
+    consignee: str | None = Field(default=None, max_length=200)
     vessel: str | None = Field(default=None, max_length=120)
     container: str | None = Field(default=None, max_length=40)
     port_of_loading: str | None = Field(default=None, max_length=120)
@@ -340,6 +342,10 @@ class ShippingProposal:
     milestone: str | None
     paper: str | None
     warnings: list[str] = field(default_factory=list)
+    #: Who ships and who receives, as printed — what an export order's bill of
+    #: lading draft is checked against (lifecycle/export.py).
+    shipper: str | None = None
+    consignee: str | None = None
 
 
 def verify(reading: ShippingReading, *, car_vin: str | None, today: date) -> ShippingProposal:
@@ -404,6 +410,8 @@ def verify(reading: ShippingReading, *, car_vin: str | None, today: date) -> Shi
         milestone=milestone,
         paper=IS_PAPER.get(reading.kind),
         warnings=warnings,
+        shipper=text(reading.shipper),
+        consignee=text(reading.consignee),
     )
 
 

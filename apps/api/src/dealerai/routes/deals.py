@@ -24,7 +24,7 @@ from pydantic import BaseModel, Field
 from ..core.errors import Conflict, Forbidden, NotFound, Unusable
 from ..core.money import Money
 from ..deps import Ctx, TenantContext, require_permission
-from ..lifecycle import deals, invoices
+from ..lifecycle import deals, export, invoices
 from ..media import storage
 from .acquisition import MoneyOut, _money, _rate, _session, _tenant_currency
 
@@ -438,6 +438,9 @@ async def record_payment(order_id: UUID, body: PaymentIn, ctx: Cashier) -> dict[
             actor_id=ctx.user.id,
         )
         if paid.reserved:
+            # Held: the export file — or a local sale's handover — starts now,
+            # with step one, asking the buyer for their documents.
+            await export.start(conn, ctx.tenant_id, order_id)
             log.info("vehicle_reserved", order_id=str(order_id))
         return await _present(conn, ctx, await _order(conn, order_id))
 
