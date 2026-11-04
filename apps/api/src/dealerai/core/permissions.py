@@ -32,6 +32,7 @@ _ADMIN = frozenset(
         "settings.pricing",
         "recon.edit",
         "settings.recon",
+        "inbound.edit",
     }
 )
 
@@ -54,6 +55,8 @@ PERMISSIONS: dict[str, frozenset[str]] = {
             # A manager runs the workshop: inspects, commits work inside the
             # budget, records what it cost. The budget itself is costs.edit.
             "recon.edit",
+            # And the yard: where a bought car is, and the papers it arrives with.
+            "inbound.edit",
         }
     ),
     "sales": frozenset({"inbox.send", "leads.mark_won_lost"}),

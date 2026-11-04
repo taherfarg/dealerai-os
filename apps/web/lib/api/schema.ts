@@ -1646,6 +1646,122 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/vehicles/{vehicle_id}/inbound": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Inbound */
+        get: operations["get_inbound_v1_vehicles__vehicle_id__inbound_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Patch Inbound
+         * @description Start a journey (route), change it, or correct its details.
+         */
+        patch: operations["patch_inbound_v1_vehicles__vehicle_id__inbound_patch"];
+        trace?: never;
+    };
+    "/v1/vehicles/{vehicle_id}/inbound/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm Reading
+         * @description Apply what a person accepted from a reading: the details, the step it
+         *     proves, the paper it is. All of it or none of it.
+         */
+        post: operations["confirm_reading_v1_vehicles__vehicle_id__inbound_confirm_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/vehicles/{vehicle_id}/inbound/documents/{code}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Set Paper
+         * @description Received on paper, not needed for this car, or missing after all.
+         */
+        patch: operations["set_paper_v1_vehicles__vehicle_id__inbound_documents__code__patch"];
+        trace?: never;
+    };
+    "/v1/vehicles/{vehicle_id}/inbound/documents/{code}/file": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Upload Paper */
+        post: operations["upload_paper_v1_vehicles__vehicle_id__inbound_documents__code__file_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/vehicles/{vehicle_id}/inbound/milestones/{code}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Move Milestone */
+        post: operations["move_milestone_v1_vehicles__vehicle_id__inbound_milestones__code__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/vehicles/{vehicle_id}/inbound/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Read Shipping
+         * @description What a shipping document says, and whether it is this car's. Applies nothing.
+         */
+        post: operations["read_shipping_v1_vehicles__vehicle_id__inbound_read_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/vehicles/{vehicle_id}/price": {
         parameters: {
             query?: never;
@@ -2074,6 +2190,11 @@ export interface components {
             /** File */
             file: string;
         };
+        /** Body_read_shipping_v1_vehicles__vehicle_id__inbound_read_post */
+        Body_read_shipping_v1_vehicles__vehicle_id__inbound_read_post: {
+            /** File */
+            file: string;
+        };
         /** Body_run_import_v1_vehicles_import_post */
         Body_run_import_v1_vehicles_import_post: {
             /** File */
@@ -2095,6 +2216,11 @@ export interface components {
             kind: string;
             /** Title */
             title?: string | null;
+        };
+        /** Body_upload_paper_v1_vehicles__vehicle_id__inbound_documents__code__file_post */
+        Body_upload_paper_v1_vehicles__vehicle_id__inbound_documents__code__file_post: {
+            /** File */
+            file: string;
         };
         /** Brief */
         Brief: {
@@ -2170,6 +2296,15 @@ export interface components {
             approval_id: string | null;
             item: components["schemas"]["ItemOut"];
             over: components["schemas"]["MoneyOut"] | null;
+        };
+        /**
+         * Confirmation
+         * @description What a person accepted from a reading, in one transaction.
+         */
+        Confirmation: {
+            journey?: components["schemas"]["Journey"];
+            milestone?: components["schemas"]["Step"] | null;
+            paper?: components["schemas"]["Paper"] | null;
         };
         /** ContactSummary */
         ContactSummary: {
@@ -2617,6 +2752,45 @@ export interface components {
             /** Errors */
             errors: components["schemas"]["RowError"][];
         };
+        /** InboundOut */
+        InboundOut: {
+            /** Arrived At */
+            arrived_at: string | null;
+            /** Carrier */
+            carrier: string | null;
+            /** Container */
+            container: string | null;
+            /** Documents */
+            documents: components["schemas"]["PaperOut"][] | null;
+            /** Eta */
+            eta: string | null;
+            /** Late */
+            late: boolean;
+            /** Milestones */
+            milestones: components["schemas"]["MilestoneOut"][];
+            missing: components["schemas"]["MissingOut"] | null;
+            /** Origin Country */
+            origin_country: string | null;
+            /** Port Of Discharge */
+            port_of_discharge: string | null;
+            /** Port Of Loading */
+            port_of_loading: string | null;
+            /** Reference */
+            reference: string | null;
+            /** Route */
+            route: string | null;
+            /** Stage */
+            stage: string | null;
+            /** Started */
+            started: boolean;
+            /**
+             * Vehicle Id
+             * Format: uuid
+             */
+            vehicle_id: string;
+            /** Vessel */
+            vessel: string | null;
+        };
         /** InspectionOut */
         InspectionOut: {
             /** Findings */
@@ -2784,6 +2958,27 @@ export interface components {
             tenant_id: string;
             /** Tenant Slug */
             tenant_slug: string;
+        };
+        /** Journey */
+        Journey: {
+            /** Carrier */
+            carrier?: string | null;
+            /** Container */
+            container?: string | null;
+            /** Eta */
+            eta?: string | null;
+            /** Origin Country */
+            origin_country?: string | null;
+            /** Port Of Discharge */
+            port_of_discharge?: string | null;
+            /** Port Of Loading */
+            port_of_loading?: string | null;
+            /** Reference */
+            reference?: string | null;
+            /** Route */
+            route?: ("import" | "local") | null;
+            /** Vessel */
+            vessel?: string | null;
         };
         /** LastMessage */
         LastMessage: {
@@ -3126,6 +3321,44 @@ export interface components {
             /** Next Cursor */
             next_cursor: string | null;
         };
+        /** MilestoneIn */
+        MilestoneIn: {
+            /** Done On */
+            done_on?: string | null;
+            /** Expected On */
+            expected_on?: string | null;
+            /** Note */
+            note?: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "done" | "skipped";
+        };
+        /** MilestoneOut */
+        MilestoneOut: {
+            /** Code */
+            code: string;
+            /** Done On */
+            done_on: string | null;
+            /** Expected On */
+            expected_on: string | null;
+            /** Note */
+            note: string | null;
+            /** Status */
+            status: string;
+        };
+        /** MissingOut */
+        MissingOut: {
+            /** Complete */
+            complete: boolean;
+            /** Costs */
+            costs: string[];
+            /** Documents */
+            documents: string[];
+            /** Estimated */
+            estimated: string[];
+        };
         /** Money */
         "Money-Input": {
             /** Amount Minor */
@@ -3218,6 +3451,35 @@ export interface components {
             outcome: "sent" | "edited" | "discarded";
             /** Reason */
             reason?: string | null;
+        };
+        /** Paper */
+        Paper: {
+            /**
+             * Code
+             * @enum {string}
+             */
+            code: "bill_of_sale" | "title" | "bill_of_lading" | "customs_declaration" | "customs_certificate" | "registration_card";
+            /** Document Path */
+            document_path: string;
+        };
+        /** PaperIn */
+        PaperIn: {
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "missing" | "received" | "not_needed";
+        };
+        /** PaperOut */
+        PaperOut: {
+            /** Code */
+            code: string;
+            /** Document Path */
+            document_path: string | null;
+            /** Received On */
+            received_on: string | null;
+            /** Status */
+            status: string;
         };
         /** PhoneShare */
         PhoneShare: {
@@ -3783,6 +4045,39 @@ export interface components {
             /** Phone */
             phone: number;
         };
+        /** ShippingOut */
+        ShippingOut: {
+            /** Carrier */
+            carrier: string | null;
+            /** Container */
+            container: string | null;
+            /** Departed On */
+            departed_on: string | null;
+            /** Document Path */
+            document_path: string | null;
+            /** Eta */
+            eta: string | null;
+            /** Kind */
+            kind: string;
+            /** Matches */
+            matches: boolean;
+            /** Milestone */
+            milestone: string | null;
+            /** Paper */
+            paper: string | null;
+            /** Port Of Discharge */
+            port_of_discharge: string | null;
+            /** Port Of Loading */
+            port_of_loading: string | null;
+            /** Reference */
+            reference: string | null;
+            /** Vessel */
+            vessel: string | null;
+            /** Vins */
+            vins: string[];
+            /** Warnings */
+            warnings: string[];
+        };
         /** SourceCount */
         SourceCount: {
             /** Leads */
@@ -3887,6 +4182,16 @@ export interface components {
              * @enum {string}
              */
             status: "open" | "closed" | "spam";
+        };
+        /** Step */
+        Step: {
+            /**
+             * Code
+             * @enum {string}
+             */
+            code: "purchased" | "paid" | "picked_up" | "at_origin_port" | "departed" | "arrived_port" | "customs_cleared" | "delivered" | "collected" | "registered";
+            /** Done On */
+            done_on?: string | null;
         };
         /** StockRow */
         StockRow: {
@@ -8030,6 +8335,264 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Economics"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_inbound_v1_vehicles__vehicle_id__inbound_get: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                vehicle_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InboundOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_inbound_v1_vehicles__vehicle_id__inbound_patch: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                vehicle_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Journey"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InboundOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    confirm_reading_v1_vehicles__vehicle_id__inbound_confirm_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                vehicle_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Confirmation"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InboundOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_paper_v1_vehicles__vehicle_id__inbound_documents__code__patch: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                vehicle_id: string;
+                code: "bill_of_sale" | "title" | "bill_of_lading" | "customs_declaration" | "customs_certificate" | "registration_card";
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PaperIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InboundOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_paper_v1_vehicles__vehicle_id__inbound_documents__code__file_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                vehicle_id: string;
+                code: "bill_of_sale" | "title" | "bill_of_lading" | "customs_declaration" | "customs_certificate" | "registration_card";
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_paper_v1_vehicles__vehicle_id__inbound_documents__code__file_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InboundOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    move_milestone_v1_vehicles__vehicle_id__inbound_milestones__code__post: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                vehicle_id: string;
+                code: "purchased" | "paid" | "picked_up" | "at_origin_port" | "departed" | "arrived_port" | "customs_cleared" | "delivered" | "collected" | "registered";
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MilestoneIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InboundOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_shipping_v1_vehicles__vehicle_id__inbound_read_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                vehicle_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_read_shipping_v1_vehicles__vehicle_id__inbound_read_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShippingOut"];
                 };
             };
             /** @description Validation Error */

@@ -2,15 +2,17 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from uuid import UUID
 
 import asyncpg
 import structlog
 
 from ...core.money import Money
-from ...core.words import Words, same
+from ...core.words import Words, named, same
 from ...db.session import tenant_session
-from ...lifecycle import pricing, recon
+from ...lifecycle import inbound, pricing, recon
+from ...sales.clock import zone
 from ..bus import Event, handler
 from .notify import notify
 
@@ -19,6 +21,8 @@ log = structlog.get_logger()
 #: Who hears that prices should move, or a repair needs more money: whoever
 #: may decide it.
 PRICE_DECIDERS = ("owner", "admin")
+#: Who hears that a car arrived, or is late: whoever runs the yard.
+YARD = ("owner", "admin", "manager")
 #: Who hears that published content quotes an old price: whoever can take it down.
 CONTENT_OWNERS = ("owner", "admin", "marketer")
 
@@ -175,3 +179,109 @@ async def on_recon_overran(event: Event) -> None:
                 entity={"type": "vehicle", "id": str(payload["vehicle_id"])},
                 dedupe_key=f"recon_overrun:{payload['item_id']}",
             )
+
+
+# The papers and the fees, as the bell says them. Two languages, so two names.
+PAPERS = {
+    "bill_of_sale": ("bill of sale", "فاتورة الشراء"),
+    "title": ("title", "سند الملكية"),
+    "bill_of_lading": ("bill of lading", "بوليصة الشحن"),
+    "customs_declaration": ("customs declaration", "البيان الجمركي"),
+    "customs_certificate": ("customs certificate", "شهادة الجمارك"),
+    "registration_card": ("registration card", "بطاقة الملكية"),
+}
+FEES = {
+    "purchase": ("purchase", "الشراء"),
+    "auction_fee": ("auction fees", "رسوم المزاد"),
+    "transport": ("transport", "النقل"),
+    "shipping": ("shipping", "الشحن"),
+    "customs": ("customs", "الجمارك"),
+}
+
+
+def what_is_missing(found: inbound.Missing) -> Words:
+    """The arrival notice's body: what is still missing, or that nothing is."""
+    if found.nothing:
+        return Words(
+            "Its papers are in and its landed cost is complete.",
+            "مستنداتها مكتملة وتكلفتها حتى الوصول مكتملة.",
+        )
+    english: list[str] = []
+    arabic: list[str] = []
+    if found.documents:
+        english.append("papers: " + ", ".join(PAPERS[c][0] for c in found.documents))
+        arabic.append("المستندات: " + "، ".join(PAPERS[c][1] for c in found.documents))
+    if found.costs:
+        english.append("costs: " + ", ".join(FEES[c][0] for c in found.costs))
+        arabic.append("التكاليف: " + "، ".join(FEES[c][1] for c in found.costs))
+    if found.estimated:
+        english.append("still estimates: " + ", ".join(FEES[c][0] for c in found.estimated))
+        arabic.append("ما زالت تقديرًا: " + "، ".join(FEES[c][1] for c in found.estimated))
+    return Words(
+        "Still missing — " + "; ".join(english) + ".", "ما زال ناقصًا — " + "؛ ".join(arabic) + "."
+    )
+
+
+@handler("inbound.arrived")
+async def on_inbound_arrived(event: Event) -> None:
+    """A car reached the lot. The day it arrives is the day its landed cost
+    should be complete, so the notice says what is not — papers, fees, and fees
+    still recorded as estimates."""
+    tenant_id = event.tenant_id
+    if tenant_id is None:
+        return
+    vehicle_id = UUID(str(event.payload["vehicle_id"]))
+    async with tenant_session(tenant_id) as conn, conn.transaction():
+        car = await conn.fetchrow(
+            "select make, model, model_year from vehicles where id = $1", vehicle_id
+        )
+        found = await inbound.missing(conn, vehicle_id)
+        if car is None or found is None:
+            return
+        label = " ".join(str(p) for p in (car["model_year"], car["make"], car["model"]) if p)
+        for user_id in await _members(conn, tenant_id, YARD):
+            await notify(
+                conn,
+                tenant_id=tenant_id,
+                user_id=user_id,
+                kind="inbound_arrived",
+                title=Words(f"{label} arrived", f"وصلت {named(label)}"),
+                body=what_is_missing(found),
+                entity={"type": "vehicle", "id": str(vehicle_id)},
+                dedupe_key=f"inbound_arrived:{vehicle_id}",
+            )
+    log.info("inbound_arrived", vehicle_id=str(vehicle_id), complete=found.nothing)
+
+
+@handler("inbound.sweep_due")
+async def on_inbound_sweep(event: Event) -> None:
+    """Every morning: the cars past their ETA, in one notice. A shipment that
+    slipped a week is found the day it slips, not the day a customer asks."""
+    tenant_id = event.tenant_id
+    if tenant_id is None:
+        raise ValueError("inbound.sweep_due requires a tenant")
+    day = str(event.payload.get("date") or "")
+    async with tenant_session(tenant_id) as conn, conn.transaction():
+        timezone = await conn.fetchval("select timezone from tenants where id = $1", tenant_id)
+        today = datetime.now(zone(timezone)).date()
+        overdue = await inbound.late(conn, tenant_id, today)
+        if overdue:
+            n = len(overdue)
+            for user_id in await _members(conn, tenant_id, YARD):
+                await notify(
+                    conn,
+                    tenant_id=tenant_id,
+                    user_id=user_id,
+                    kind="inbound_late",
+                    title=Words(
+                        f"{n} cars are past their ETA" if n != 1 else "A car is past its ETA",
+                        f"{n} من السيارات تجاوزت موعد وصولها المتوقع",
+                    ),
+                    body=Words(
+                        "Ask the carrier for a new date, and tell anyone waiting for one.",
+                        "اطلب من شركة الشحن موعدًا جديدًا، وأبلغ من ينتظر السيارة.",
+                    ),
+                    entity={"type": "inventory", "id": day or "late"},
+                    dedupe_key=f"inbound_late:{day}",
+                )
+    log.info("inbound_swept", tenant_id=str(tenant_id), late=len(overdue))

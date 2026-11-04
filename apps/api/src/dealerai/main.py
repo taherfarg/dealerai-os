@@ -28,6 +28,7 @@ from .routes import (
     dev,
     documents,
     imports,
+    inbound,
     inbox,
     leads,
     me,
@@ -100,6 +101,7 @@ def create_app() -> FastAPI:
     app.include_router(acquisition.settings_router)
     app.include_router(recon.router)
     app.include_router(recon.settings_router)
+    app.include_router(inbound.router)
     app.include_router(vehicles.router)
     app.include_router(imports.router)
     app.include_router(runs.router)
