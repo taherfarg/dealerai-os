@@ -36,6 +36,7 @@ from .routes import (
     pipelines,
     push,
     quick_replies,
+    recon,
     runs,
     stream,
     suggestions,
@@ -97,6 +98,8 @@ def create_app() -> FastAPI:
     # an id and refuse it as one, and the route below would never be reached.
     app.include_router(acquisition.router)
     app.include_router(acquisition.settings_router)
+    app.include_router(recon.router)
+    app.include_router(recon.settings_router)
     app.include_router(vehicles.router)
     app.include_router(imports.router)
     app.include_router(runs.router)

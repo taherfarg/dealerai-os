@@ -54,4 +54,6 @@ export const keys = {
     ["buy-side", tenantId, "acquisition", id] as const,
   pricing: (tenantId: string, id: string) => ["buy-side", tenantId, "pricing", id] as const,
   pricingSettings: (tenantId: string) => ["pricing-settings", tenantId] as const,
+  recon: (tenantId: string, id: string) => ["buy-side", tenantId, "recon", id] as const,
+  reconSettings: (tenantId: string) => ["recon-settings", tenantId] as const,
 };

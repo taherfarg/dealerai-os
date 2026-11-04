@@ -279,7 +279,13 @@ def test_no_customer_facing_code_reads_the_buy_side() -> None:
     """The second lock. Tools and agents run in the worker, which the wall lets
     through — so nothing an agent can call may name these tables at all."""
     src = Path(__file__).resolve().parents[1] / "src" / "dealerai"
-    names = ("vehicle_costs", "vehicle_acquisitions", "v_vehicle_economics")
+    names = (
+        "vehicle_costs",
+        "vehicle_acquisitions",
+        "v_vehicle_economics",
+        "vehicle_recon",
+        "recon_items",
+    )
     offenders = [
         f"{path.relative_to(src)} reads {name}"
         for folder in ("tools", "agents", "sales")

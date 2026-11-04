@@ -1454,3 +1454,157 @@ export function useSavePricingSettings() {
   });
 }
 
+// --------------------------------------------------------------------------
+// Reconditioning — docs/lifecycle/README.md § L3
+// --------------------------------------------------------------------------
+
+export type Recon = components["schemas"]["ReconOut"];
+export type ReconItem = components["schemas"]["ItemOut"];
+export type ReconItemIn = components["schemas"]["ItemIn"];
+export type ReconPatch = components["schemas"]["ReconPatch"];
+export type Inspection = components["schemas"]["InspectionOut"];
+export type ReconSettings = components["schemas"]["ReconSettings"];
+
+export function useRecon(vehicleId: string, enabled: boolean) {
+  const { api, tenantId, header } = useTenantApi();
+  return useQuery({
+    queryKey: keys.recon(tenantId, vehicleId),
+    enabled,
+    queryFn: async () =>
+      unwrap(
+        await api.GET("/v1/vehicles/{vehicle_id}/recon", {
+          params: { header, path: { vehicle_id: vehicleId } },
+        }),
+      ),
+  });
+}
+
+/** Every recon write can move the ledger, so each one refreshes the buy side. */
+function useReconWrite<In, Out>(run: (input: In) => Promise<Out>) {
+  const { tenantId } = useTenantApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: run,
+    onSettled: () => queryClient.invalidateQueries({ queryKey: keys.buySide(tenantId) }),
+  });
+}
+
+export function useSaveRecon(vehicleId: string) {
+  const { api, header } = useTenantApi();
+  return useReconWrite(async (body: ReconPatch) =>
+    unwrap(
+      await api.PATCH("/v1/vehicles/{vehicle_id}/recon", {
+        params: { header, path: { vehicle_id: vehicleId } },
+        body,
+      }),
+    ),
+  );
+}
+
+export function useAddReconItems(vehicleId: string) {
+  const { api, header } = useTenantApi();
+  return useReconWrite(async (items: ReconItemIn[]) =>
+    unwrap(
+      await api.POST("/v1/vehicles/{vehicle_id}/recon/items", {
+        params: { header, path: { vehicle_id: vehicleId } },
+        body: { items },
+      }),
+    ),
+  );
+}
+
+/** Commit, decline: the item moves; what happened comes back on the item. */
+export function useReconStep(vehicleId: string, step: "commit" | "decline") {
+  const { api, header } = useTenantApi();
+  return useReconWrite(async (itemId: string) => {
+    const params = { header, path: { vehicle_id: vehicleId, item_id: itemId } };
+    return step === "commit"
+      ? unwrap(await api.POST("/v1/vehicles/{vehicle_id}/recon/items/{item_id}/commit", { params }))
+      : unwrap(await api.POST("/v1/vehicles/{vehicle_id}/recon/items/{item_id}/decline", { params }));
+  });
+}
+
+/** Correct proposed work — in practice, give it the estimate it lacks. */
+export function useUpdateReconItem(vehicleId: string) {
+  const { api, header } = useTenantApi();
+  return useReconWrite(async ({ itemId, ...body }: { itemId: string; estimate_minor: number }) =>
+    unwrap(
+      await api.PATCH("/v1/vehicles/{vehicle_id}/recon/items/{item_id}", {
+        params: { header, path: { vehicle_id: vehicleId, item_id: itemId } },
+        body,
+      }),
+    ),
+  );
+}
+
+export function useFinishReconItem(vehicleId: string) {
+  const { api, header } = useTenantApi();
+  return useReconWrite(
+    async ({ itemId, actual_minor, vendor }: { itemId: string; actual_minor: number; vendor?: string | null }) =>
+      unwrap(
+        await api.POST("/v1/vehicles/{vehicle_id}/recon/items/{item_id}/done", {
+          params: { header, path: { vehicle_id: vehicleId, item_id: itemId } },
+          body: { actual_minor, vendor: vendor ?? null },
+        }),
+      ),
+  );
+}
+
+export function useMarkReady(vehicleId: string) {
+  const { api, tenantId, header } = useTenantApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () =>
+      unwrap(
+        await api.POST("/v1/vehicles/{vehicle_id}/recon/ready", {
+          params: { header, path: { vehicle_id: vehicleId } },
+        }),
+      ),
+    // A car in draft goes on sale: its status on screen changes too.
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: keys.buySide(tenantId) });
+      queryClient.invalidateQueries({ queryKey: keys.vehicle(tenantId, vehicleId) });
+    },
+  });
+}
+
+/** Reads inspection photos into proposed work. Writes nothing — confirming is useAddReconItems. */
+export function useInspect(vehicleId: string) {
+  const { api, header } = useTenantApi();
+  return useMutation({
+    mutationFn: async ({ files, note }: { files: File[]; note?: string }) => {
+      const form = new FormData();
+      for (const file of files) form.append("files", file);
+      if (note) form.append("note", note);
+      return unwrap(
+        await api.POST("/v1/vehicles/{vehicle_id}/recon/inspect", {
+          params: { header, path: { vehicle_id: vehicleId } },
+          // The typed body describes the fields; the serializer sends the form.
+          body: { files: [], note },
+          bodySerializer: () => form,
+        }),
+      );
+    },
+  });
+}
+
+export function useReconSettings() {
+  const { api, tenantId, header } = useTenantApi();
+  return useQuery({
+    queryKey: keys.reconSettings(tenantId),
+    queryFn: async () => unwrap(await api.GET("/v1/settings/recon", { params: { header } })),
+  });
+}
+
+export function useSaveReconSettings() {
+  const { api, tenantId, header } = useTenantApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: ReconSettings) =>
+      unwrap(await api.PUT("/v1/settings/recon", { params: { header }, body })),
+    onSuccess: (saved) => {
+      queryClient.setQueryData(keys.reconSettings(tenantId), saved);
+      queryClient.invalidateQueries({ queryKey: keys.buySide(tenantId) });
+    },
+  });
+}

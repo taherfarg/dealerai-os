@@ -242,12 +242,6 @@ async def facts_for(conn: asyncpg.Connection, vehicle_id: UUID) -> Facts | None:
 KIND = "price_change"
 
 
-def _amount(minor: int, currency: str) -> str:
-    """An amount as the screens write it: "AED 235,000", no ".00" on a whole price."""
-    money = Money(minor, currency)
-    return money.format() if money.major % 1 else f"{currency} {money.major:,.0f}"
-
-
 def _label(car: asyncpg.Record) -> str:
     return " ".join(
         str(p) for p in (car["model_year"], car["make"], car["model"], car["trim"]) if p
@@ -284,9 +278,9 @@ async def propose(
     )
     if car is None:
         return None
-    after = _amount(recommendation.price_minor, recommendation.currency)
+    after = Money(recommendation.price_minor, recommendation.currency).display()
     before = (
-        _amount(facts.price_minor, recommendation.currency)
+        Money(facts.price_minor, recommendation.currency).display()
         if facts.price_minor is not None
         else "—"
     )

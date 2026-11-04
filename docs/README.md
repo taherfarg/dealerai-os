@@ -81,7 +81,9 @@ Requires Docker, Node 22+, and [uv](https://docs.astral.sh/uv/). Python 3.12 is 
 Three things about the local setup that are not obvious:
 
 - **Port 54332, not 54322.** The Supabase CLI default is often already taken by another
-  project's stack on the same machine.
+  project's stack on the same machine. If `db:up` says the port is "forbidden", Windows has
+  reserved the range that holds it (`netsh interface ipv4 show excludedportrange protocol=tcp`):
+  set `DB_PORT=55432` in `.env` and use that port in its two database URLs.
 - **Postgres 17 locally, matching the Supabase project.** Testing on a different major
   version than production is how you find out about a behaviour change at the worst
   possible moment.
@@ -140,7 +142,7 @@ localhost, but the discipline is the real protection.
 | **M1 Tenancy** | **complete** — T1.1–T1.5. Shell, auth gate, RTL, workspace switcher, approvals queue. |
 | Known gap | **A real sign-in has never been exercised.** Supabase email confirmation is ON and the built-in SMTP rate-limits immediately, so no test user could be created. The gate, redirect and session plumbing are verified; the credential round trip is not. Confirm a user (or disable confirmation on the dev project) and log in once. **Still true.** What it needed from the code is done (Sales S7 Part D): sessions verified against the keys a project publishes, email links that open in any browser, a forgotten password, an image, and a check that a deployment is fit. The sign-in itself is the staging day's ([sales/10-staging.md](sales/10-staging.md) §7). |
 | M3 Content factory | T3.2–T3.6 done — one vehicle in, eight guarded bilingual pieces out. Remaining: T3.1 brand ingestion, T3.7 content UI, T3.8 calendar |
-| **Lifecycle** | Purchase to sale, mapped in [`docs/lifecycle/`](lifecycle/README.md). **L1 done** — acquisition, cost ledger in any currency, landed cost and margin, an AI that reads purchase invoices, inventory screens. **L2 done** — recommended price and floor, a morning re-price sweep through approvals, stale content flagged on every price change. Next: L3 reconditioning |
+| **Lifecycle** | Purchase to sale, mapped in [`docs/lifecycle/`](lifecycle/README.md). **L1 done** — acquisition, cost ledger in any currency, landed cost and margin, an AI that reads purchase invoices, inventory screens. **L2 done** — recommended price and floor, a morning re-price sweep through approvals, stale content flagged on every price change. **L3 done** — reconditioning inside a budget: work over it waits for an owner's approval before the money is spent, inspection photos read into priced work. Next: L4 inbound |
 | M2 Inventory | API side complete — T2.1 CRUD, T2.3 photo QA, T2.4 CSV import, T2.5 enrichment, T2.6 stock report · T2.2 upload needs a Storage bucket · inventory screens need a working sign-in |
 | Tests | 1,614 backend tests passing, 8 skipped; 367 web tests; 66 end-to-end, in a browser (`npm run e2e`) · live evals green (`npm run eval:gateway`, `npm run eval:vision` — deselected by default, they spend money) |
 | Supabase | **Staging is deployed** (2026-10-06): its project in Singapore on the Free plan, and the API, the worker and the web app on Render's free plan. [sales/10-staging.md](sales/10-staging.md) has what is left: authentication, and the first sign-in. |

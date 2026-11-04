@@ -77,6 +77,8 @@ see it negotiates down to it; a customer who learns it never pays the asking pri
 - `costs.view`: owner, admin, manager. `costs.edit`: owner, admin. Sales, marketer and **viewer**
   see neither — viewer is deliberately excluded, because "read-only" is given out more freely than
   "sees what we paid".
+- `recon.edit`: owner, admin, manager — a manager runs the workshop. The **budget** a repair is
+  measured against is `costs.edit`: whoever commits the work cannot be whoever moves the line.
 - **No customer-facing agent may read the buy side.** A test fails the build if a tool queries
   it, and the price guard would block a cost figure in a reply anyway — two locks, not one.
 
@@ -90,7 +92,7 @@ Each ends in something a dealer can use. The order is the order every later stag
 |---|---|---|---|
 | **L1** ✅ | **Purchase and unit economics** | Acquisition record, cost ledger in any currency, landed cost, margin at list and at floor, the buy side in Postgres, an AI that reads a purchase invoice into cost lines for a person to confirm, the inventory screens | A car bought at auction, with five cost lines entered **from a photograph of the invoice in one confirmation**, shows its landed cost and its margin at list and at floor — and a salesperson's session cannot read any of it, even with SQL |
 | **L2** ✅ | **Pricing intelligence** | Recommended list price and floor; aging re-price proposals through approvals; the floor written from cost and target margin | A car 60 days in stock gets a re-price proposal an owner or admin approves in one click, and the published content that quoted the old price is flagged |
-| **L3** | Reconditioning | Inspection, work orders, repair estimates from inspection photos, budget alerts, ready-to-sell date | A repair over budget raises an approval before the money is spent |
+| **L3** ✅ | **Reconditioning** | Inspection, work orders, repair estimates from inspection photos, budget alerts, ready-to-sell date | A repair over budget raises an approval before the money is spent |
 | **L4** | Inbound | Shipments, customs, transport, registration milestones; document checklist; fees flow into the ledger | A US-auction car shows where it is and what is missing, and its landed cost is complete the day it arrives |
 | **L5** | Appraisal and sourcing | Valuation from own history, trade-in appraisal with damage read from photos, maximum bid, a buying list from unmet demand | The buying list names cars customers asked for this month that the dealer does not have |
 | **L6** | Deal desk | Offers inside the floor, trade-in on the sale, reservations and deposits recorded, finance and insurance packets | An offer below the floor cannot be sent; a deposit reserves the car and stops its marketing |
@@ -197,13 +199,73 @@ rounding unit so a rounded price never keeps less margin than the rule.
 
 ---
 
+## L3 — Reconditioning
+
+### Data
+
+`supabase/migrations/0018_lifecycle_recon.sql`.
+
+- **`vehicle_recon`** — one per car: `budget_minor` in the dealer's currency, `ready_by` (when it
+  is expected on the lot), `ready_at` (when it got there), notes. Created with the dealer's default
+  budget the first time anybody writes to it.
+- **`recon_items`** — the work: `area`, `operation` (paint a panel, dent, tyre, windscreen,
+  service, valet, …), `quantity`, `description`, `severity`, `vendor`, `estimate_minor`,
+  `actual_minor`, `status`, the inspection photo it was read from, and links to its cost line and
+  its approval.
+- **`tenants.recon_settings`** — the starting budget per car, and a rate per unit of each
+  operation.
+- Both tables sit behind the buy-side wall. So does an over-budget approval: it names what the
+  repair costs, so a restrictive policy on `approvals` hides that kind from any session not
+  cleared for the buy side, and the approvals routes now open their session as the person.
+
+### The rule
+
+An item moves `proposed → approved | awaiting_approval → approved → done`, or is declined.
+
+- **Commit** is the moment money is promised. If the approved estimates plus the work already
+  done, plus this item, fit the budget, it is approved at once and its estimate goes into the cost
+  ledger as an estimate line — so the landed cost, and tomorrow's price, already count it. If not,
+  it waits in the approvals queue for an owner or admin (`APPROVER_ROLE["recon_over_budget"]`).
+  **No budget spends like a budget of nothing**: every commitment asks until somebody sets one.
+  The car's record is locked while it is measured, so two items committed at once cannot each fit
+  a budget they overrun together.
+- **Done** turns the estimate line into the actual amount. A repair that came in above its estimate
+  and took the car over budget is money already spent — nothing to approve — so owners and admins
+  are told (`recon.overran`).
+- An approval is applied only to the item exactly as it was asked about: withdrawn, or with a
+  different estimate, and the decision is stale. A "no" declines the work.
+- **Ready** refuses while work is approved or waiting. A car still in draft goes on sale.
+
+### The AI: reading inspection photos
+
+`POST /v1/vehicles/{id}/recon/inspect` takes up to eight photos and returns **proposed** work. It
+writes no item; `POST /recon/items` writes what a person confirmed.
+
+The model says what it sees and what work that calls for, against the photo that shows it. **It
+never says what the work costs.** The estimate comes from the dealer's rate card, then from this
+dealer's own history — the median per unit of the last jobs of the same operation in a year, once
+there are three — and otherwise a person types it. A repair price from a model's memory is a guess
+about a workshop it has never been to.
+
+What code checks: the photo a finding names was sent, the quantity is a count, and the same finding
+is listed once. What it cannot — whether the damage is there — a person confirms line by line.
+
+### Screens
+
+- **Vehicle → Reconditioning** — budget, committed, spent and left; the work with its next step
+  (commit, set an estimate, done, decline, withdraw); *Read inspection photos*; *Mark ready*.
+- **Settings → Reconditioning** — the starting budget and the rate card.
+
+---
+
 ## Status
 
 | Slice | State |
 |---|---|
 | **L1** | **Done.** Migration `0016`, `routes/acquisition.py`, `lifecycle/invoices.py`, the inventory and vehicle screens. The buy-side wall is tested as the application role; the invoice reader is tested live (`npm run eval:invoice`) — every line of an auction invoice read exactly, no exchange rate invented, and a line removed from the printout caught by the total. |
 | **L2** | **Done.** Migration `0017`, `lifecycle/pricing.py`, `events/handlers/lifecycle.py`, the pricing card and settings screen. Tested end to end in the browser: a 60-day car proposed, approved by the owner, applied by the worker. In the suite: a manager may propose but not approve, a price that moved before the decision is never overwritten, stale drafts are rejected. |
-| L3–L8 | Not started. L3 (reconditioning) is next. |
+| **L3** | **Done.** Migration `0018`, `lifecycle/recon.py`, `routes/recon.py`, the reconditioning tab and settings screen. Tested end to end in the browser: AED 1,500 of paint approved inside a AED 2,000 budget, AED 900 of tyres sent for approval, approved by the owner and applied by the worker, the tyres finished at AED 1,100 and the owner told of the overrun, the car marked ready and put on sale; a photo read by the live model and priced from the rate card. The reader is tested live (`npm run eval:inspection`): nothing invented on a photo with no car, the damage found on the photo that shows it. |
+| L4–L8 | Not started. L4 (inbound: shipping, customs, registration) is next. |
 
 ## Open questions for Pollux
 

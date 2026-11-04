@@ -7,7 +7,7 @@ from uuid import UUID
 import structlog
 
 from ...db.session import tenant_session
-from ...lifecycle import pricing
+from ...lifecycle import pricing, recon
 from ...orchestrator.executor import execute_run
 from ..bus import Event, emit, handler
 
@@ -68,6 +68,14 @@ async def on_approval_decided(event: Event) -> None:
                     conn, tenant_id, UUID(str(event.payload["approval_id"]))
                 )
             log.info("price_proposal_decided", outcome=outcome)
+        return
+    if tenant_id is not None and event.payload.get("kind") == recon.KIND:
+        # Approved or rejected, the item moves: a "no" declines the work.
+        async with tenant_session(tenant_id) as conn, conn.transaction():
+            outcome = await recon.apply_decision(
+                conn, tenant_id, UUID(str(event.payload["approval_id"]))
+            )
+        log.info("recon_decision_applied", outcome=outcome)
         return
 
     task_id = event.payload.get("task_id")

@@ -8,15 +8,16 @@ import asyncpg
 import structlog
 
 from ...core.money import Money
-from ...core.words import Words
+from ...core.words import Words, same
 from ...db.session import tenant_session
-from ...lifecycle import pricing
+from ...lifecycle import pricing, recon
 from ..bus import Event, handler
 from .notify import notify
 
 log = structlog.get_logger()
 
-#: Who hears that prices should move: whoever may change them.
+#: Who hears that prices should move, or a repair needs more money: whoever
+#: may decide it.
 PRICE_DECIDERS = ("owner", "admin")
 #: Who hears that published content quotes an old price: whoever can take it down.
 CONTENT_OWNERS = ("owner", "admin", "marketer")
@@ -112,3 +113,65 @@ async def after_price_change(event: Event) -> None:
             stopped=len(found["stopped"]),
             published=len(found["published"]),
         )
+
+
+@handler("approval.requested")
+async def on_approval_requested(event: Event) -> None:
+    """A repair that would take a car over budget, told to whoever decides it,
+    the moment it is asked — the work is waiting on them.
+
+    Every approval emits this; only reconditioning rings a bell here. Price
+    proposals are told once a morning by the sweep, and the reviewer's queue for
+    the other kinds is M4's (docs/09-implementation-plan.md).
+    """
+    tenant_id = event.tenant_id
+    if tenant_id is None or event.payload.get("kind") != recon.KIND:
+        return
+    approval_id = str(event.payload["approval_id"])
+    summary = str(event.payload.get("summary") or "")
+    async with tenant_session(tenant_id) as conn, conn.transaction():
+        for user_id in await _members(conn, tenant_id, PRICE_DECIDERS):
+            await notify(
+                conn,
+                tenant_id=tenant_id,
+                user_id=user_id,
+                kind="recon_approval",
+                title=Words("A repair needs your approval", "إصلاح ينتظر موافقتك"),
+                # The car, the work and the amounts: numbers and names read the
+                # same in either language.
+                body=same(summary),
+                entity={"type": "approval_queue", "id": approval_id},
+                dedupe_key=f"recon_approval:{approval_id}",
+            )
+
+
+@handler("recon.overran")
+async def on_recon_overran(event: Event) -> None:
+    """A repair came in above its estimate and took the car over budget. The
+    money is spent — there is nothing to approve — so the owner is told."""
+    tenant_id = event.tenant_id
+    if tenant_id is None:
+        return
+    payload = event.payload
+    currency = str(payload.get("currency") or "AED")
+    actual = Money(int(payload["actual_minor"]), currency).display()
+    estimate = Money(int(payload["estimate_minor"]), currency).display()
+    over = Money(int(payload["over_minor"]), currency).display()
+    what = str(payload.get("description") or "")
+    async with tenant_session(tenant_id) as conn, conn.transaction():
+        for user_id in await _members(conn, tenant_id, PRICE_DECIDERS):
+            await notify(
+                conn,
+                tenant_id=tenant_id,
+                user_id=user_id,
+                kind="recon_overrun",
+                title=Words(
+                    f"A repair is {over} over budget", f"إصلاح تجاوز الميزانية بمقدار {over}"
+                ),
+                body=Words(
+                    f"{what}: {actual}, estimated at {estimate}.",
+                    f"{what}: {actual}، والتقدير كان {estimate}.",
+                ),
+                entity={"type": "vehicle", "id": str(payload["vehicle_id"])},
+                dedupe_key=f"recon_overrun:{payload['item_id']}",
+            )

@@ -3,16 +3,11 @@
 import { useState, type FormEvent } from "react";
 import { Auto, Ltr } from "@/components/Bidi";
 import { useAddCosts, useReadInvoice, type CostIn, type Extraction } from "@/lib/api/hooks";
-import { formatMoney, parseMajor } from "@/lib/format";
+import { asTyped, formatMoney, parseMajor } from "@/lib/format";
 import { useT } from "@/lib/i18n-client";
 import { CATEGORIES } from "./BuySide";
 
 type Draft = { category: CostIn["category"]; description: string; amount: string; quote: string };
-
-/** Minor units back to the text a person would type, for an editable field. */
-function asTyped(minor: number, currency: string): string {
-  return formatMoney({ amount_minor: minor, currency }).replace(`${currency} `, "");
-}
 
 /**
  * Upload a purchase document, see what it says, correct it, record it.
