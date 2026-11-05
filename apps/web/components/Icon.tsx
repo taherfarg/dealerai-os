@@ -42,6 +42,13 @@ const DRAWINGS = {
       <path d="M6.5 17v2M17.5 17v2" />
     </>
   ),
+  sourcing: (
+    <>
+      <path d="M3.5 4.5h2l2.3 10.5h10l2-7.5H6.4" />
+      <circle cx="9" cy="19" r="1.3" />
+      <circle cx="16.5" cy="19" r="1.3" />
+    </>
+  ),
   approvals: (
     <>
       <path d="M12 3.5 5 6v5.5c0 4 2.8 7 7 9 4.2-2 7-5 7-9V6z" />

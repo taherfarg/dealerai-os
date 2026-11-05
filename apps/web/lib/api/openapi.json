@@ -187,6 +187,121 @@
         "title": "AgeStep",
         "type": "object"
       },
+      "AppraisalOut": {
+        "properties": {
+          "bid": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BidOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "make": {
+            "title": "Make",
+            "type": "string"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "model_year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Year"
+          },
+          "worth": {
+            "$ref": "#/components/schemas/WorthOut"
+          }
+        },
+        "required": [
+          "make",
+          "model",
+          "model_year",
+          "currency",
+          "worth",
+          "bid"
+        ],
+        "title": "AppraisalOut",
+        "type": "object"
+      },
+      "AppraiseIn": {
+        "properties": {
+          "expected_price_minor": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Price Minor"
+          },
+          "make": {
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Make",
+            "type": "string"
+          },
+          "model": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Model",
+            "type": "string"
+          },
+          "model_year": {
+            "anyOf": [
+              {
+                "maximum": 2100.0,
+                "minimum": 1950.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Year"
+          },
+          "on_top_minor": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "On Top Minor"
+          },
+          "repairs_minor": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Repairs Minor",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "make",
+          "model"
+        ],
+        "title": "AppraiseIn",
+        "type": "object"
+      },
       "ApprovalOut": {
         "properties": {
           "created_at": {
@@ -307,6 +422,78 @@
           "required_role"
         ],
         "title": "ApprovalOut",
+        "type": "object"
+      },
+      "AskerOut": {
+        "properties": {
+          "asked_at": {
+            "format": "date-time",
+            "title": "Asked At",
+            "type": "string"
+          },
+          "budget": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MoneyOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "contact_id": {
+            "format": "uuid",
+            "title": "Contact Id",
+            "type": "string"
+          },
+          "destination": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Destination"
+          },
+          "model_year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Year"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "quoted": {
+            "title": "Quoted",
+            "type": "string"
+          }
+        },
+        "required": [
+          "contact_id",
+          "name",
+          "model_year",
+          "quoted",
+          "budget",
+          "destination",
+          "asked_at"
+        ],
+        "title": "AskerOut",
         "type": "object"
       },
       "AssignIn": {
@@ -475,6 +662,78 @@
         "title": "AttentionItem",
         "type": "object"
       },
+      "BidOut": {
+        "properties": {
+          "days_from": {
+            "enum": [
+              "history",
+              "typed",
+              "assumed"
+            ],
+            "title": "Days From",
+            "type": "string"
+          },
+          "days_to_sell": {
+            "title": "Days To Sell",
+            "type": "integer"
+          },
+          "expected_price": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "holding": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "margin": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "max_bid": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "on_top": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "on_top_from": {
+            "enum": [
+              "history",
+              "typed",
+              "assumed"
+            ],
+            "title": "On Top From",
+            "type": "string"
+          },
+          "price_from": {
+            "enum": [
+              "history",
+              "typed",
+              "assumed"
+            ],
+            "title": "Price From",
+            "type": "string"
+          },
+          "repairs": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "target_margin_bps": {
+            "title": "Target Margin Bps",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expected_price",
+          "price_from",
+          "target_margin_bps",
+          "margin",
+          "on_top",
+          "on_top_from",
+          "holding",
+          "days_to_sell",
+          "days_from",
+          "repairs",
+          "max_bid"
+        ],
+        "title": "BidOut",
+        "type": "object"
+      },
       "Bodies": {
         "additionalProperties": false,
         "properties": {
@@ -556,6 +815,72 @@
           "file"
         ],
         "title": "Body_extract_costs_v1_vehicles__vehicle_id__costs_extract_post",
+        "type": "object"
+      },
+      "Body_inspect_v1_sourcing_inspect_post": {
+        "properties": {
+          "files": {
+            "items": {
+              "contentMediaType": "application/octet-stream",
+              "type": "string"
+            },
+            "title": "Files",
+            "type": "array"
+          },
+          "make": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Make"
+          },
+          "mileage_km": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mileage Km"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "model_year": {
+            "anyOf": [
+              {
+                "maximum": 2100.0,
+                "minimum": 1950.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Year"
+          }
+        },
+        "required": [
+          "files"
+        ],
+        "title": "Body_inspect_v1_sourcing_inspect_post",
         "type": "object"
       },
       "Body_inspect_v1_vehicles__vehicle_id__recon_inspect_post": {
@@ -842,6 +1167,38 @@
           "costly"
         ],
         "title": "BusinessOut",
+        "type": "object"
+      },
+      "BuyingListOut": {
+        "properties": {
+          "cars": {
+            "items": {
+              "$ref": "#/components/schemas/WantedOut"
+            },
+            "title": "Cars",
+            "type": "array"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "days": {
+            "title": "Days",
+            "type": "integer"
+          },
+          "since": {
+            "format": "date-time",
+            "title": "Since",
+            "type": "string"
+          }
+        },
+        "required": [
+          "since",
+          "days",
+          "currency",
+          "cars"
+        ],
+        "title": "BuyingListOut",
         "type": "object"
       },
       "CancelIn": {
@@ -10328,6 +10685,106 @@
         "title": "VehicleUpdate",
         "type": "object"
       },
+      "WantedOut": {
+        "properties": {
+          "askers": {
+            "items": {
+              "$ref": "#/components/schemas/AskerOut"
+            },
+            "title": "Askers",
+            "type": "array"
+          },
+          "bid": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BidOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "make": {
+            "title": "Make",
+            "type": "string"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "worth": {
+            "$ref": "#/components/schemas/WorthOut"
+          }
+        },
+        "required": [
+          "make",
+          "model",
+          "askers",
+          "worth",
+          "bid"
+        ],
+        "title": "WantedOut",
+        "type": "object"
+      },
+      "WorthOut": {
+        "description": "The dealer's own sales of this make and model in the last year.",
+        "properties": {
+          "days_to_sell": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Days To Sell"
+          },
+          "landed": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MoneyOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "on_top": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MoneyOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "price": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MoneyOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sold": {
+            "title": "Sold",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "sold",
+          "price",
+          "landed",
+          "on_top",
+          "days_to_sell"
+        ],
+        "title": "WorthOut",
+        "type": "object"
+      },
       "dealerai__routes__leads__ContactRef": {
         "properties": {
           "country": {
@@ -15630,6 +16087,158 @@
         "summary": "Change Sales Settings",
         "tags": [
           "settings"
+        ]
+      }
+    },
+    "/v1/sourcing/appraise": {
+      "post": {
+        "description": "What one car is worth to this dealer and the most to pay for it: from\nits own sales of the same make and model, with what a person typed winning.",
+        "operationId": "appraise_v1_sourcing_appraise_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AppraiseIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppraisalOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Appraise",
+        "tags": [
+          "sourcing"
+        ]
+      }
+    },
+    "/v1/sourcing/buying-list": {
+      "get": {
+        "description": "The cars customers asked for in the last 30 days that the dealer has\nneither in stock nor on its way, with what its own history says each is\nworth and the most to pay.",
+        "operationId": "buying_list_v1_sourcing_buying_list_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BuyingListOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Buying List",
+        "tags": [
+          "sourcing"
+        ]
+      }
+    },
+    "/v1/sourcing/inspect": {
+      "post": {
+        "description": "A trade-in's photographs read into the repairs it needs, priced from the\ndealer's rates or history — L3's reader, for a car not yet in stock.\nStores nothing: the person keeps the findings that are real.",
+        "operationId": "inspect_v1_sourcing_inspect_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_inspect_v1_sourcing_inspect_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InspectionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Inspect",
+        "tags": [
+          "sourcing"
         ]
       }
     },

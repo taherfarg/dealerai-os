@@ -1384,6 +1384,71 @@ export interface paths {
         patch: operations["change_sales_settings_v1_settings_sales_patch"];
         trace?: never;
     };
+    "/v1/sourcing/appraise": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Appraise
+         * @description What one car is worth to this dealer and the most to pay for it: from
+         *     its own sales of the same make and model, with what a person typed winning.
+         */
+        post: operations["appraise_v1_sourcing_appraise_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/sourcing/buying-list": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Buying List
+         * @description The cars customers asked for in the last 30 days that the dealer has
+         *     neither in stock nor on its way, with what its own history says each is
+         *     worth and the most to pay.
+         */
+        get: operations["buying_list_v1_sourcing_buying_list_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/sourcing/inspect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Inspect
+         * @description A trade-in's photographs read into the repairs it needs, priced from the
+         *     dealer's rates or history — L3's reader, for a car not yet in stock.
+         *     Stores nothing: the person keeps the findings that are real.
+         */
+        post: operations["inspect_v1_sourcing_inspect_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/stream": {
         parameters: {
             query?: never;
@@ -2368,6 +2433,37 @@ export interface components {
             /** Days */
             days: number;
         };
+        /** AppraisalOut */
+        AppraisalOut: {
+            bid: components["schemas"]["BidOut"] | null;
+            /** Currency */
+            currency: string;
+            /** Make */
+            make: string;
+            /** Model */
+            model: string;
+            /** Model Year */
+            model_year: number | null;
+            worth: components["schemas"]["WorthOut"];
+        };
+        /** AppraiseIn */
+        AppraiseIn: {
+            /** Expected Price Minor */
+            expected_price_minor?: number | null;
+            /** Make */
+            make: string;
+            /** Model */
+            model: string;
+            /** Model Year */
+            model_year?: number | null;
+            /** On Top Minor */
+            on_top_minor?: number | null;
+            /**
+             * Repairs Minor
+             * @default 0
+             */
+            repairs_minor: number;
+        };
         /** ApprovalOut */
         ApprovalOut: {
             /**
@@ -2407,6 +2503,28 @@ export interface components {
             status: "pending" | "approved" | "rejected" | "expired";
             /** Summary */
             summary: string;
+        };
+        /** AskerOut */
+        AskerOut: {
+            /**
+             * Asked At
+             * Format: date-time
+             */
+            asked_at: string;
+            budget: components["schemas"]["MoneyOut"] | null;
+            /**
+             * Contact Id
+             * Format: uuid
+             */
+            contact_id: string;
+            /** Destination */
+            destination: string | null;
+            /** Model Year */
+            model_year: number | null;
+            /** Name */
+            name: string | null;
+            /** Quoted */
+            quoted: string;
         };
         /** AssignIn */
         AssignIn: {
@@ -2450,6 +2568,34 @@ export interface components {
             /** Since */
             since: string | null;
         };
+        /** BidOut */
+        BidOut: {
+            /**
+             * Days From
+             * @enum {string}
+             */
+            days_from: "history" | "typed" | "assumed";
+            /** Days To Sell */
+            days_to_sell: number;
+            expected_price: components["schemas"]["MoneyOut"];
+            holding: components["schemas"]["MoneyOut"];
+            margin: components["schemas"]["MoneyOut"];
+            max_bid: components["schemas"]["MoneyOut"];
+            on_top: components["schemas"]["MoneyOut"];
+            /**
+             * On Top From
+             * @enum {string}
+             */
+            on_top_from: "history" | "typed" | "assumed";
+            /**
+             * Price From
+             * @enum {string}
+             */
+            price_from: "history" | "typed" | "assumed";
+            repairs: components["schemas"]["MoneyOut"];
+            /** Target Margin Bps */
+            target_margin_bps: number;
+        };
         /** Bodies */
         Bodies: {
             /** Ar */
@@ -2470,6 +2616,19 @@ export interface components {
             file: string;
             /** Note */
             note?: string | null;
+        };
+        /** Body_inspect_v1_sourcing_inspect_post */
+        Body_inspect_v1_sourcing_inspect_post: {
+            /** Files */
+            files: string[];
+            /** Make */
+            make?: string | null;
+            /** Mileage Km */
+            mileage_km?: number | null;
+            /** Model */
+            model?: string | null;
+            /** Model Year */
+            model_year?: number | null;
         };
         /** Body_inspect_v1_vehicles__vehicle_id__recon_inspect_post */
         Body_inspect_v1_vehicles__vehicle_id__recon_inspect_post: {
@@ -2571,6 +2730,20 @@ export interface components {
             /** Old After Days */
             old_after_days: number;
             tied_up: components["schemas"]["MoneyOut"];
+        };
+        /** BuyingListOut */
+        BuyingListOut: {
+            /** Cars */
+            cars: components["schemas"]["WantedOut"][];
+            /** Currency */
+            currency: string;
+            /** Days */
+            days: number;
+            /**
+             * Since
+             * Format: date-time
+             */
+            since: string;
         };
         /** CancelIn */
         CancelIn: {
@@ -5463,6 +5636,30 @@ export interface components {
             transmission?: string | null;
             /** Trim */
             trim?: string | null;
+        };
+        /** WantedOut */
+        WantedOut: {
+            /** Askers */
+            askers: components["schemas"]["AskerOut"][];
+            bid: components["schemas"]["BidOut"] | null;
+            /** Make */
+            make: string;
+            /** Model */
+            model: string;
+            worth: components["schemas"]["WorthOut"];
+        };
+        /**
+         * WorthOut
+         * @description The dealer's own sales of this make and model in the last year.
+         */
+        WorthOut: {
+            /** Days To Sell */
+            days_to_sell: number | null;
+            landed: components["schemas"]["MoneyOut"] | null;
+            on_top: components["schemas"]["MoneyOut"] | null;
+            price: components["schemas"]["MoneyOut"] | null;
+            /** Sold */
+            sold: number;
         };
         /** ContactRef */
         dealerai__routes__leads__ContactRef: {
@@ -8500,6 +8697,107 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SalesSettings"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    appraise_v1_sourcing_appraise_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AppraiseIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppraisalOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    buying_list_v1_sourcing_buying_list_get: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BuyingListOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    inspect_v1_sourcing_inspect_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_inspect_v1_sourcing_inspect_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InspectionOut"];
                 };
             };
             /** @description Validation Error */

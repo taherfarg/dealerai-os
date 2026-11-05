@@ -25,8 +25,8 @@ Twelve stages. "Today" is what exists in the codebase now.
 
 | # | Stage | What happens | What the AI does | What a person signs | Today |
 |---|---|---|---|---|---|
-| 1 | **Sourcing** | Find cars worth buying: auctions, trade-ins, dealers, imports | Turns unmet demand (customers asking for cars that are not in stock — the sales copilot already sees every one) into a buying list; scores opportunities by expected margin and days to sell | Nothing — it is a list | ❌ |
-| 2 | **Appraisal** | Decide what a car is worth and the most to pay | Valuation range from the dealer's *own* sales history and the comparables it is given; reads damage from photographs (the vision pipeline exists); proposes a maximum bid for a target margin | The bid | ❌ |
+| 1 | **Sourcing** | Find cars worth buying: auctions, trade-ins, dealers, imports | Turns unmet demand (customers asking for cars that are not in stock — the sales copilot already sees every one) into a buying list; scores opportunities by expected margin and days to sell | Nothing — it is a list | **L5** |
+| 2 | **Appraisal** | Decide what a car is worth and the most to pay | Valuation range from the dealer's *own* sales history and the comparables it is given; reads damage from photographs (the vision pipeline exists); proposes a maximum bid for a target margin | The bid | **L5** (own history; no outside comparables) |
 | 3 | **Purchase** | The car is bought | Reads the auction receipt or purchase invoice and proposes the acquisition and its cost lines | Confirms what the document says | **L1** |
 | 4 | **Inbound** | Shipping, customs, transport, registration | Tracks each milestone, chases what is late, adds every fee to the car's cost, keeps the document checklist | — | ❌ |
 | 5 | **Reconditioning** | Inspect, repair, detail, photograph | Writes the repair plan and estimate from the inspection; flags a car going over its budget; knows when it will be ready | The repair budget | ❌ |
@@ -104,7 +104,7 @@ Each ends in something a dealer can use. The order is the order every later stag
 | **L2** ✅ | **Pricing intelligence** | Recommended list price and floor; aging re-price proposals through approvals; the floor written from cost and target margin | A car 60 days in stock gets a re-price proposal an owner or admin approves in one click, and the published content that quoted the old price is flagged |
 | **L3** ✅ | **Reconditioning** | Inspection, work orders, repair estimates from inspection photos, budget alerts, ready-to-sell date | A repair over budget raises an approval before the money is spent |
 | **L4** ✅ | **Inbound** | Shipments, customs, transport, registration milestones; document checklist; fees flow into the ledger | A US-auction car shows where it is and what is missing, and its landed cost is complete the day it arrives |
-| **L5** | Appraisal and sourcing | Valuation from own history, trade-in appraisal with damage read from photos, maximum bid, a buying list from unmet demand | The buying list names cars customers asked for this month that the dealer does not have |
+| **L5** ✅ | **Appraisal and sourcing** | Valuation from own history, trade-in appraisal with damage read from photos, maximum bid, a buying list from unmet demand | The buying list names cars customers asked for this month that the dealer does not have |
 | **L6** ✅ | **Deal desk** | Offers inside the floor, reservations by deposit, payment in stages (deposit, balance on inspection and documents, logistics as it ships), an invoice that separates price, fees, freight and duties, transfer receipts read into payments; no bank finance (Q3) | An offer below the floor cannot be sent; a deposit reserves the car and stops its marketing |
 | **L7** ✅ | **Handover and export** | The export file per destination — Pollux's own procedures for Algeria, Tunisia and everywhere else ([pollux.md](pollux.md)): RTA export inspection and certificate, export plates, customs card, bill of lading draft then original, Dubai Chamber certificate, commercial invoice — as an outbound journey on L4's machinery; RTA transfer and delivery checklist for a local sale | Every document for one sale is drafted from the record and a person signs it, and an export car shows which step of its destination's procedure it is on |
 | **L8** ✅ | **After the sale, and the numbers** | After-sale programme, service reminders, trade-back signals; per-car P&L, gross per unit, turn, holding cost in the dashboard and the morning brief | The owner's morning brief says what the month made and which cars are costing money to keep |
@@ -326,6 +326,82 @@ another car cannot be applied. A sailing date in the future is a schedule, not a
 
 ---
 
+## L5 — Appraisal and sourcing
+
+For Pollux, sourcing is the everyday half: it buys new cars from traders in DUCAMZ and imports
+from China, and what to buy next is what its customers keep asking for. An appraisal is the same
+question asked of one car — what is it worth to us, and the most we should pay — and a trade-in
+is the occasional case of it, with photographs.
+
+### Data
+
+`supabase/migrations/0023_lifecycle_sourcing.sql`.
+
+- **`customer_wants`** — the car a customer asked for, read from their profile's *interest* (the
+  profile agent writes it from the conversation, in the customer's words; a person can type it):
+  make, model and year, the words that name it, and when it was asked. Several per customer when
+  they named several cars. Readable where the customer is — a list query joins `contacts`, so
+  sales visibility applies to it unchanged.
+- A trigger on `contacts` books `sourcing.interest_changed` whenever the interest changes, however
+  it was written — the profile agent, a person, a merge. One pending read per customer.
+
+### The AI: reading what a customer asked for
+
+`lifecycle/sourcing.py`. *"لاند كروزر ابيض 2025"*, *"Land Cruiser 4.0, white"* and *"un Land
+Cruiser"* are one car; grouping them is the model's job, the counting is code's.
+
+- The model is given the interest and the dealer's own catalogue — every make and model it has
+  ever stocked, and every car a customer already asked for — and names each car the words ask for,
+  spelled as the catalogue spells it when it is the same car. A car the catalogue does not have is
+  named all the same: the cars a dealer has never stocked are the ones it most needs to hear about,
+  and the second customer asking for one is spelled as the first was. An interest that names no car
+  (*"a family SUV under 150k"*) names none.
+- What code checks: the words it says name the car are in the interest, the year is a model year,
+  and each car is listed once. A car it cannot point at in the customer's words is dropped.
+
+### The buying list — code, not a model
+
+`GET /v1/sourcing/buying-list`, for those who may see cost (`costs.view`): what to pay is the buy
+side.
+
+- **Asked for** — every car customers named in the last 30 days, grouped by make and model: how
+  many customers, who they are, the years and the budgets they gave, and where the cars would go.
+- **Not had** — a car the dealer has in stock or on its way (available, or draft) is not on the
+  list. A car held for another buyer is not stock: it is on the list.
+- **The same car** — the same make, and the same model or that model with a trim after it, case
+  aside: the dealer lists a "Land Cruiser 4.0", the customer asks for a "Land Cruiser". The stock
+  check and the history use the one rule.
+- **Worth, from the dealer's own history** — the cars of that make and model sold in the last year:
+  how many, the median price, the median landed cost and the median days to sell. Never a model's
+  memory of a price.
+- **The most to pay** — the expected price less the target margin (Settings → Pricing), less what
+  such a car costs to land on top of its purchase (the median of the dealer's own), less holding it
+  for the days such a car takes to sell (L8's holding cost), rounded **down**: a bid never pays more
+  than the rule. No history, no bid — the list says so.
+- Ordered by how many customers asked, then by what the history says such a car makes.
+
+### Appraising one car
+
+`POST /v1/sourcing/appraise` — a make, model and year, and optionally the price the dealer expects
+to sell it at, the costs on top and the repairs it needs. The same valuation and bid, for a car a
+trader offers or a customer wants to trade in. A typed expected price wins over the history, and
+says so.
+
+`POST /v1/sourcing/inspect` — a trade-in's photographs, read by L3's inspection reader into
+repairs priced from the rate card or the dealer's history. Nothing is stored: the person picks the
+findings that are real, and their sum is the repairs on the appraisal.
+
+Nothing is written by either. **The bid is what a person signs**, and they sign it by buying the
+car, which L1 records.
+
+### Screens
+
+- **Sourcing** (a new section, for those who may see cost) — the buying list, each car with the
+  customers who asked and the most to pay; and *Appraise a car*: the valuation, the bid line by
+  line, and *Read photos* for a trade-in.
+
+---
+
 ## L6 — Deal desk
 
 ### Data
@@ -509,7 +585,7 @@ wall.
 | **L6** | **Done.** Migration `0020`, `lifecycle/deals.py`, `routes/deals.py`, the sale tab. Tested end to end in the browser as a manager: a quote under the floor refused any payment and asked the owner; a quote at the list price plus freight reserved the car on its deposit; the worker archived the car's scheduled post and told the owner a published one still advertises it. The receipt reader is tested live (`npm run eval:receipt`): a SWIFT copy read at its instructed amount, not its charge, with no rate supplied. |
 | **L7** | **Done.** Migration `0021`, `lifecycle/export.py`, `routes/export.py`, the export file on the sale tab, the invoice page, Settings → Documents. Tested end to end in the browser as a manager: a deposit from an Algerian buyer laid out the 11-step Algeria procedure; a bill of lading draft read by the live model was caught naming the wrong consignee; the commercial invoice drafted from the record was signed as INV-2026-0001 and its step marked done. The reader is tested live for the consignee too (`npm run eval:shipping`). |
 | **L8** | **Done.** Migration `0022`, `lifecycle/numbers.py`, the dashboard's *Business* section, the brief's facts, the check-in on `order.completed`, *Bought before*. Tested end to end in the browser as the owner: an import held 73 days on AED 190,000 showed AED 3,040 to keep at 8% and AED 21,960 left at list; an export sold through the deal desk at AED 235,000 on AED 205,000 made AED 30,000 gross, freight left out, and booked Ahmed's check-in six weeks on at 10:00; AED 20 a day in Settings → Pricing moved both. The live model's brief, for the owner and the manager, in both languages: "Gross is AED 30,000; 2026 BYD Leopard 7 Ultra costs most to keep" — through the facts guard. Not built: service reminders (Pollux services no cars). |
-| L5 | Not started. Appraisal and sourcing — the occasional trade-in, for a dealer that sells new cars. |
+| **L5** | **Done.** Migration `0023`, `lifecycle/sourcing.py`, `routes/sourcing.py`, the Sourcing page. Tested end to end in the browser as the owner: four customers' interests typed on Customer 360 — *"لاند كروزر ابيض 2025 للتصدير"*, *"Land Cruiser 4.0 GXR, white"*, *"Je cherche un Nissan Patrol 2025"* and *"مرسيدس جي 63"* — were read by the live model through the worker; the buying list named the Toyota Land Cruiser (two customers, the dealer's last one sold), the Mercedes-Benz G 63 and the Nissan Patrol (never stocked, no bid). The Land Cruiser, listed as a "Land Cruiser 4.0", sold at AED 235,000 on AED 205,000 in 30 days: most to pay AED 205,000 at 12%; appraised with AED 2,000 of repairs, AED 203,000. Arabic at phone width, right to left. The reader is tested live (`npm run eval:wants`): Arabic, English and French, two cars in one ask, cars never stocked named all the same, and no car for *"a family SUV"*. The live run caught two things the stubbed suite could not, both fixed: the model kept to the catalogue and dropped a car never stocked, and a model listed with its engine did not match the same car asked for without it. Not built: outside comparables — the valuation is the dealer's own sales only. |
 
 ## Open questions for Pollux
 

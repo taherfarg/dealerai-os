@@ -41,6 +41,7 @@ from .routes import (
     quick_replies,
     recon,
     runs,
+    sourcing,
     stream,
     suggestions,
     tasks,
@@ -107,6 +108,7 @@ def create_app() -> FastAPI:
     app.include_router(deals.router)
     app.include_router(export.router)
     app.include_router(export.settings_router)
+    app.include_router(sourcing.router)
     app.include_router(vehicles.router)
     app.include_router(imports.router)
     app.include_router(runs.router)
