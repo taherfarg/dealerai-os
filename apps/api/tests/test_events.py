@@ -92,9 +92,23 @@ async def test_concurrent_workers_handle_each_event_exactly_once(
         await asyncio.sleep(0)
         handled.append(event.id)
 
+    # Due an hour ago, not "now": the drain stops at the first empty claim, and
+    # the local Docker VM's clock steps back ~0.9 s every ~30 s. Stamped with
+    # now(), events emitted just before a step read as future, every worker
+    # finds nothing due, and the drain ends with them still pending.
     async with tenant_session(TENANT_A) as conn:
         for i in range(100):
-            await emit(conn, "test.once", {"i": i}, tenant_id=TENANT_A)
+            await emit(
+                conn,
+                "test.once",
+                {"i": i},
+                tenant_id=TENANT_A,
+                run_after=datetime.now(UTC) - timedelta(hours=1),
+            )
+        assert await conn.fetchval(
+            "select bool_and(run_after < now() - interval '1 minute') from events"
+            " where event_type = 'test.once'"
+        ), "events must be due with margin, or a clock step can hide them from the drain"
 
     workers = [Worker(f"w{i}", batch_size=7) for i in range(3)]
 
