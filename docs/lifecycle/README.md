@@ -36,7 +36,7 @@ Twelve stages. "Today" is what exists in the codebase now.
 | 9 | **Selling** | Inbox, CRM, follow-ups | Drafts replies grounded in live stock, scores leads, writes follow-ups | Every message (Phase 1 is copilot-only) | ✅ Sales S0–S7 |
 | 10 | **Deal desk** | Offer, trade-in, reservation, finance, insurance | Builds the offer inside the floor, values the trade-in (back to stage 2), prepares the bank and insurer packets | The deal, any discount, the deposit | ❌ |
 | 11 | **Handover** | Invoice, sale agreement, transfer or export papers, delivery | Drafts every document from the record and checks it against the record | Every document | ❌ |
-| 12 | **After the sale** | Follow-up, review, service reminders, referral, trade-back | Runs the after-sale programme and notices when a past buyer is ready to trade again | — | ⚠️ follow-ups only |
+| 12 | **After the sale** | Follow-up, review, service reminders, referral, trade-back | Runs the after-sale programme and notices when a past buyer is ready to trade again | — | **L8** (no service reminders) |
 
 And running across all twelve: **unit economics** — what every car cost, what it made, how long
 it took, and what it cost to hold. That is the number a dealer actually runs the business on, and
@@ -107,7 +107,7 @@ Each ends in something a dealer can use. The order is the order every later stag
 | **L5** | Appraisal and sourcing | Valuation from own history, trade-in appraisal with damage read from photos, maximum bid, a buying list from unmet demand | The buying list names cars customers asked for this month that the dealer does not have |
 | **L6** ✅ | **Deal desk** | Offers inside the floor, reservations by deposit, payment in stages (deposit, balance on inspection and documents, logistics as it ships), an invoice that separates price, fees, freight and duties, transfer receipts read into payments; no bank finance (Q3) | An offer below the floor cannot be sent; a deposit reserves the car and stops its marketing |
 | **L7** ✅ | **Handover and export** | The export file per destination — Pollux's own procedures for Algeria, Tunisia and everywhere else ([pollux.md](pollux.md)): RTA export inspection and certificate, export plates, customs card, bill of lading draft then original, Dubai Chamber certificate, commercial invoice — as an outbound journey on L4's machinery; RTA transfer and delivery checklist for a local sale | Every document for one sale is drafted from the record and a person signs it, and an export car shows which step of its destination's procedure it is on |
-| **L8** | After the sale, and the numbers | After-sale programme, service reminders, trade-back signals; per-car P&L, gross per unit, turn, holding cost in the dashboard and the morning brief | The owner's morning brief says what the month made and which cars are costing money to keep |
+| **L8** ✅ | **After the sale, and the numbers** | After-sale programme, service reminders, trade-back signals; per-car P&L, gross per unit, turn, holding cost in the dashboard and the morning brief | The owner's morning brief says what the month made and which cars are costing money to keep |
 
 **L1 first** because every later slice reads cost: pricing needs a floor that comes from it, the
 deal desk needs a margin, the numbers need both. **L2 next** because it is the fastest way to sell
@@ -435,6 +435,69 @@ is kept on its step, and the step stays to do: confirming is the buyer's.
 
 ---
 
+## L8 — After the sale, and the numbers
+
+### Data
+
+`supabase/migrations/0022_lifecycle_numbers.sql`. No new table: every number here is arithmetic on
+rows L1–L7 already write.
+
+- **`v_vehicle_economics`** gains `held_from` (the purchase date, or the day it was listed when
+  nothing says when it was bought), `sold_at` and `days_held` (to the sale, or to today). Holding
+  starts when the money goes out, not when the car goes on sale.
+- **`tenants.pricing_settings`** gains the cost of holding a car: a yearly rate on its landed cost
+  (the money tied up in it, 8% by default) and a fixed amount a day (storage, insurance; nothing by
+  default). Both are the dealer's to set, on Settings → Pricing.
+
+### The numbers — code, not a model
+
+`lifecycle/numbers.py`. Integer minor units in the dealer's currency, read through the buy-side
+wall.
+
+- **Holding cost** — landed cost × the yearly rate × days held ÷ 365, plus the daily amount × days
+  held, rounded **up**: a holding cost never reads lower than it is.
+- **A sale's gross** — the order's vehicle price less the car's landed cost, the same margin the
+  sale tab shows (L6). One definition, so the dashboard and the sale tab cannot disagree. Fees,
+  freight and duties are passed through to the buyer and are not profit.
+- **The month** — orders completed this month, where the showroom is: cars sold, their price, their
+  gross, gross per car, and the average days a sold car was held (the turn).
+- **The stock** — cars not yet sold: how many, the money tied up in them, and what holding them
+  costs a day.
+- **Costing money to keep** — cars held longer than the first step of the pricing ladder (45 days
+  by default: the age the dealer already said a car is old at), the five that have cost most to
+  hold, each with what is left of its margin at list once holding is paid.
+
+### Where it shows
+
+- **The dashboard** — a *Business* section for those who may see cost: the month, the stock and the
+  cars costing money to keep. Every other reader sees the dashboard as before.
+- **The morning brief** — for a reader cleared for cost, the facts the headline is written from gain
+  *This month* and *Costing money to keep*, so the line can say what the month made and which car is
+  costing most. Checked by the same facts guard: a number not in the facts stops the line. Under the
+  brief card, the *Business* section shows the month and the cars itself, in code, whatever the
+  line says.
+- **Vehicle → Cost** — days held and the holding cost so far, beside landed cost and margin: the
+  car's own P&L.
+
+### After the sale
+
+- **A check-in** — the order that sells a car books a task for the salesperson who owns the
+  buyer's lead (or who made the order): ask how the car is, and for a review or a referral. A week
+  after a local sale; six weeks after an export, when the car has crossed the sea. Written in the
+  salesperson's language, booked once however often the event is retried.
+- **A past buyer, seen** — Customer 360 lists what the customer bought: the car, when, and where it
+  went. A buyer writing again is a returning buyer, and the salesperson sees it before replying.
+- **Service reminders are not built.** Pollux has no workshop and most of its cars leave the
+  country ([pollux.md](pollux.md)). They join this slice when a dealer that services cars does.
+
+### Screens
+
+- **Dashboard → Business**, under the brief; **Vehicle → Cost and margin**'s days held and holding
+  cost; **Settings → Pricing**'s holding cost; and **Bought before** on Customer 360 and beside
+  the inbox thread.
+
+---
+
 ## Status
 
 | Slice | State |
@@ -445,7 +508,8 @@ is kept on its step, and the step stays to do: confirming is the buyer's.
 | **L4** | **Done.** Migration `0019`, `lifecycle/inbound.py`, `routes/inbound.py`, the arrival tab. Tested end to end in the browser as a manager: an auction car's journey started from its purchase, a bill of lading read by the live model and applied in one confirmation (shipped on its date, ETA and carrier filled, the paper received), the car delivered, and the owner and manager told it arrived with customs still unrecorded and four papers missing. The reader is tested live (`npm run eval:shipping`): both VINs on a two-car bill of lading read as printed, the right car matched, another car refused. |
 | **L6** | **Done.** Migration `0020`, `lifecycle/deals.py`, `routes/deals.py`, the sale tab. Tested end to end in the browser as a manager: a quote under the floor refused any payment and asked the owner; a quote at the list price plus freight reserved the car on its deposit; the worker archived the car's scheduled post and told the owner a published one still advertises it. The receipt reader is tested live (`npm run eval:receipt`): a SWIFT copy read at its instructed amount, not its charge, with no rate supplied. |
 | **L7** | **Done.** Migration `0021`, `lifecycle/export.py`, `routes/export.py`, the export file on the sale tab, the invoice page, Settings → Documents. Tested end to end in the browser as a manager: a deposit from an Algerian buyer laid out the 11-step Algeria procedure; a bill of lading draft read by the live model was caught naming the wrong consignee; the commercial invoice drafted from the record was signed as INV-2026-0001 and its step marked done. The reader is tested live for the consignee too (`npm run eval:shipping`). |
-| L5, L8 | Not started. L8 (the numbers) or L5 (appraisal and sourcing) next. |
+| **L8** | **Done.** Migration `0022`, `lifecycle/numbers.py`, the dashboard's *Business* section, the brief's facts, the check-in on `order.completed`, *Bought before*. Tested end to end in the browser as the owner: an import held 73 days on AED 190,000 showed AED 3,040 to keep at 8% and AED 21,960 left at list; an export sold through the deal desk at AED 235,000 on AED 205,000 made AED 30,000 gross, freight left out, and booked Ahmed's check-in six weeks on at 10:00; AED 20 a day in Settings → Pricing moved both. The live model's brief, for the owner and the manager, in both languages: "Gross is AED 30,000; 2026 BYD Leopard 7 Ultra costs most to keep" — through the facts guard. Not built: service reminders (Pollux services no cars). |
+| L5 | Not started. Appraisal and sourcing — the occasional trade-in, for a dealer that sells new cars. |
 
 ## Open questions for Pollux
 

@@ -30,12 +30,26 @@ from ..db.queries.crm import (
 from ..db.session import tenant_session
 from ..deps import Ctx, TenantContext, require_permission, require_role
 from ..events.bus import emit
+from ..lifecycle import numbers
 from ..media import links
 from ..sales import profile as profile_fields
 from .inbox import UserRef
-from .leads import LeadOut, lead_out
+from .leads import LeadOut, Money, lead_out
 
 router = APIRouter(prefix="/v1/customers", tags=["customers"])
+
+#: The orders that sold a car to this customer — on the order itself, or
+#: through one of their leads, which is where a merge moves them.
+PURCHASES = """
+select o.id as order_id, o.vehicle_id, o.purchase_type, o.destination, o.completed_at,
+       o.currency, ch.amount_minor as price_minor, v.model_year, v.make, v.model, v.trim
+  from sale_orders o
+  join vehicles v on v.id = o.vehicle_id
+  left join sale_charges ch on ch.order_id = o.id and ch.kind = 'vehicle'
+ where o.status = 'completed'
+   and (o.contact_id = $1 or o.lead_id in (select id from leads where contact_id = $1))
+ order by o.completed_at desc
+"""
 
 #: At most this many tags on one customer, each at most this long. A tag list
 #: nobody can read is a tag list nobody filters by.
@@ -63,6 +77,18 @@ class CustomerSummary(BaseModel):
     last_seen_at: datetime
 
 
+class Purchase(BaseModel):
+    """A car this customer bought — a sold order (docs/lifecycle/README.md § L8)."""
+
+    order_id: UUID
+    vehicle_id: UUID
+    car: str
+    purchase_type: Literal["local", "export"]
+    destination: str | None
+    price: Money | None
+    completed_at: datetime
+
+
 class CustomerDetail(CustomerSummary):
     identities: list[Identity]
     #: `{field: {value, source, evidence_message_id, updated_at}}` — see sales/profile.py.
@@ -70,6 +96,8 @@ class CustomerDetail(CustomerSummary):
     profile_updated_at: datetime | None
     leads: list[LeadOut]
     open_tasks: int
+    #: What they bought before, newest first: a buyer writing again is a returning one.
+    purchases: list[Purchase]
 
 
 class CustomerPage(BaseModel):
@@ -161,6 +189,7 @@ async def _detail(conn: Any, tenant_id: UUID, customer_id: UUID) -> dict[str, An
     identities = await conn.fetch(IDENTITIES, customer_id)
     leads = await conn.fetch(OPEN_LEADS, customer_id, False)
     open_tasks = await conn.fetchval(OPEN_TASK_COUNT, customer_id)
+    bought = await conn.fetch(PURCHASES, customer_id)
     return {
         **summary(row),
         "identities": [dict(identity) for identity in identities],
@@ -168,6 +197,18 @@ async def _detail(conn: Any, tenant_id: UUID, customer_id: UUID) -> dict[str, An
         "profile_updated_at": row["profile_updated_at"],
         "leads": [lead_out(lead) for lead in leads],
         "open_tasks": open_tasks or 0,
+        "purchases": [
+            {
+                "order_id": row["order_id"],
+                "vehicle_id": row["vehicle_id"],
+                "car": numbers.label(row),
+                "purchase_type": row["purchase_type"],
+                "destination": row["destination"],
+                "price": _money(row["price_minor"], row["currency"]),
+                "completed_at": row["completed_at"],
+            }
+            for row in bought
+        ],
     }
 
 

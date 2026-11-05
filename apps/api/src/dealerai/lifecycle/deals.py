@@ -403,6 +403,9 @@ async def finish(conn: asyncpg.Connection, tenant_id: UUID, order: Order) -> Non
         tenant_id=tenant_id,
         priority=5,
     )
+    # The after-sale check-in (L8) — booked by the worker, which sees the lead's
+    # owner whoever recorded the last payment.
+    await emit(conn, "order.completed", {"order_id": str(order.row["id"])}, tenant_id=tenant_id)
 
 
 async def cancel(conn: asyncpg.Connection, tenant_id: UUID, order: Order, reason: str) -> None:

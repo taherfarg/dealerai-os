@@ -312,6 +312,18 @@ def test_sold_is_when_every_line_is_paid(client: TestClient, car: uuid.UUID) -> 
     assert done.status_code == 200, done.text
     assert done.json()["status"] == "completed"
     assert _vehicle_status(client, car) == "sold"
+    assert asyncio.run(_completions()) == [order["id"]], "the after-sale check-in is booked (L8)"
+
+
+async def _completions() -> list[str]:
+    conn = await asyncpg.connect(get_settings().migration_dsn)
+    try:
+        rows = await conn.fetch(
+            "select payload->>'order_id' as id from events where event_type = 'order.completed'"
+        )
+        return [row["id"] for row in rows]
+    finally:
+        await conn.close()
 
 
 def test_letting_go_of_a_held_car_is_the_cashiers_call(client: TestClient, car: uuid.UUID) -> None:

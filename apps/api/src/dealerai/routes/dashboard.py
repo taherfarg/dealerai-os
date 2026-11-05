@@ -19,10 +19,13 @@ from ..db.queries.crm import HOT_LEADS, TASKS_LIST
 from ..db.queries.inbox import list_sql
 from ..db.session import tenant_session
 from ..deps import Ctx, TenantContext, require_permission
+from ..lifecycle import numbers as business
+from ..lifecycle.pricing import settings_for
 from ..sales import dashboard as numbers
 from ..sales.clock import zone
 from ..sales.dashboard import Headline
 from ..sales.settings import SalesSettings
+from .acquisition import MoneyOut
 from .inbox import ConversationSummary, UserRef, summary
 from .leads import LeadOut, lead_out
 from .tasks import SalesTask, day_start, task_out, window
@@ -176,6 +179,36 @@ class Brief(BaseModel):
     items: list[AttentionItem]
 
 
+class MonthOut(BaseModel):
+    sold: int
+    #: The vehicle price of every car sold; fees, freight and duties are the buyer's.
+    revenue: MoneyOut
+    #: Over the `costed` cars sold that have a cost recorded.
+    gross: MoneyOut
+    costed: int
+    gross_per_car: MoneyOut | None
+    avg_days_held: int | None
+
+
+class CostlyCar(BaseModel):
+    vehicle_id: UUID
+    label: str
+    days_held: int
+    holding: MoneyOut
+    margin_left: MoneyOut | None
+
+
+class BusinessOut(BaseModel):
+    """docs/lifecycle/README.md § L8 — the buy side, for those cleared for it."""
+
+    month: MonthOut
+    in_stock: int
+    tied_up: MoneyOut
+    holding_per_day: MoneyOut
+    old_after_days: int
+    costly: list[CostlyCar]
+
+
 class ManagerDashboard(BaseModel):
     date: date
     tiles: Tiles
@@ -185,6 +218,39 @@ class ManagerDashboard(BaseModel):
     sources: list[SourceCount]
     phone_share: PhoneShare
     brief: Brief
+    #: Null for a reader not cleared to see what the cars cost.
+    business: BusinessOut | None
+
+
+def business_out(made: business.Business) -> dict[str, Any]:
+    def money(minor: int | None) -> dict[str, Any] | None:
+        return None if minor is None else {"amount_minor": minor, "currency": made.currency}
+
+    month = made.month
+    return {
+        "month": {
+            "sold": month.sold,
+            "revenue": money(month.revenue_minor),
+            "gross": money(month.gross_minor),
+            "costed": month.costed,
+            "gross_per_car": money(month.gross_per_car_minor),
+            "avg_days_held": month.avg_days_held,
+        },
+        "in_stock": made.in_stock,
+        "tied_up": money(made.tied_up_minor),
+        "holding_per_day": money(made.holding_per_day_minor),
+        "old_after_days": made.old_after_days,
+        "costly": [
+            {
+                "vehicle_id": car.vehicle_id,
+                "label": car.label,
+                "days_held": car.days_held,
+                "holding": money(car.holding_minor),
+                "margin_left": money(car.margin_left_minor),
+            }
+            for car in made.costly
+        ],
+    }
 
 
 def _person(user_id: UUID | None, name: str | None) -> dict[str, Any] | None:
@@ -201,9 +267,15 @@ async def manager_dashboard(
     Every number reads through the caller's own visibility — her teams'
     numbers because Postgres shows her nothing else. `date` moves the counted
     day; waiting, hot and overdue are always now; the brief is always today's.
+    The business is the month to the counted day and the stock as it is now,
+    for a reader cleared for the buy side — the session is cleared only then.
     """
     now = datetime.now(UTC)
-    async with tenant_session(ctx.tenant_id, user_id=ctx.user.id, scope=ctx.scope) as conn:
+    cleared = ctx.may("costs.view")
+    made = None
+    async with tenant_session(
+        ctx.tenant_id, user_id=ctx.user.id, scope=ctx.scope, buy_side=cleared
+    ) as conn:
         tenant = await conn.fetchrow(
             "select timezone, sales_settings from tenants where id = $1", ctx.tenant_id
         )
@@ -229,6 +301,14 @@ async def manager_dashboard(
         sources = await conn.fetch(q.SOURCES, now - timedelta(days=30))
         share = await conn.fetchrow(q.SHARE, now - timedelta(days=14), now - timedelta(days=7))
         items = await numbers.attention(conn, now)
+        if cleared:
+            made = await business.business(
+                conn,
+                ctx.tenant_id,
+                since=numbers.month_start(shown, tz),
+                until=until,
+                settings=await settings_for(conn, ctx.tenant_id),
+            )
         headline = await conn.fetchval(
             "select headline from sales_briefs where user_id = $1 and brief_date = $2",
             ctx.user.id,
@@ -266,4 +346,5 @@ async def manager_dashboard(
                 for item in items
             ],
         },
+        "business": None if made is None else business_out(made),
     }

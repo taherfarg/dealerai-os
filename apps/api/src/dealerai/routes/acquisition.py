@@ -24,10 +24,10 @@ from fastapi import APIRouter, Depends, File, Form, UploadFile, status
 from pydantic import BaseModel, Field
 
 from ..core.errors import NotFound, Unusable
-from ..core.money import Money
+from ..core.money import Money, exponent
 from ..db.session import tenant_session
 from ..deps import TenantContext, require_permission
-from ..lifecycle import invoices, pricing
+from ..lifecycle import invoices, numbers, pricing
 from ..media import storage
 
 log = structlog.get_logger()
@@ -124,6 +124,10 @@ class Economics(BaseModel):
     #: Why a margin is missing, when it is. "No cost recorded" and "the price is
     #: in another currency" are different problems with different fixes.
     margin_note: str | None
+    #: From the purchase (or the listing) to the sale, or to today — L8.
+    days_held: int
+    #: What keeping the car has cost so far, at the dealer's holding rate.
+    holding_cost: MoneyOut
 
 
 class ProposedLineOut(BaseModel):
@@ -457,13 +461,19 @@ async def delete_cost(vehicle_id: UUID, cost_id: UUID, ctx: Editor) -> None:
 _ECONOMICS = """
 select vehicle_id, status, currency, price_minor, min_price_minor, days_in_stock,
        cost_actual_minor, cost_estimate_minor, landed_cost_minor, cost_lines,
-       has_acquisition
+       has_acquisition, days_held
   from v_vehicle_economics
 """
 
 
-def _economics(row: Any, tenant_currency: str) -> dict[str, Any]:
+def _economics(row: Any, tenant_currency: str, settings: pricing.PricingSettings) -> dict[str, Any]:
     landed = int(row["landed_cost_minor"])
+    holding = numbers.holding_minor(
+        landed,
+        int(row["days_held"]),
+        rate_bps=settings.holding_rate_bps,
+        per_day_minor=settings.holding_per_day_major * 10 ** exponent(tenant_currency),
+    )
     same_currency = row["currency"] == tenant_currency
     note: str | None = None
     if row["cost_lines"] == 0:
@@ -495,6 +505,8 @@ def _economics(row: Any, tenant_currency: str) -> dict[str, Any]:
         "margin_at_floor": margin(row["min_price_minor"]),
         "margin_bps_at_price": bps,
         "margin_note": note,
+        "days_held": row["days_held"],
+        "holding_cost": _money(holding, tenant_currency),
     }
 
 
@@ -503,20 +515,22 @@ async def list_economics(ctx: Viewer) -> list[dict[str, Any]]:
     """Landed cost and margin for every car, for the inventory screen's columns."""
     async with _session(ctx) as conn:
         tenant_currency = await _tenant_currency(conn, ctx.tenant_id)
+        settings = await pricing.settings_for(conn, ctx.tenant_id)
         rows = await conn.fetch(
             _ECONOMICS + " where tenant_id = $1 order by days_in_stock desc", ctx.tenant_id
         )
-    return [_economics(r, tenant_currency) for r in rows]
+    return [_economics(r, tenant_currency, settings) for r in rows]
 
 
 @router.get("/{vehicle_id}/economics", response_model=Economics)
 async def get_economics(vehicle_id: UUID, ctx: Viewer) -> dict[str, Any]:
     async with _session(ctx) as conn:
         tenant_currency = await _tenant_currency(conn, ctx.tenant_id)
+        settings = await pricing.settings_for(conn, ctx.tenant_id)
         row = await conn.fetchrow(_ECONOMICS + " where vehicle_id = $1", vehicle_id)
     if row is None:
         raise NotFound("no such vehicle", ar="لا توجد سيارة بهذا الرقم.")
-    return _economics(row, tenant_currency)
+    return _economics(row, tenant_currency, settings)
 
 
 # --------------------------------------------------------------------------

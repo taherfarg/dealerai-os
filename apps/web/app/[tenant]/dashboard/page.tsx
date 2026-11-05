@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { use } from "react";
 import { BriefCard } from "@/components/manager/BriefCard";
+import { BusinessCard } from "@/components/manager/BusinessCard";
 import { RepTable } from "@/components/manager/RepTable";
 import { StatTile, tone } from "@/components/manager/StatTile";
 import { WaitingList } from "@/components/manager/WaitingList";
@@ -23,7 +24,9 @@ function inboxShare(share: Share): string {
 /**
  * The manager's morning (08-screens § 11): the brief, the tiles, who is
  * waiting, the team, the pipeline, where leads came from and how much of the
- * talking happens in the inbox. One request, refreshed live.
+ * talking happens in the inbox. One request, refreshed live. Under the brief,
+ * for those who may see cost, what the month made and what the stock costs to
+ * keep (docs/lifecycle/README.md § L8).
  */
 export default function DashboardPage({ params }: { params: Promise<{ tenant: string }> }) {
   const { tenant } = use(params);
@@ -55,7 +58,8 @@ export default function DashboardPage({ params }: { params: Promise<{ tenant: st
   }
   if (!board.data) return <p className="text-muted p-6 text-sm">…</p>;
 
-  const { tiles, brief, waiting, team, pipeline, sources, phone_share: share } = board.data;
+  const { tiles, brief, waiting, team, pipeline, sources, phone_share: share, business } =
+    board.data;
   const target = tiles.first_response_target_seconds;
   const median = tiles.median_first_response_seconds;
   const inbox = `/${tenant}/inbox?view=${me.data?.scope === "all" ? "all" : "team"}`;
@@ -79,6 +83,8 @@ export default function DashboardPage({ params }: { params: Promise<{ tenant: st
       </header>
 
       <BriefCard brief={brief} tenant={tenant} />
+
+      {business && <BusinessCard business={business} tenant={tenant} />}
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <StatTile
