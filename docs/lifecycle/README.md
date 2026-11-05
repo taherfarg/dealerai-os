@@ -344,6 +344,8 @@ is the occasional case of it, with photographs.
   sales visibility applies to it unchanged.
 - A trigger on `contacts` books `sourcing.interest_changed` whenever the interest changes, however
   it was written — the profile agent, a person, a merge. One pending read per customer.
+  `0024_lifecycle_sourcing_backfill.sql` books one for every interest asked in the last 30 days
+  before the trigger existed, so the first buying list is not empty.
 
 ### The AI: reading what a customer asked for
 
@@ -375,7 +377,8 @@ side.
   how many, the median price, the median landed cost and the median days to sell. Never a model's
   memory of a price.
 - **The most to pay** — the expected price less the target margin (Settings → Pricing), less what
-  such a car costs to land on top of its purchase (the median of the dealer's own), less holding it
+  such a car costs to land on top of its purchase (the median of the dealer's own — freight,
+  customs and fees, not the repairs L3 recorded: an appraisal brings its own), less holding it
   for the days such a car takes to sell (L8's holding cost), rounded **down**: a bid never pays more
   than the rule. No history, no bid — the list says so.
 - Ordered by how many customers asked, then by what the history says such a car makes.

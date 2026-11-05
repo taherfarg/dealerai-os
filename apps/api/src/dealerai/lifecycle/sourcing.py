@@ -23,7 +23,7 @@ from ..ai.gateway import SystemLayers, complete
 from ..ai.models import TaskKind
 from ..ai.prompts import load
 from ..core.money import exponent
-from . import numbers
+from . import numbers, recon
 from .pricing import BPS, PricingSettings
 
 log = structlog.get_logger()
@@ -34,6 +34,9 @@ WANT_DAYS = 30
 HISTORY_DAYS = 365
 #: A car the dealer has, or has on its way. A car held for a buyer is not stock.
 HAD = ("draft", "available")
+#: Where L3 records reconditioning in the ledger. Not part of what a car costs
+#: to land: an appraisal brings the repairs of the car in front of it.
+RECON = tuple(sorted({*recon.CATEGORY.values(), "repair"}))
 #: Cars one interest may name. "Land Cruiser or Patrol" is two; ten is a list, not a want.
 MAX_CARS = 3
 
@@ -209,7 +212,8 @@ select count(*) as sold,
        percentile_disc(0.5) within group (order by ch.amount_minor) as price_minor,
        percentile_disc(0.5) within group (order by e.landed_cost_minor)
          filter (where e.cost_lines > 0) as landed_minor,
-       percentile_disc(0.5) within group (order by e.landed_cost_minor - p.purchase_minor)
+       percentile_disc(0.5) within group
+         (order by e.landed_cost_minor - p.purchase_minor - p.recon_minor)
          filter (where p.purchase_minor > 0) as on_top_minor,
        percentile_disc(0.5) within group (order by e.days_held) as days_to_sell
   from sale_orders o
@@ -217,8 +221,11 @@ select count(*) as sold,
   join vehicles v on v.id = o.vehicle_id
   join v_vehicle_economics e on e.vehicle_id = o.vehicle_id
   cross join lateral (
-    select coalesce(sum(amount_tenant_minor), 0) as purchase_minor
-      from vehicle_costs where vehicle_id = o.vehicle_id and category = 'purchase'
+    select coalesce(sum(amount_tenant_minor) filter (where category = 'purchase'), 0)
+             as purchase_minor,
+           coalesce(sum(amount_tenant_minor) filter (where category = any($6::text[])), 0)
+             as recon_minor
+      from vehicle_costs where vehicle_id = o.vehicle_id
   ) p
  where o.tenant_id = $1 and o.status = 'completed' and o.currency = $2
    and o.completed_at > now() - make_interval(days => $3)
@@ -237,7 +244,7 @@ async def worth(
     ponytail: make and model, not the year — a dealer's own history is a few
     sales per model; split by year once there are enough to split."""
     r = await conn.fetchrow(
-        _HISTORY, tenant_id, currency, HISTORY_DAYS, make.strip(), model.strip()
+        _HISTORY, tenant_id, currency, HISTORY_DAYS, make.strip(), model.strip(), list(RECON)
     )
     if r is None or not r["sold"]:
         return Worth()

@@ -13,7 +13,7 @@ import io
 import json
 import uuid
 from collections.abc import Iterator
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -206,6 +206,34 @@ async def test_an_interest_written_any_way_books_one_read(
     await su.execute("update events set status = 'done' where event_type like 'sourcing.%'")
     await _asks(su, customer, "Land Cruiser 2025", budget={"amount_minor": 2})
     assert await _reads(su, customer) == 0, "the budget changed, not what they asked for"
+
+
+BACKFILL = (
+    Path(__file__).resolve().parents[3]
+    / "supabase"
+    / "migrations"
+    / "0024_lifecycle_sourcing_backfill.sql"
+)
+
+
+async def test_interests_recorded_before_the_trigger_are_read_once(
+    su: asyncpg.Connection, visibility_seed: dict[str, uuid.UUID]
+) -> None:
+    """A dealership upgraded to L5 has customers who asked last week; the
+    trigger never saw them. The backfill books their reads — once, and only
+    for what the buying list's 30 days can show."""
+    recent, old = visibility_seed["s1"], visibility_seed["s2"]
+    await su.execute("alter table contacts disable trigger contacts_book_interest_read")
+    try:
+        await _asks(su, recent, "Land Cruiser 4.0, white")
+        await _asks(su, old, "Patrol", when=NOW - timedelta(days=40))
+    finally:
+        await su.execute("alter table contacts enable trigger contacts_book_interest_read")
+    assert await _reads(su, recent) == 0
+
+    await su.execute(BACKFILL.read_text(encoding="utf-8"))
+    await su.execute(BACKFILL.read_text(encoding="utf-8"))
+    assert (await _reads(su, recent), await _reads(su, old)) == (1, 0)
 
 
 async def test_an_interest_is_read_once_and_cleared_with_it(
@@ -405,11 +433,21 @@ async def test_the_buying_list_and_an_appraisal_are_for_those_who_see_cost(
     """Called as the route function, the session is what the role clears: a
     viewer's has no buy side, so the dealer's history reads as nothing sold."""
     earlier = await _car(su, "Toyota", "Land Cruiser 4.0", "sold", cost=205_000 * AED)
+    # The last one needed a bumper. That was its repair, not what landing one costs.
+    await su.execute(
+        """insert into vehicle_costs (tenant_id, vehicle_id, category, amount_minor, currency,
+                                      fx_rate, amount_tenant_minor, incurred_at)
+           values ($1, $2, 'repair', 300000, 'AED', 1, 300000, current_date)""",
+        TENANT_A,
+        earlier,
+    )
     await _sold_for(su, earlier, 235_000 * AED)
     body = AppraiseIn(make=" toyota ", model="Land Cruiser", repairs_minor=2_000 * AED)
 
     seen = await appraise(body, _ctx(OWNER, "owner"))
     assert seen["worth"]["sold"] == 1
+    assert seen["worth"]["landed"]["amount_minor"] == 216_000 * AED
+    assert seen["worth"]["on_top"]["amount_minor"] == 8_000 * AED, "the bumper is not freight"
     assert seen["bid"]["repairs"] == {"amount_minor": 2_000 * AED, "currency": "AED"}
     assert seen["bid"]["max_bid"]["amount_minor"] == 196_000 * AED
 
