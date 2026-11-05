@@ -29,7 +29,8 @@ from pathlib import Path
 from typing import Any, Literal
 
 import structlog
-from playwright.async_api import Browser, async_playwright
+from playwright.async_api import Browser, Page, async_playwright
+from playwright.async_api import Error as PlaywrightError
 
 from ..core.errors import AppError
 
@@ -52,6 +53,18 @@ SIZES: dict[str, tuple[int, int]] = {
 #: A render that has not finished by now is a hung font fetch or a photo that
 #: will never arrive, and the caller would rather have the error.
 TIMEOUT_MS = 15_000
+
+#: What Chromium says when the copy behind a screenshot comes back empty.
+EMPTY_CAPTURE = "Unable to capture screenshot"
+#: Every empty capture seen so far had cleared by the next render on the same
+#: browser. Three is room for that and a little more; a capture that is still
+#: empty after it is broken, and should fail.
+CAPTURE_ATTEMPTS = 3
+#: Resolves once the page has drawn twice. rAF only runs while the renderer has
+#: a live compositor frame sink, which is what viz needs to serve a copy.
+_NEXT_FRAME = (
+    "() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => r(null))))"
+)
 
 _SLOT = re.compile(r"\{\{(\w+)\}\}")
 
@@ -244,6 +257,40 @@ async def close_browser() -> None:
         await playwright.stop()
 
 
+async def capture(page: Page, *, key: str, ratio: str) -> bytes:
+    """Screenshot the page, taking it again only if Chromium's copy came back empty.
+
+    A known Chromium race, not a template bug. Chromium 151 (Playwright 1.62
+    turns on CDPScreenshotNewSurface) captures by forcing a redraw onto a new
+    surface and copying it at once. viz answers a copy it cannot serve (no live
+    frame sink for the page's widget at that instant, among others) with an
+    empty bitmap, and DevTools reports "Unable to capture screenshot". Which of
+    those fires on the runner is not known: the race never reproduced off it.
+    Chromium retries five
+    times itself (RenderWidgetHostImpl::OnSnapshotFromSurfaceReceived), but back
+    to back in one task, so all five see the same instant. On GitHub's
+    ubuntu-26.04 runners that failed a few renders in about half the runs, any
+    template at any ratio, and the next render on the same browser always
+    succeeded. It never failed on 24.04 runners, nor in a 26.04 container.
+
+    What Chromium's retry lacks is a frame in between: once the page has drawn
+    again, its frame sink is live and the copy has something to read. A retried
+    capture is a whole new capture, with a fresh surface and a forced redraw,
+    so the PNG is the same kind of image a first try produces and the goldens
+    still compare what the template drew. Any other error is raised as it is,
+    and so is the empty capture once CAPTURE_ATTEMPTS have all come back empty.
+    """
+    for attempt in range(1, CAPTURE_ATTEMPTS):
+        try:
+            return await page.screenshot(type="png")
+        except PlaywrightError as error:
+            if EMPTY_CAPTURE not in str(error):
+                raise
+            log.warning("creative_capture_empty", template=key, ratio=ratio, attempt=attempt)
+            await asyncio.wait_for(page.evaluate(_NEXT_FRAME), TIMEOUT_MS / 1000)
+    return await page.screenshot(type="png")
+
+
 async def render(
     key: str,
     slots: dict[str, str],
@@ -278,7 +325,7 @@ async def render(
                 "Promise.all(Array.from(document.images).map(i => "
                 "i.complete ? null : i.decode().catch(() => null))))"
             )
-            png = await page.screenshot(type="png")
+            png = await capture(page, key=key, ratio=ratio)
         finally:
             await page.close()
         out.append(

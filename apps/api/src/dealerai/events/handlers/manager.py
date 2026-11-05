@@ -4,6 +4,10 @@ One per reader, each gathered in that reader's own session: a manager's brief
 is her teams' numbers because the session shows her nothing else, exactly as
 her dashboard is. Idempotent per reader and day, so a retried event writes
 nobody's twice.
+
+A reader cleared for the buy side also reads what the month made and which
+cars are costing money to keep (docs/lifecycle/README.md § L8) — gathered in a
+session cleared for it, and only for them.
 """
 
 from __future__ import annotations
@@ -21,6 +25,8 @@ from ...core.permissions import permissions_for, scope_for
 from ...core.words import Words
 from ...db.session import tenant_session
 from ...guards import facts as facts_guard
+from ...lifecycle import numbers as business
+from ...lifecycle.pricing import settings_for
 from ...sales import dashboard
 from ...sales.clock import zone
 from ...sales.runs import agent_run
@@ -49,8 +55,17 @@ async def on_brief_due(event: Event) -> None:
     tz = zone(tenant["timezone"])
     settings = SalesSettings.model_validate(tenant["sales_settings"] or {})
     for member in members:
-        if "dashboard.manager" in permissions_for(member["role"]):
-            await _brief(tenant_id, member["user_id"], scope_for(member["role"]), day, tz, settings)
+        allowed = permissions_for(member["role"])
+        if "dashboard.manager" in allowed:
+            await _brief(
+                tenant_id,
+                member["user_id"],
+                scope_for(member["role"]),
+                day,
+                tz,
+                settings,
+                cleared="costs.view" in allowed,
+            )
 
 
 async def _brief(
@@ -60,11 +75,14 @@ async def _brief(
     day: date,
     tz: ZoneInfo,
     settings: SalesSettings,
+    *,
+    cleared: bool = False,
 ) -> None:
     now = datetime.now(UTC)
     yesterday = day - timedelta(days=1)
     since, until = dashboard.day_window(yesterday, tz)
-    async with tenant_session(tenant_id, user_id=user_id, scope=scope) as conn:
+    made = None
+    async with tenant_session(tenant_id, user_id=user_id, scope=scope, buy_side=cleared) as conn:
         if await conn.fetchval(
             "select exists (select 1 from sales_briefs where user_id = $1 and brief_date = $2)",
             user_id,
@@ -77,9 +95,19 @@ async def _brief(
             conn, tenant_id, since, until, now, waits, dashboard.month_start(yesterday, tz)
         )
         cars = await dashboard.most_asked(conn, since, until)
+        if cleared:
+            made = await business.business(
+                conn,
+                tenant_id,
+                since=dashboard.month_start(yesterday, tz),
+                until=until,
+                settings=await settings_for(conn, tenant_id),
+            )
 
     block = dashboard.render_facts(yesterday, facts, team, cars)
-    headline = await _headline(tenant_id, user_id, day, facts, block)
+    if made is not None:
+        block = "\n".join((block, business.render(made)))
+    headline = await _headline(tenant_id, user_id, day, facts, block, made)
 
     async with tenant_session(tenant_id, user_id=user_id, scope=scope) as conn:
         brief_id = await conn.fetchval(
@@ -107,10 +135,18 @@ async def _brief(
 
 
 async def _headline(
-    tenant_id: UUID, user_id: UUID, day: date, facts: dict[str, Any], block: str
+    tenant_id: UUID,
+    user_id: UUID,
+    day: date,
+    facts: dict[str, Any],
+    block: str,
+    made: business.Business | None = None,
 ) -> dict[str, str] | None:
     """None when there is nothing to say, no budget left, or a line the guard refused."""
-    if not (facts["new_conversations"] or facts["waiting_now"] or facts["overdue_tasks"]):
+    selling = made is not None and (made.month.sold or made.costly)
+    if not (
+        facts["new_conversations"] or facts["waiting_now"] or facts["overdue_tasks"] or selling
+    ):
         return None  # a quiet day is not worth a model call
     try:
         async with agent_run(

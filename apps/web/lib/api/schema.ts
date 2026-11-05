@@ -554,6 +554,8 @@ export interface paths {
          *     Every number reads through the caller's own visibility — her teams'
          *     numbers because Postgres shows her nothing else. `date` moves the counted
          *     day; waiting, hot and overdue are always now; the brief is always today's.
+         *     The business is the month to the counted day and the stock as it is now,
+         *     for a reader cleared for the buy side — the session is cleared only then.
          */
         get: operations["manager_dashboard_v1_dashboard_manager_get"];
         put?: never;
@@ -2555,6 +2557,21 @@ export interface components {
                 [key: string]: string;
             };
         };
+        /**
+         * BusinessOut
+         * @description docs/lifecycle/README.md § L8 — the buy side, for those cleared for it.
+         */
+        BusinessOut: {
+            /** Costly */
+            costly: components["schemas"]["CostlyCar"][];
+            holding_per_day: components["schemas"]["MoneyOut"];
+            /** In Stock */
+            in_stock: number;
+            month: components["schemas"]["MonthOut"];
+            /** Old After Days */
+            old_after_days: number;
+            tied_up: components["schemas"]["MoneyOut"];
+        };
         /** CancelIn */
         CancelIn: {
             /** Reason */
@@ -2843,6 +2860,20 @@ export interface components {
             /** Vendor */
             vendor?: string | null;
         };
+        /** CostlyCar */
+        CostlyCar: {
+            /** Days Held */
+            days_held: number;
+            holding: components["schemas"]["MoneyOut"];
+            /** Label */
+            label: string;
+            margin_left: components["schemas"]["MoneyOut"] | null;
+            /**
+             * Vehicle Id
+             * Format: uuid
+             */
+            vehicle_id: string;
+        };
         /** CustomerDetail */
         CustomerDetail: {
             /** Band */
@@ -2880,6 +2911,8 @@ export interface components {
             };
             /** Profile Updated At */
             profile_updated_at: string | null;
+            /** Purchases */
+            purchases: components["schemas"]["Purchase"][];
             /** Tags */
             tags: string[];
         };
@@ -3000,11 +3033,14 @@ export interface components {
             cost_estimate: components["schemas"]["MoneyOut"];
             /** Cost Lines */
             cost_lines: number;
+            /** Days Held */
+            days_held: number;
             /** Days In Stock */
             days_in_stock: number;
             floor: components["schemas"]["MoneyOut"] | null;
             /** Has Acquisition */
             has_acquisition: boolean;
+            holding_cost: components["schemas"]["MoneyOut"];
             landed_cost: components["schemas"]["MoneyOut"];
             margin_at_floor: components["schemas"]["MoneyOut"] | null;
             margin_at_price: components["schemas"]["MoneyOut"] | null;
@@ -3556,6 +3592,7 @@ export interface components {
         /** ManagerDashboard */
         ManagerDashboard: {
             brief: components["schemas"]["Brief"];
+            business: components["schemas"]["BusinessOut"] | null;
             /**
              * Date
              * Format: date
@@ -3791,6 +3828,18 @@ export interface components {
             amount_minor: number;
             /** Currency */
             currency: string;
+        };
+        /** MonthOut */
+        MonthOut: {
+            /** Avg Days Held */
+            avg_days_held: number | null;
+            /** Costed */
+            costed: number;
+            gross: components["schemas"]["MoneyOut"];
+            gross_per_car: components["schemas"]["MoneyOut"] | null;
+            revenue: components["schemas"]["MoneyOut"];
+            /** Sold */
+            sold: number;
         };
         /** MyDay */
         MyDay: {
@@ -4095,6 +4144,16 @@ export interface components {
              */
             hold_if_leads_30d: number;
             /**
+             * Holding Per Day Major
+             * @default 0
+             */
+            holding_per_day_major: number;
+            /**
+             * Holding Rate Bps
+             * @default 800
+             */
+            holding_rate_bps: number;
+            /**
              * Round To Major
              * @default 500
              */
@@ -4129,6 +4188,16 @@ export interface components {
              */
             hold_if_leads_30d: number;
             /**
+             * Holding Per Day Major
+             * @default 0
+             */
+            holding_per_day_major: number;
+            /**
+             * Holding Rate Bps
+             * @default 800
+             */
+            holding_rate_bps: number;
+            /**
              * Round To Major
              * @default 500
              */
@@ -4160,6 +4229,37 @@ export interface components {
             description: string;
             /** Quote */
             quote: string;
+        };
+        /**
+         * Purchase
+         * @description A car this customer bought — a sold order (docs/lifecycle/README.md § L8).
+         */
+        Purchase: {
+            /** Car */
+            car: string;
+            /**
+             * Completed At
+             * Format: date-time
+             */
+            completed_at: string;
+            /** Destination */
+            destination: string | null;
+            /**
+             * Order Id
+             * Format: uuid
+             */
+            order_id: string;
+            price: components["schemas"]["dealerai__routes__leads__Money"] | null;
+            /**
+             * Purchase Type
+             * @enum {string}
+             */
+            purchase_type: "local" | "export";
+            /**
+             * Vehicle Id
+             * Format: uuid
+             */
+            vehicle_id: string;
         };
         /**
          * PushDevice

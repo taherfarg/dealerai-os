@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import datetime
-from uuid import UUID
+from datetime import datetime, time, timedelta
+from uuid import UUID, uuid5
 
 import asyncpg
 import structlog
@@ -11,7 +11,7 @@ import structlog
 from ...core.money import Money
 from ...core.words import Words, named, same
 from ...db.session import tenant_session
-from ...lifecycle import deals, inbound, pricing, recon
+from ...lifecycle import deals, inbound, numbers, pricing, recon
 from ...sales.clock import zone
 from ..bus import Event, handler
 from .notify import notify
@@ -360,3 +360,78 @@ async def on_vehicle_sold(event: Event) -> None:
 @handler("vehicle.status_changed")
 async def on_vehicle_status_changed(event: Event) -> None:
     await _off_sale(event)
+
+
+# --------------------------------------------------------------------------
+# after the sale — docs/lifecycle/README.md § L8
+# --------------------------------------------------------------------------
+
+#: When to ask a buyer how the car is: a week after a local sale, and six weeks
+#: after an export — sea freight from Jebel Ali is two to six (pollux.md).
+CHECK_IN_AFTER_DAYS = {"local": 7, "export": 42}
+#: In the morning where the showroom is, not whenever the last payment landed.
+CHECK_IN_AT = time(10, 0)
+
+_SOLD_ORDER = """
+select o.id, o.status, o.purchase_type, o.completed_at, o.created_by, o.lead_id,
+       coalesce(o.contact_id, l.contact_id) as contact_id, l.owner_id as lead_owner,
+       v.model_year, v.make, v.model, v.trim, t.timezone
+  from sale_orders o
+  join vehicles v on v.id = o.vehicle_id
+  join tenants t on t.id = o.tenant_id
+  left join leads l on l.id = o.lead_id
+ where o.id = $1
+"""
+
+
+def check_in_title(car: str, locale: str | None) -> str:
+    words = Words(
+        f"After-sale check-in: how is the {car}? Ask for a review or a referral.",
+        f"متابعة ما بعد البيع: كيف حال {named(car)}؟ اطلب تقييمًا أو ترشيحًا.",
+    )
+    return words.ar if locale == "ar" else words.en
+
+
+@handler("order.completed")
+async def on_order_completed(event: Event) -> None:
+    """A sold car books one check-in for the salesperson who owns the buyer —
+    the lead's owner, or whoever made the order. Its id is the order's, so a
+    retried event books nothing twice."""
+    if event.tenant_id is None:
+        raise ValueError("order.completed requires a tenant")
+    order_id = UUID(str(event.payload["order_id"]))
+    async with tenant_session(event.tenant_id) as conn:
+        order = await conn.fetchrow(_SOLD_ORDER, order_id)
+        if order is None or order["status"] != "completed" or order["completed_at"] is None:
+            return
+        members = {
+            row["user_id"]
+            for row in await conn.fetch(
+                "select user_id from memberships where tenant_id = $1", event.tenant_id
+            )
+        }
+        assignee = next(
+            (who for who in (order["lead_owner"], order["created_by"]) if who in members), None
+        )
+        if assignee is None:
+            log.info("check_in_nobody", order_id=str(order_id))
+            return
+        tz = zone(order["timezone"])
+        day = order["completed_at"].astimezone(tz).date() + timedelta(
+            days=CHECK_IN_AFTER_DAYS[order["purchase_type"]]
+        )
+        locale = await conn.fetchval("select locale from profiles where id = $1", assignee)
+        car = numbers.label(order)
+        await conn.execute(
+            """insert into tasks (id, tenant_id, title, kind, due_at, assignee_id, contact_id,
+                                  lead_id, source)
+               values ($1, $2, $3, 'follow_up', $4, $5, $6, $7, 'rule')
+               on conflict (id) do nothing""",
+            uuid5(order_id, "check-in"),
+            event.tenant_id,
+            check_in_title(car, locale),
+            datetime.combine(day, CHECK_IN_AT, tzinfo=tz),
+            assignee,
+            order["contact_id"],
+            order["lead_id"],
+        )

@@ -111,6 +111,10 @@ export function BuySide({ vehicleId, canEdit }: { vehicleId: string; canEdit: bo
                 {t("economics.floor")} <Ltr>{formatMoney(money.floor)}</Ltr>
               </>
             )}
+            {" · "}
+            {t("economics.daysHeld")} <Ltr>{String(money.days_held)}</Ltr>
+            {" · "}
+            {t("economics.holding")} <Ltr>{formatMoney(money.holding_cost)}</Ltr>
           </p>
           {money.margin_note && (
             <p className="text-muted mt-1 text-xs">
