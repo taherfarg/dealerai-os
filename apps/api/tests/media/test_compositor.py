@@ -25,6 +25,7 @@ from pathlib import Path
 import pytest
 import pytest_asyncio
 from PIL import Image
+from playwright.async_api import Error as PlaywrightError
 
 from dealerai.media import compositor
 from dealerai.media.compositor import Brand, RatioNotSupported, TemplateNotFound
@@ -338,6 +339,50 @@ async def test_render_time_is_well_inside_the_budget(picture: str) -> None:
     p95 = times[max(0, int(len(times) * 0.95) - 1)]
     assert p95 < 4000, f"p95 render {p95}ms (times: {times})"
     assert statistics.mean(times) < 4000
+
+
+class _EmptyCaptures:
+    """A page whose first `empty` captures fail the way Chromium's empty copy
+    does, word for word, then succeed."""
+
+    def __init__(self, empty: int, message: str) -> None:
+        self.empty, self.message = empty, message
+        self.shots = self.frames = 0
+
+    async def screenshot(self, **_: object) -> bytes:
+        self.shots += 1
+        if self.shots <= self.empty:
+            raise PlaywrightError(
+                f"Page.screenshot: Protocol error (Page.captureScreenshot): {self.message}"
+            )
+        return b"png"
+
+    async def evaluate(self, _script: str) -> None:
+        self.frames += 1
+
+
+@pytest.mark.parametrize(
+    ("empty", "message", "shots"),
+    [
+        (2, compositor.EMPTY_CAPTURE, 3),
+        (99, compositor.EMPTY_CAPTURE, compositor.CAPTURE_ATTEMPTS),
+        (1, "Target page, context or browser has been closed", 1),
+    ],
+    ids=["taken-again-after-a-frame", "not-forever", "nothing-else-is-retried"],
+)
+@renders
+async def test_only_an_empty_capture_is_taken_again(empty: int, message: str, shots: int) -> None:
+    """The CI flake (ubuntu-26.04, PR #3 and #7): Chromium hands back an empty
+    capture and the render fails. Without the retry the first case fails; with
+    an unbounded or catch-all one the other two do."""
+    page = _EmptyCaptures(empty, message)
+    if shots > empty:
+        assert await compositor.capture(page, key="hero", ratio="1:1") == b"png"  # type: ignore[arg-type]
+    else:
+        with pytest.raises(PlaywrightError, match=message):
+            await compositor.capture(page, key="hero", ratio="1:1")  # type: ignore[arg-type]
+    assert page.shots == shots
+    assert page.frames == shots - 1, "every retry waits for the page to draw first"
 
 
 # --------------------------------------------------------------------------
