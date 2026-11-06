@@ -1,9 +1,9 @@
 "use client";
 
 import type { Message } from "@/lib/api/hooks";
-import { API_BASE } from "@/lib/api/client";
 import { Auto } from "@/components/Bidi";
 import { formatRelative } from "@/lib/format";
+import { mediaSrc as source } from "@/lib/media";
 import { useLocale, useT } from "@/lib/i18n-client";
 import { eventText } from "@/lib/words";
 
@@ -14,9 +14,6 @@ const TICKS: Record<string, string> = {
   delivered: "✓✓",
   read: "✓✓",
 };
-
-/** A stored object is fetched through the API's signed link, never directly. */
-const source = (url: string) => (url.startsWith("http") ? url : `${API_BASE}${url}`);
 
 /**
  * One message, whatever kind it is.

@@ -2076,3 +2076,101 @@ export function useInspectTradeIn() {
     },
   });
 }
+
+// --------------------------------------------------------------------------
+// content review (T3.7)
+// --------------------------------------------------------------------------
+
+export type ContentItem = components["schemas"]["ContentItemOut"];
+export type ContentDetail = components["schemas"]["ContentDetail"];
+export type CopyPatch = components["schemas"]["CopyPatch"];
+
+export function useContentList(status: string | null) {
+  const { api, tenantId, header } = useTenantApi();
+  return useQuery({
+    queryKey: [...keys.contentList(tenantId), status ?? "all"],
+    queryFn: async () =>
+      unwrap(
+        await api.GET("/v1/content", {
+          params: { header, query: { status: status ?? undefined, limit: 200 } },
+        }),
+      ),
+  });
+}
+
+export function useContent(contentId: string) {
+  const { api, tenantId, header } = useTenantApi();
+  return useQuery({
+    queryKey: keys.content(tenantId, contentId),
+    queryFn: async () =>
+      unwrap(
+        await api.GET("/v1/content/{content_id}", {
+          params: { header, path: { content_id: contentId } },
+        }),
+      ),
+  });
+}
+
+/** Starts a content run; returns at once with its id. */
+export function useGenerateContent() {
+  const { api, header } = useTenantApi();
+  return useMutation({
+    mutationFn: async ({ vehicle_ids, count }: { vehicle_ids: string[]; count: number }) =>
+      unwrap(
+        await api.POST("/v1/content/generate", {
+          params: { header },
+          body: { vehicle_ids, count, objective: "sell this stock" },
+        }),
+      ),
+  });
+}
+
+/** Approve, reject or edit: each answers with the piece as it now is. */
+function useContentChange<T>(
+  contentId: string,
+  send: (api: ReturnType<typeof useTenantApi>, input: T) => Promise<ContentDetail>,
+) {
+  const tenant = useTenantApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: T) => send(tenant, input),
+    onSuccess: (piece) => {
+      queryClient.setQueryData(keys.content(tenant.tenantId, contentId), piece);
+      void queryClient.invalidateQueries({ queryKey: keys.contentList(tenant.tenantId) });
+    },
+  });
+}
+
+export function useEditCopy(contentId: string) {
+  return useContentChange(
+    contentId,
+    async ({ api, header }, { locale, patch }: { locale: string; patch: CopyPatch }) =>
+      unwrap(
+        await api.PATCH("/v1/content/{content_id}/copy/{locale}", {
+          params: { header, path: { content_id: contentId, locale } },
+          body: patch,
+        }),
+      ),
+  );
+}
+
+export function useApproveContent(contentId: string) {
+  return useContentChange<void>(contentId, async ({ api, header }) =>
+    unwrap(
+      await api.POST("/v1/content/{content_id}/approve", {
+        params: { header, path: { content_id: contentId } },
+      }),
+    ),
+  );
+}
+
+export function useRejectContent(contentId: string) {
+  return useContentChange(contentId, async ({ api, header }, reason: string) =>
+    unwrap(
+      await api.POST("/v1/content/{content_id}/reject", {
+        params: { header, path: { content_id: contentId } },
+        body: { reason },
+      }),
+    ),
+  );
+}
