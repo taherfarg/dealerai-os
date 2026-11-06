@@ -1,10 +1,28 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { useEditCopy, type ContentDetail } from "@/lib/api/hooks";
+import { useEditCopy, type ContentDetail, type CopyPatch } from "@/lib/api/hooks";
 import { useT } from "@/lib/i18n-client";
 
 type Copy = ContentDetail["copies"][number];
+
+/** What a save sends: every field but the ones the images print, which a
+ *  disabled input would otherwise send as empty. */
+export function patchFrom(form: FormData, printed: readonly string[]): CopyPatch {
+  const patch: CopyPatch = {
+    hook: String(form.get("hook") ?? ""),
+    caption: String(form.get("caption") ?? ""),
+    cta: String(form.get("cta") ?? ""),
+    hashtags: parseHashtags(String(form.get("hashtags") ?? "")),
+  };
+  for (const field of printed) delete patch[field as keyof CopyPatch];
+  return patch;
+}
+
+function OnImage() {
+  const t = useT();
+  return <span className="text-muted">{t("content.onImage")}</span>;
+}
 
 /** "#mg6 dubai, #new" → ["mg6", "dubai", "new"]: however a person types them. */
 export function parseHashtags(text: string): string[] {
@@ -16,16 +34,20 @@ export function parseHashtags(text: string): string[] {
 
 /**
  * One language's words. Saving marks them as a person's; the API refuses a
- * price that is not the car's, and says which figure.
+ * price that is not the car's, and says which figure. A field the piece's
+ * images print (`printed`) is shown but not sent: changing it would approve a
+ * picture that says the old words.
  */
 export function CopyEditor({
   contentId,
   copy,
   editable,
+  printed = [],
 }: {
   contentId: string;
   copy: Copy;
   editable: boolean;
+  printed?: readonly string[];
 }) {
   const t = useT();
   const edit = useEditCopy(contentId);
@@ -37,15 +59,7 @@ export function CopyEditor({
     const form = new FormData(event.currentTarget);
     setSaved(false);
     edit.mutate(
-      {
-        locale: copy.locale,
-        patch: {
-          hook: String(form.get("hook") ?? ""),
-          caption: String(form.get("caption") ?? ""),
-          cta: String(form.get("cta") ?? ""),
-          hashtags: parseHashtags(String(form.get("hashtags") ?? "")),
-        },
-      },
+      { locale: copy.locale, patch: patchFrom(form, printed) },
       { onSuccess: () => setSaved(true) },
     );
   };
@@ -70,9 +84,10 @@ export function CopyEditor({
             name={name}
             defaultValue={value ?? ""}
             dir={dir}
-            disabled={!editable}
+            disabled={!editable || printed.includes(name)}
             className="field"
           />
+          {printed.includes(name) && <OnImage />}
         </label>
       ))}
       <label className="flex flex-col gap-1 text-xs">
@@ -83,9 +98,10 @@ export function CopyEditor({
           dir={dir}
           rows={5}
           maxLength={2200}
-          disabled={!editable}
+          disabled={!editable || printed.includes("caption")}
           className="field"
         />
+        {printed.includes("caption") && <OnImage />}
       </label>
       <label className="flex flex-col gap-1 text-xs">
         <span className="text-muted">{t("content.hashtags")}</span>

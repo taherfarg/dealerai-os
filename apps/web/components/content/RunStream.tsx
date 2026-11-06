@@ -66,6 +66,52 @@ export function parseRunFrame(frame: string): [string, Record<string, unknown>] 
   }
 }
 
+/** How many times a dropped stream is opened again before the panel gives up. */
+export const MAX_ATTEMPTS = 20;
+
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Read a run's stream until it says the run is done, opening it again when it
+ * drops first — a failed request, a 5xx, or an end without `run.completed`.
+ * Nothing needs replaying: a new stream starts by sending every task and piece
+ * as it is now. A 4xx (no such run, not yours) is final, and an abort is silent.
+ */
+export async function followRun(
+  open: () => Promise<Response>,
+  onFrame: (event: string, data: Record<string, unknown>) => void,
+  signal: AbortSignal,
+  wait: (ms: number) => Promise<void> = sleep,
+): Promise<boolean> {
+  for (let attempt = 0; attempt < MAX_ATTEMPTS && !signal.aborted; attempt++) {
+    if (attempt > 0) await wait(Math.min(1000 * 2 ** (attempt - 1), 15_000));
+    if (signal.aborted) return false;
+    try {
+      const response = await open();
+      if (response.status >= 400 && response.status < 500) return false;
+      if (!response.ok || !response.body) continue;
+      const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
+      let buffer = "";
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += value;
+        const frames = buffer.split("\n\n");
+        buffer = frames.pop() ?? "";
+        for (const frame of frames) {
+          const parsed = parseRunFrame(frame);
+          if (!parsed) continue;
+          onFrame(...parsed);
+          if (parsed[0] === "run.completed") return true;
+        }
+      }
+    } catch {
+      if (signal.aborted) return false;
+    }
+  }
+  return false;
+}
+
 /**
  * The run as it happens (GET /v1/runs/{id}/stream), opened with fetch because
  * EventSource cannot send an Authorization header. A piece that appears or
@@ -80,35 +126,24 @@ export function useRunStream(runId: string | null): RunView {
     if (!runId) return;
     // A new run is a new component (`key={runId}`), so the view starts empty.
     const controller = new AbortController();
-    void (async () => {
-      try {
-        const token = await getBrowserAccessToken();
-        const response = await fetch(`${API_BASE}/v1/runs/${runId}/stream`, {
-          headers: { Authorization: `Bearer ${token ?? ""}`, "X-Tenant-Id": tenantId },
-          signal: controller.signal,
-        });
-        if (!response.ok || !response.body) return;
-        const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
-        let buffer = "";
-        for (;;) {
-          const { value, done } = await reader.read();
-          if (done) break;
-          buffer += value;
-          const frames = buffer.split("\n\n");
-          buffer = frames.pop() ?? "";
-          for (const frame of frames) {
-            const parsed = parseRunFrame(frame);
-            if (!parsed) continue;
-            setView((before) => applyEvent(before, ...parsed));
-            if (parsed[0] === "content.updated" || parsed[0] === "run.completed") {
-              void queryClient.invalidateQueries({ queryKey: keys.contentList(tenantId) });
-            }
-          }
-        }
-      } catch {
-        // Aborted, or the connection dropped: the grid below is the truth.
-      }
-    })();
+    const refresh = () =>
+      void queryClient.invalidateQueries({ queryKey: keys.contentList(tenantId) });
+    const open = async () =>
+      fetch(`${API_BASE}/v1/runs/${runId}/stream`, {
+        headers: {
+          Authorization: `Bearer ${(await getBrowserAccessToken()) ?? ""}`,
+          "X-Tenant-Id": tenantId,
+        },
+        signal: controller.signal,
+      });
+    void followRun(
+      open,
+      (event, data) => {
+        setView((before) => applyEvent(before, event, data));
+        if (event === "content.updated" || event === "run.completed") refresh();
+      },
+      controller.signal,
+    ).finally(refresh);
     return () => controller.abort();
   }, [runId, tenantId, queryClient]);
 

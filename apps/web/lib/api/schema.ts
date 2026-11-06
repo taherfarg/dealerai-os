@@ -3000,6 +3000,8 @@ export interface components {
             id: string;
             /** Images */
             images: components["schemas"]["ImageOut"][];
+            /** In Image */
+            in_image: string[];
             /** Kind */
             kind: string;
             /** Locales */

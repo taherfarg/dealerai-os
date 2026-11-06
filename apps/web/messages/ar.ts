@@ -1068,4 +1068,5 @@ export const ar = {
   "content.reason": "سبب الرفض (مطلوب)",
   "content.rejectedBecause": "مرفوض:",
   "content.approvedNext": "تمت الموافقة. يظهر في التقويم عند جدولته.",
+  "content.onImage": "مطبوع على الصور: ارفض المنشور ليُعاد إنشاؤه بكلمات أخرى.",
 } satisfies Record<keyof typeof en, string>;

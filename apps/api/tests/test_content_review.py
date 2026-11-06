@@ -8,6 +8,7 @@ SSE, edits one caption, approves, and the piece reaches `approved` — with
 from __future__ import annotations
 
 import asyncio
+import json
 import uuid
 from collections.abc import Iterator
 from typing import Any
@@ -200,6 +201,40 @@ def test_what_has_gone_out_cannot_be_edited(client: TestClient, made: dict[str, 
         f"/v1/content/{made['piece']}/copy/en", json={"cta": "Call us"}, headers=auth(MANAGER)
     )
     assert refused.status_code == 409
+
+
+def test_words_printed_on_the_images_are_not_edited_under_them(
+    client: TestClient, made: dict[str, uuid.UUID]
+) -> None:
+    """The hero template prints the call to action on every image. Changing it
+    would approve a picture that says the old words — so it is refused, and the
+    piece says which fields are on its images. The caption is not on a hero."""
+    piece = made["piece"]
+    asyncio.run(_set_brief(piece, {"template_key": "hero"}))
+    shown = client.get(f"/v1/content/{piece}", headers=auth(MANAGER)).json()
+    assert shown["in_image"] == ["cta"]
+
+    refused = client.patch(
+        f"/v1/content/{piece}/copy/en", json={"cta": "Call us today"}, headers=auth(MANAGER)
+    )
+    assert refused.status_code == 409
+    assert "reject it to have it made again" in refused.text
+    unchanged = client.patch(
+        f"/v1/content/{piece}/copy/en",
+        json={"cta": "Book a viewing", "caption": "The MG6 is in. AED 66,000."},
+        headers=auth(MANAGER),
+    )
+    assert unchanged.status_code == 200, "sending the printed words as they are is no change"
+
+
+async def _set_brief(piece: uuid.UUID, brief: dict[str, str]) -> None:
+    conn = await asyncpg.connect(get_settings().migration_dsn)
+    try:
+        await conn.execute(
+            "update content_items set brief = $2::jsonb where id = $1", piece, json.dumps(brief)
+        )
+    finally:
+        await conn.close()
 
 
 async def _set_status(piece: uuid.UUID, status: str) -> None:

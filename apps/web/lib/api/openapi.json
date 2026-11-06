@@ -1713,6 +1713,13 @@
             "title": "Images",
             "type": "array"
           },
+          "in_image": {
+            "items": {
+              "type": "string"
+            },
+            "title": "In Image",
+            "type": "array"
+          },
           "kind": {
             "title": "Kind",
             "type": "string"
@@ -1819,7 +1826,8 @@
           "run_id",
           "created_at",
           "copies",
-          "images"
+          "images",
+          "in_image"
         ],
         "title": "ContentDetail",
         "type": "object"

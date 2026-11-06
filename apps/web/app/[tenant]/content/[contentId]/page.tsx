@@ -79,7 +79,13 @@ export default function ContentPiecePage({
 
       <div className="grid gap-4 md:grid-cols-2">
         {item.copies.map((copy) => (
-          <CopyEditor key={copy.locale} contentId={contentId} copy={copy} editable={editable} />
+          <CopyEditor
+            key={copy.locale}
+            contentId={contentId}
+            copy={copy}
+            editable={editable}
+            printed={item.in_image}
+          />
         ))}
       </div>
 

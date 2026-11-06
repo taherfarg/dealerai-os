@@ -1067,4 +1067,5 @@ export const en = {
   "content.reason": "Why reject it (required)",
   "content.rejectedBecause": "Rejected:",
   "content.approvedNext": "Approved. It goes on the calendar when it is scheduled.",
+  "content.onImage": "On the images: reject the piece to have it made again with other words.",
 } as const;

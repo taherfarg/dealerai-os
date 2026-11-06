@@ -27,6 +27,7 @@ from ..core.money import Money
 from ..db.session import tenant_session
 from ..deps import Ctx, TenantContext, require_role
 from ..guards import price as price_guard
+from ..media import compositor
 from ..media.links import url_for
 from ..orchestrator import planner
 from ..orchestrator.executor import PlannedTask
@@ -93,6 +94,9 @@ class ImageOut(BaseModel):
 class ContentDetail(ContentItemOut):
     copies: list[CopyOut]
     images: list[ImageOut]
+    #: Copy fields this piece's template prints on its images. Changing one
+    #: would leave the images saying the old words, so they are not editable.
+    in_image: list[str]
 
 
 class CopyPatch(BaseModel):
@@ -150,7 +154,8 @@ select c.id, c.kind, c.concept, c.status, c.vehicle_id, c.run_id, c.rejection_re
        count(distinct a.id)::int as assets,
        (array_agg(a.storage_path order by a.sort_order) filter (where a.id is not null))[1]
          as thumbnail,
-       nullif(concat_ws(' ', v.model_year, v.make, v.model), '') as vehicle
+       nullif(concat_ws(' ', v.model_year, v.make, v.model), '') as vehicle,
+       c.brief ->> 'template_key' as template_key
   from content_items c
   left join content_copy p on p.content_item_id = c.id
   left join content_assets a on a.content_item_id = c.id
@@ -165,8 +170,26 @@ select c.id, c.kind, c.concept, c.status, c.vehicle_id, c.run_id, c.rejection_re
 """
 
 
+#: A copy field → the image slot that prints it (agents/content/image.py `_slots`).
+#: The hook is not here: an image's headline is the copywriter's own `headline`.
+_PRINTED = {"caption": "body", "cta": "cta"}
+
+
+def in_image(template_key: str | None) -> list[str]:
+    """The copy fields this template prints. No template, no images to
+    contradict; a template that cannot be read is assumed to print them all."""
+    if not template_key:
+        return []
+    try:
+        slots = compositor.manifest(template_key).slots
+    except Exception:  # noqa: BLE001 - a missing manifest must not unlock the words
+        return sorted(_PRINTED)
+    return sorted(field for field, slot in _PRINTED.items() if slot in slots)
+
+
 def _item(row: Any) -> dict[str, Any]:
     item = dict(row)
+    item["in_image"] = in_image(item.pop("template_key", None))
     thumbnail = item.pop("thumbnail", None)
     item["thumbnail_url"] = url_for(thumbnail) if thumbnail else None
     return item
@@ -231,7 +254,8 @@ async def edit_copy(
         ]
     async with tenant_session(ctx.tenant_id) as conn, conn.transaction():
         item = await conn.fetchrow(
-            """select c.status, v.price_minor, v.currency
+            """select c.status, v.price_minor, v.currency,
+                      c.brief ->> 'template_key' as template_key
                  from content_items c left join vehicles v on v.id = c.vehicle_id
                 where c.id = $1 for update of c""",
             content_id,
@@ -251,6 +275,17 @@ async def edit_copy(
         )
         if copy is None:
             raise NotFound(f"this piece has no {locale} copy", ar="لا يوجد نص بهذه اللغة.")
+        printed = [
+            field
+            for field in in_image(item["template_key"])
+            if field in changes and changes[field] != copy[field]
+        ]
+        if printed:
+            raise Conflict(
+                f"this piece's images print its {' and '.join(printed)}; "
+                "reject it to have it made again with other words",
+                ar="هذا النص مطبوع على صور المنشور؛ ارفضه ليُعاد إنشاؤه بكلمات أخرى.",
+            )
         after = {field: changes.get(field, copy[field]) for field in _COPY_FIELDS}
         text = " ".join(str(after[field] or "") for field in ("hook", "caption", "cta"))
         allowed = (

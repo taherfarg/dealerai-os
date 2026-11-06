@@ -3,8 +3,8 @@ import { describe, expect, it } from "vitest";
 import type { ContentItem } from "@/lib/api/hooks";
 import { LocaleProvider } from "@/lib/i18n-client";
 import { ContentGrid, mayReview } from "./ContentGrid";
-import { parseHashtags } from "./CopyEditor";
-import { EMPTY_RUN, applyEvent, parseRunFrame } from "./RunStream";
+import { parseHashtags, patchFrom } from "./CopyEditor";
+import { EMPTY_RUN, applyEvent, followRun, parseRunFrame } from "./RunStream";
 
 describe("the run stream", () => {
   it("reads a frame and ignores a heartbeat", () => {
@@ -31,7 +31,64 @@ describe("the run stream", () => {
   });
 });
 
+/** A stream response that sends these frames, then ends. */
+function streamOf(...frames: string[]): Response {
+  return new Response(frames.map((f) => `${f}\n\n`).join(""), { status: 200 });
+}
+
+const TASK = 'event: task.updated\ndata: {"task_key":"plan"}';
+const DONE = 'event: run.completed\ndata: {"status":"completed"}';
+
+describe("a dropped run stream", () => {
+  it("is opened again until the run says it is done", async () => {
+    const answers = [
+      () => Promise.reject(new TypeError("network down")),
+      () => Promise.resolve(streamOf(TASK)),
+      () => Promise.resolve(streamOf(TASK, DONE)),
+    ];
+    const seen: string[] = [];
+    const finished = await followRun(
+      () => answers[seen.filter((e) => e === "open").length]().finally(() => seen.push("open")),
+      (event) => seen.push(event),
+      new AbortController().signal,
+      async () => {},
+    );
+    expect(finished).toBe(true);
+    expect(seen.filter((e) => e === "open")).toHaveLength(3);
+    expect(seen.at(-1)).toBe("run.completed");
+  });
+
+  it("stops at a 4xx and when the panel goes away", async () => {
+    let opened = 0;
+    const gone = () => {
+      opened += 1;
+      return Promise.resolve(new Response("no such run", { status: 404 }));
+    };
+    expect(await followRun(gone, () => {}, new AbortController().signal, async () => {})).toBe(
+      false,
+    );
+    expect(opened).toBe(1);
+
+    const controller = new AbortController();
+    controller.abort();
+    expect(await followRun(gone, () => {}, controller.signal, async () => {})).toBe(false);
+    expect(opened).toBe(1);
+  });
+});
+
 describe("content review", () => {
+  it("does not send the words the images print", () => {
+    const form = new FormData();
+    form.set("hook", "Just in");
+    form.set("caption", "The MG6 is here.");
+    form.set("hashtags", "#mg6");
+    expect(patchFrom(form, ["cta"])).toEqual({
+      hook: "Just in",
+      caption: "The MG6 is here.",
+      hashtags: ["mg6"],
+    });
+  });
+
   it("takes hashtags however a person types them", () => {
     expect(parseHashtags("#mg6 dubai,  #new ##offer")).toEqual(["mg6", "dubai", "new", "offer"]);
   });
