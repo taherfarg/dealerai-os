@@ -1,6 +1,11 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import { API_BASE } from "@/lib/api/client";
+
+/** A stored object is fetched through the API's signed link, never directly:
+ *  the link is a path on the API, not on this site. */
+export const mediaSrc = (url: string) => (url.startsWith("http") ? url : `${API_BASE}${url}`);
 
 /** Tailwind's `lg`, where the customer panel becomes a column beside the thread. */
 const WIDE = "(min-width: 64rem)";

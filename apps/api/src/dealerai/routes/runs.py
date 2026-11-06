@@ -7,11 +7,15 @@ timeout decides whether a dealer's campaign happens.
 
 from __future__ import annotations
 
+import asyncio
+import json
+from collections.abc import AsyncIterator
 from datetime import datetime
 from typing import Annotated, Any, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from ..agents import base
@@ -152,6 +156,85 @@ async def get_run(run_id: UUID, ctx: Ctx) -> dict[str, Any]:
         )
     run["tasks"] = [dict(t) for t in tasks]
     return run
+
+
+#: How often an open stream looks at the run again.
+POLL_SECONDS = 1.0
+#: A comment this often keeps a proxy from closing a quiet stream.
+HEARTBEAT_SECONDS = 15.0
+#: A run in one of these has nothing more to say.
+FINISHED = frozenset({"completed", "partial", "failed", "cancelled"})
+
+
+def _frame(event: str, data: dict[str, Any]) -> str:
+    return f"event: {event}\ndata: {json.dumps(data, default=str)}\n\n"
+
+
+@router.get("/{run_id}/stream")
+async def stream_run(run_id: UUID, ctx: Ctx) -> StreamingResponse:
+    """The run as it happens (docs/07-api-design.md § 4): `task.updated` when a
+    task moves, `content.updated` when a piece appears or moves, `run.updated`
+    when the run does, and `run.completed` last, after which the stream ends.
+
+    A view, never the source of truth: it reads what the executor writes and
+    says what changed. A client that drops reads `GET /v1/runs/{id}` and the
+    content list, then opens a new stream.
+    ponytail: polls once a second per open stream; LISTEN/NOTIFY from the
+    executor if many people watch runs at the same time."""
+    await _run(ctx.tenant_id, run_id)  # a 404 before the stream opens, not inside it
+
+    async def events() -> AsyncIterator[str]:
+        tasks: dict[str, str] = {}
+        pieces: dict[UUID, str] = {}
+        state: str | None = None
+        quiet = 0.0
+        yield ": connected\n\n"
+        while True:
+            async with tenant_session(ctx.tenant_id) as conn:
+                run = await conn.fetchrow(
+                    """select status, cost_usd::float8 as cost_usd, summary
+                         from agent_runs where id = $1""",
+                    run_id,
+                )
+                task_rows = await conn.fetch(
+                    """select task_key, agent, status from agent_tasks
+                        where run_id = $1 order by task_key""",
+                    run_id,
+                )
+                piece_rows = await conn.fetch(
+                    "select id, status from content_items where run_id = $1 order by created_at",
+                    run_id,
+                )
+            if run is None:
+                return
+            frames = []
+            for task in task_rows:
+                if tasks.get(task["task_key"]) != task["status"]:
+                    tasks[task["task_key"]] = task["status"]
+                    frames.append(_frame("task.updated", dict(task)))
+            for piece in piece_rows:
+                if pieces.get(piece["id"]) != piece["status"]:
+                    pieces[piece["id"]] = piece["status"]
+                    frames.append(_frame("content.updated", dict(piece)))
+            if run["status"] != state:
+                state = run["status"]
+                frames.append(_frame("run.updated", dict(run)))
+            for frame in frames:
+                yield frame
+            if state in FINISHED:
+                yield _frame("run.completed", dict(run))
+                return
+            quiet = 0.0 if frames else quiet + POLL_SECONDS
+            if quiet >= HEARTBEAT_SECONDS:
+                quiet = 0.0
+                yield ": heartbeat\n\n"
+            await asyncio.sleep(POLL_SECONDS)
+
+    return StreamingResponse(
+        events(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"},
+    )
 
 
 async def _run(tenant_id: UUID, run_id: UUID) -> dict[str, Any]:

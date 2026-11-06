@@ -204,6 +204,88 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/content/{content_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Content */
+        get: operations["get_content_v1_content__content_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/content/{content_id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve
+         * @description Waiting for approval → approved, by this person, now.
+         */
+        post: operations["approve_v1_content__content_id__approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/content/{content_id}/copy/{locale}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Edit Copy
+         * @description A person's words for one language, marked as theirs. The price guard
+         *     holds them to what holds the AI: a price that is not the car's is the one
+         *     mistake a caption cannot make, whoever typed it.
+         *     ponytail: the price guard only — the brand guard's rules are the AI's
+         *     voice, and the person editing is the brand.
+         */
+        patch: operations["edit_copy_v1_content__content_id__copy__locale__patch"];
+        trace?: never;
+    };
+    "/v1/content/{content_id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reject
+         * @description Not this one, and why. An approved piece can be taken back until it is
+         *     scheduled.
+         */
+        post: operations["reject_v1_content__content_id__reject_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/conversations": {
         parameters: {
             query?: never;
@@ -1275,6 +1357,34 @@ export interface paths {
         };
         /** Get Run */
         get: operations["get_run_v1_runs__run_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/runs/{run_id}/stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Stream Run
+         * @description The run as it happens (docs/07-api-design.md § 4): `task.updated` when a
+         *     task moves, `content.updated` when a piece appears or moves, `run.updated`
+         *     when the run does, and `run.completed` last, after which the stream ends.
+         *
+         *     A view, never the source of truth: it reads what the executor writes and
+         *     says what changed. A client that drops reads `GET /v1/runs/{id}` and the
+         *     content list, then opens a new stream.
+         *     ponytail: polls once a second per open stream; LISTEN/NOTIFY from the
+         *     executor if many people watch runs at the same time.
+         */
+        get: operations["stream_run_v1_runs__run_id__stream_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2865,8 +2975,56 @@ export interface components {
             /** Tags */
             tags: string[];
         };
+        /** ContentDetail */
+        ContentDetail: {
+            /** Approved At */
+            approved_at?: string | null;
+            /**
+             * Assets
+             * @default 0
+             */
+            assets: number;
+            /** Concept */
+            concept: string | null;
+            /** Copies */
+            copies: components["schemas"]["CopyOut"][];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Images */
+            images: components["schemas"]["ImageOut"][];
+            /** Kind */
+            kind: string;
+            /** Locales */
+            locales?: string[];
+            /** Published At */
+            published_at?: string | null;
+            /** Rejection Reason */
+            rejection_reason?: string | null;
+            /** Run Id */
+            run_id: string | null;
+            /** Scheduled At */
+            scheduled_at?: string | null;
+            /** Status */
+            status: string;
+            /** Thumbnail Url */
+            thumbnail_url?: string | null;
+            /** Vehicle */
+            vehicle?: string | null;
+            /** Vehicle Id */
+            vehicle_id: string | null;
+        };
         /** ContentItemOut */
         ContentItemOut: {
+            /** Approved At */
+            approved_at?: string | null;
             /**
              * Assets
              * @default 0
@@ -2898,6 +3056,10 @@ export interface components {
             scheduled_at?: string | null;
             /** Status */
             status: string;
+            /** Thumbnail Url */
+            thumbnail_url?: string | null;
+            /** Vehicle */
+            vehicle?: string | null;
             /** Vehicle Id */
             vehicle_id: string | null;
         };
@@ -2937,6 +3099,34 @@ export interface components {
             waiting_since: string | null;
             /** Window Expires At */
             window_expires_at: string | null;
+        };
+        /** CopyOut */
+        CopyOut: {
+            /** Alt Text */
+            alt_text: string | null;
+            /** Caption */
+            caption: string | null;
+            /** Cta */
+            cta: string | null;
+            /** Edited By Human */
+            edited_by_human: boolean;
+            /** Hashtags */
+            hashtags: string[];
+            /** Hook */
+            hook: string | null;
+            /** Locale */
+            locale: string;
+        };
+        /** CopyPatch */
+        CopyPatch: {
+            /** Caption */
+            caption?: string | null;
+            /** Cta */
+            cta?: string | null;
+            /** Hashtags */
+            hashtags?: string[] | null;
+            /** Hook */
+            hook?: string | null;
         };
         /** CostBatch */
         CostBatch: {
@@ -3357,6 +3547,24 @@ export interface components {
             kind: string;
             /** Value */
             value: string;
+        };
+        /** ImageOut */
+        ImageOut: {
+            /** Aspect Ratio */
+            aspect_ratio: string;
+            /** Height */
+            height: number | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Locale */
+            locale: string | null;
+            /** Url */
+            url: string;
+            /** Width */
+            width: number | null;
         };
         /** ImportResult */
         ImportResult: {
@@ -4633,6 +4841,11 @@ export interface components {
             rates?: {
                 [key: string]: number;
             };
+        };
+        /** RejectIn */
+        RejectIn: {
+            /** Reason */
+            reason: string;
         };
         /** RepRow */
         RepRow: {
@@ -6102,6 +6315,147 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GenerateAccepted"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_content_v1_content__content_id__get: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                content_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContentDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    approve_v1_content__content_id__approve_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                content_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContentDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    edit_copy_v1_content__content_id__copy__locale__patch: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                content_id: string;
+                locale: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CopyPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContentDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reject_v1_content__content_id__reject_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                content_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RejectIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContentDetail"];
                 };
             };
             /** @description Validation Error */
@@ -8400,6 +8754,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RunDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    stream_run_v1_runs__run_id__stream_get: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */

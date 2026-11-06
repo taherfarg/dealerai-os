@@ -49,6 +49,9 @@ export const keys = {
   buySide: (tenantId: string) => ["buy-side", tenantId] as const,
   economicsList: (tenantId: string) => ["buy-side", tenantId, "economics"] as const,
   buyingList: (tenantId: string) => ["buy-side", tenantId, "buying-list"] as const,
+  /** Every content list; a filtered one is this plus its status. */
+  contentList: (tenantId: string) => ["content", tenantId, "list"] as const,
+  content: (tenantId: string, id: string) => ["content", tenantId, "item", id] as const,
   economics: (tenantId: string, id: string) => ["buy-side", tenantId, "economics", id] as const,
   costs: (tenantId: string, id: string) => ["buy-side", tenantId, "costs", id] as const,
   acquisition: (tenantId: string, id: string) =>
