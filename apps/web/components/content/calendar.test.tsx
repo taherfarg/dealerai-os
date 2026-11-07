@@ -84,6 +84,16 @@ describe("the calendar", () => {
     expect(screen.getByRole("button", { name: "Move…" })).toBeTruthy();
   });
 
+  it("keeps a piece movable in the month view, only smaller", () => {
+    const { container } = render(
+      wrap(<Calendar calendar={calendar} tenant="pollux" canSchedule compact />),
+    );
+    expect(container.querySelector("[draggable='true'][data-piece='p1']")).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Move…" })).toBeTruthy();
+    expect(screen.getByRole("link").getAttribute("href")).toBe("/pollux/content/p1");
+    expect(screen.queryByText("2026 BYD Leopard 7 Ultra")).toBeNull();
+  });
+
   it("is only looked at by someone who may not schedule", () => {
     const { container } = render(
       wrap(<Calendar calendar={calendar} tenant="pollux" canSchedule={false} compact={false} />),

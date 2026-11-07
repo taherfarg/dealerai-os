@@ -20,7 +20,7 @@ from uuid import UUID
 
 import asyncpg
 from fastapi import APIRouter, Depends, Query, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from .. import schedule
 from ..core.errors import Conflict, NotFound, Unusable
@@ -114,6 +114,15 @@ class ScheduleIn(BaseModel):
 
     day: date
     at: time = schedule.DEFAULT_TIME
+
+    @field_validator("at")
+    @classmethod
+    def _no_offset(cls, at: time) -> time:
+        # "10:00+04:00" names a zone the dealer's clock already has; taking it
+        # would compare an aware time with a naive one and fail as a 500.
+        if at.tzinfo is not None:
+            raise ValueError("a time on the dealer's clock, without an offset: 10:00")
+        return at
 
 
 class CalendarItem(ContentItemOut):

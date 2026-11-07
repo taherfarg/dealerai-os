@@ -103,21 +103,16 @@ export function Calendar({
               </div>
               {gap && !compact && <p className="text-muted mt-1 text-xs">{t("calendar.gap")}</p>}
               <ul className="mt-1 space-y-1">
-                {items.map((item) =>
-                  compact ? (
-                    <li key={item.id} className="truncate text-[11px]">
-                      {item.local_time} {concept(item)}
-                    </li>
-                  ) : (
-                    <li key={item.id}>
-                      <Card
-                        piece={item}
-                        tenant={tenant}
-                        canSchedule={canSchedule && item.status === "scheduled"}
-                      />
-                    </li>
-                  ),
-                )}
+                {items.map((item) => (
+                  <li key={item.id}>
+                    <Card
+                      piece={item}
+                      tenant={tenant}
+                      canSchedule={canSchedule && item.status === "scheduled"}
+                      compact={compact}
+                    />
+                  </li>
+                ))}
               </ul>
             </li>
           );
@@ -127,14 +122,18 @@ export function Calendar({
   );
 }
 
+/** One piece, the same in a week and a month — dragged, opened, moved or taken
+ *  off — only smaller in a month, where there is no room for the car. */
 function Card({
   piece,
   tenant,
   canSchedule,
+  compact = false,
 }: {
   piece: Piece;
   tenant: string;
   canSchedule: boolean;
+  compact?: boolean;
 }) {
   const t = useT();
   const move = useSchedule();
@@ -156,13 +155,15 @@ function Card({
         event.dataTransfer.setData("text/plain", `${piece.id}|${piece.local_time ?? ""}`)
       }
       data-piece={piece.id}
-      className={`bg-surface rounded-lg p-1.5 text-xs ${canSchedule ? "cursor-grab" : ""}`}
+      className={`bg-surface rounded-lg ${compact ? "p-1 text-[11px]" : "p-1.5 text-xs"} ${
+        canSchedule ? "cursor-grab" : ""
+      }`}
     >
-      <Link href={`/${tenant}/content/${piece.id}`} className="block hover:underline">
+      <Link href={`/${tenant}/content/${piece.id}`} className="block truncate hover:underline">
         {piece.local_time && <span className="font-mono">{piece.local_time} </span>}
         <span className="capitalize">{concept(piece)}</span>
       </Link>
-      {piece.vehicle && <p className="text-muted truncate">{piece.vehicle}</p>}
+      {piece.vehicle && !compact && <p className="text-muted truncate">{piece.vehicle}</p>}
       {canSchedule && (
         <>
           <button

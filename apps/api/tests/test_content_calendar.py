@@ -222,6 +222,13 @@ def test_only_an_approved_piece_is_scheduled_and_it_can_come_off(
     assert off.status_code == 200, off.text
     assert (off.json()["status"], off.json()["scheduled_at"]) == ("approved", None)
 
+    with_offset = client.post(
+        f"/v1/content/{approved}/schedule",
+        json={"day": _day(2).isoformat(), "at": "10:00:00+04:00"},
+        headers=auth(MANAGER),
+    )
+    assert with_offset.status_code == 400, "the dealer's clock has no offset to give"
+
     backwards = client.get(
         "/v1/content/calendar",
         params={"from": _day(6).isoformat(), "to": _day(0).isoformat()},
