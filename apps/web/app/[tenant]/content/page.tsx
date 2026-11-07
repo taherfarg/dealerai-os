@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { use, useState, type FormEvent } from "react";
 import { ContentGrid, mayReview } from "@/components/content/ContentGrid";
 import { RunStream } from "@/components/content/RunStream";
@@ -30,7 +31,12 @@ export default function ContentPage({ params }: { params: Promise<{ tenant: stri
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-6">
-      <h1 className="text-lg font-semibold">{t("nav.content")}</h1>
+      <header className="flex flex-wrap items-baseline justify-between gap-2">
+        <h1 className="text-lg font-semibold">{t("nav.content")}</h1>
+        <Link href={`/${tenant}/content/calendar`} className="btn">
+          {t("calendar.title")}
+        </Link>
+      </header>
       {canReview && <Generate />}
       <nav className="flex flex-wrap gap-2" aria-label={t("content.tabs")}>
         {TABS.map(([status, label]) => (

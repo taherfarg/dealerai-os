@@ -1201,6 +1201,263 @@
         "title": "BuyingListOut",
         "type": "object"
       },
+      "CalendarDay": {
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "date": {
+            "format": "date",
+            "title": "Date",
+            "type": "string"
+          },
+          "full": {
+            "title": "Full",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "date",
+          "count",
+          "full"
+        ],
+        "title": "CalendarDay",
+        "type": "object"
+      },
+      "CalendarItem": {
+        "properties": {
+          "approved_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approved At"
+          },
+          "assets": {
+            "default": 0,
+            "title": "Assets",
+            "type": "integer"
+          },
+          "concept": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concept"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "local_date": {
+            "format": "date",
+            "title": "Local Date",
+            "type": "string"
+          },
+          "local_time": {
+            "title": "Local Time",
+            "type": "string"
+          },
+          "locales": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Locales",
+            "type": "array"
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published At"
+          },
+          "rejection_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rejection Reason"
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Id"
+          },
+          "scheduled_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scheduled At"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "thumbnail_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thumbnail Url"
+          },
+          "vehicle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vehicle"
+          },
+          "vehicle_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vehicle Id"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "concept",
+          "status",
+          "vehicle_id",
+          "run_id",
+          "created_at",
+          "local_date",
+          "local_time"
+        ],
+        "title": "CalendarItem",
+        "type": "object"
+      },
+      "CalendarOut": {
+        "properties": {
+          "days": {
+            "items": {
+              "$ref": "#/components/schemas/CalendarDay"
+            },
+            "title": "Days",
+            "type": "array"
+          },
+          "gaps": {
+            "items": {
+              "format": "date",
+              "type": "string"
+            },
+            "title": "Gaps",
+            "type": "array"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CalendarItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "max_posts_per_day": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Posts Per Day"
+          },
+          "quiet_hours": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quiet Hours"
+          },
+          "timezone": {
+            "title": "Timezone",
+            "type": "string"
+          },
+          "unscheduled": {
+            "items": {
+              "$ref": "#/components/schemas/ContentItemOut"
+            },
+            "title": "Unscheduled",
+            "type": "array"
+          }
+        },
+        "required": [
+          "timezone",
+          "max_posts_per_day",
+          "quiet_hours",
+          "days",
+          "items",
+          "gaps",
+          "unscheduled"
+        ],
+        "title": "CalendarOut",
+        "type": "object"
+      },
       "CancelIn": {
         "properties": {
           "reason": {
@@ -8674,6 +8931,27 @@
         "title": "SalesTask",
         "type": "object"
       },
+      "ScheduleIn": {
+        "description": "A day and a time on the dealer's own clock: the API owns the timezone,\nso a browser in another one cannot shift a post by hours.",
+        "properties": {
+          "at": {
+            "default": "10:00:00",
+            "format": "time",
+            "title": "At",
+            "type": "string"
+          },
+          "day": {
+            "format": "date",
+            "title": "Day",
+            "type": "string"
+          }
+        },
+        "required": [
+          "day"
+        ],
+        "title": "ScheduleIn",
+        "type": "object"
+      },
       "ScheduleOut": {
         "properties": {
           "next_stage": {
@@ -12016,6 +12294,70 @@
         ]
       }
     },
+    "/v1/content/calendar": {
+      "get": {
+        "description": "The days from `from` to `to` on the dealer's clock: what goes out each\nday against the daily limit, the days from today with nothing, and the\napproved pieces still waiting for a slot. Reading it changes nothing.",
+        "operationId": "calendar_v1_content_calendar_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "from",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "From",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "To",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalendarOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Calendar",
+        "tags": [
+          "content"
+        ]
+      }
+    },
     "/v1/content/generate": {
       "post": {
         "description": "Plan and queue a content run.\n\nThe run starts as a single strategist task. How many pieces a vehicle\ndeserves is not knowable until something has looked at it, so the rest of\nthe DAG is spawned by the strategist rather than guessed here.",
@@ -12309,6 +12651,124 @@
           }
         },
         "summary": "Reject",
+        "tags": [
+          "content"
+        ]
+      }
+    },
+    "/v1/content/{content_id}/schedule": {
+      "post": {
+        "description": "An approved piece into a slot — or a scheduled one into another, which is\nwhat dragging it on the calendar does. Held to the dealer's posting rules on\nits own clock, and refused with the rule it breaks. Nothing is sent: the\npiece goes out when the slot is due (M4).",
+        "operationId": "schedule_piece_v1_content__content_id__schedule_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "content_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Content Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScheduleIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContentDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Schedule Piece",
+        "tags": [
+          "content"
+        ]
+      }
+    },
+    "/v1/content/{content_id}/unschedule": {
+      "post": {
+        "description": "Off the calendar, still approved.",
+        "operationId": "unschedule_v1_content__content_id__unschedule_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "content_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Content Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContentDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Unschedule",
         "tags": [
           "content"
         ]

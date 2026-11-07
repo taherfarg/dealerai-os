@@ -180,6 +180,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/content/calendar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Calendar
+         * @description The days from `from` to `to` on the dealer's clock: what goes out each
+         *     day against the daily limit, the days from today with nothing, and the
+         *     approved pieces still waiting for a slot. Reading it changes nothing.
+         */
+        get: operations["calendar_v1_content_calendar_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/content/generate": {
         parameters: {
             query?: never;
@@ -280,6 +302,49 @@ export interface paths {
          *     scheduled.
          */
         post: operations["reject_v1_content__content_id__reject_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/content/{content_id}/schedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Schedule Piece
+         * @description An approved piece into a slot — or a scheduled one into another, which is
+         *     what dragging it on the calendar does. Held to the dealer's posting rules on
+         *     its own clock, and refused with the rule it breaks. Nothing is sent: the
+         *     piece goes out when the slot is due (M4).
+         */
+        post: operations["schedule_piece_v1_content__content_id__schedule_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/content/{content_id}/unschedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Unschedule
+         * @description Off the calendar, still approved.
+         */
+        post: operations["unschedule_v1_content__content_id__unschedule_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2855,6 +2920,84 @@ export interface components {
              */
             since: string;
         };
+        /** CalendarDay */
+        CalendarDay: {
+            /** Count */
+            count: number;
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Full */
+            full: boolean;
+        };
+        /** CalendarItem */
+        CalendarItem: {
+            /** Approved At */
+            approved_at?: string | null;
+            /**
+             * Assets
+             * @default 0
+             */
+            assets: number;
+            /** Concept */
+            concept: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Kind */
+            kind: string;
+            /**
+             * Local Date
+             * Format: date
+             */
+            local_date: string;
+            /** Local Time */
+            local_time: string;
+            /** Locales */
+            locales?: string[];
+            /** Published At */
+            published_at?: string | null;
+            /** Rejection Reason */
+            rejection_reason?: string | null;
+            /** Run Id */
+            run_id: string | null;
+            /** Scheduled At */
+            scheduled_at?: string | null;
+            /** Status */
+            status: string;
+            /** Thumbnail Url */
+            thumbnail_url?: string | null;
+            /** Vehicle */
+            vehicle?: string | null;
+            /** Vehicle Id */
+            vehicle_id: string | null;
+        };
+        /** CalendarOut */
+        CalendarOut: {
+            /** Days */
+            days: components["schemas"]["CalendarDay"][];
+            /** Gaps */
+            gaps: string[];
+            /** Items */
+            items: components["schemas"]["CalendarItem"][];
+            /** Max Posts Per Day */
+            max_posts_per_day: number | null;
+            /** Quiet Hours */
+            quiet_hours: string[] | null;
+            /** Timezone */
+            timezone: string;
+            /** Unscheduled */
+            unscheduled: components["schemas"]["ContentItemOut"][];
+        };
         /** CancelIn */
         CancelIn: {
             /** Reason */
@@ -5088,6 +5231,24 @@ export interface components {
             /** Title */
             title: string;
         };
+        /**
+         * ScheduleIn
+         * @description A day and a time on the dealer's own clock: the API owns the timezone,
+         *     so a browser in another one cannot shift a post by hours.
+         */
+        ScheduleIn: {
+            /**
+             * At
+             * Format: time
+             * @default 10:00:00
+             */
+            at: string;
+            /**
+             * Day
+             * Format: date
+             */
+            day: string;
+        };
         /** ScheduleOut */
         ScheduleOut: {
             /** Next Stage */
@@ -6295,6 +6456,40 @@ export interface operations {
             };
         };
     };
+    calendar_v1_content_calendar_get: {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+            };
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CalendarOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     generate_v1_content_generate_post: {
         parameters: {
             query?: never;
@@ -6450,6 +6645,76 @@ export interface operations {
                 "application/json": components["schemas"]["RejectIn"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContentDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    schedule_piece_v1_content__content_id__schedule_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                content_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScheduleIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContentDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    unschedule_v1_content__content_id__unschedule_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                content_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {

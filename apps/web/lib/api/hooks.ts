@@ -2174,3 +2174,46 @@ export function useRejectContent(contentId: string) {
     ),
   );
 }
+
+// --------------------------------------------------------------------------
+// content calendar (T3.8)
+// --------------------------------------------------------------------------
+
+export type ContentCalendar = components["schemas"]["CalendarOut"];
+export type CalendarItem = components["schemas"]["CalendarItem"];
+
+export function useContentCalendar(from: string, to: string) {
+  const { api, tenantId, header } = useTenantApi();
+  return useQuery({
+    queryKey: keys.contentCalendar(tenantId, from, to),
+    queryFn: async () =>
+      unwrap(
+        await api.GET("/v1/content/calendar", {
+          params: { header, query: { from, to } },
+        }),
+      ),
+  });
+}
+
+/** Into a slot, or off the calendar. Every content list and the calendar
+ *  refresh after; a refusal comes back with the rule it broke. */
+export function useSchedule() {
+  const { api, tenantId, header } = useTenantApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, day, at }: { id: string; day: string | null; at?: string }) =>
+      day
+        ? unwrap(
+            await api.POST("/v1/content/{content_id}/schedule", {
+              params: { header, path: { content_id: id } },
+              body: { day, at: at ?? "10:00" },
+            }),
+          )
+        : unwrap(
+            await api.POST("/v1/content/{content_id}/unschedule", {
+              params: { header, path: { content_id: id } },
+            }),
+          ),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["content", tenantId] }),
+  });
+}
