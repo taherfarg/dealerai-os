@@ -5,7 +5,7 @@ import { useState, type DragEvent, type FormEvent } from "react";
 import type { CalendarItem, ContentCalendar, ContentItem } from "@/lib/api/hooks";
 import { useSchedule } from "@/lib/api/hooks";
 import { useLocale, useT } from "@/lib/i18n-client";
-import { concept } from "./ContentGrid";
+import { STATUS, concept } from "./ContentGrid";
 
 type Piece = ContentItem & { local_time?: string };
 
@@ -162,6 +162,9 @@ function Card({
       <Link href={`/${tenant}/content/${piece.id}`} className="block truncate hover:underline">
         {piece.local_time && <span className="font-mono">{piece.local_time} </span>}
         <span className="capitalize">{concept(piece)}</span>
+        {piece.status !== "scheduled" && piece.status !== "approved" && (
+          <span className="text-muted"> · {t(STATUS[piece.status] ?? "content.status.draft")}</span>
+        )}
       </Link>
       {piece.vehicle && !compact && <p className="text-muted truncate">{piece.vehicle}</p>}
       {canSchedule && (

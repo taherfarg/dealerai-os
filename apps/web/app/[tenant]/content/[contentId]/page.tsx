@@ -4,12 +4,20 @@ import Link from "next/link";
 import { use, useState } from "react";
 import { STATUS, concept, mayReview } from "@/components/content/ContentGrid";
 import { CopyEditor } from "@/components/content/CopyEditor";
+import { Publications } from "@/components/content/Publications";
 import { useApproveContent, useContent, useMe, useRejectContent } from "@/lib/api/hooks";
+import type { MessageKey } from "@/lib/i18n";
 import { useT } from "@/lib/i18n-client";
 import { mediaSrc } from "@/lib/media";
 
 /** Words a person may still change: nothing has gone out. Mirrors routes/content.py. */
 const EDITABLE = new Set(["draft", "pending_approval", "approved", "rejected"]);
+/** Why a piece stopped, said as what happened to it. */
+const STOPPED: Record<string, MessageKey> = {
+  rejected: "content.rejectedBecause",
+  archived: "content.notPublishedBecause",
+  failed: "content.notPublishedBecause",
+};
 
 /** One piece: its images, its words in each language, and the decision. */
 export default function ContentPiecePage({
@@ -51,9 +59,9 @@ export default function ContentPiecePage({
             .filter(Boolean)
             .join(" · ")}
         </p>
-        {item.status === "rejected" && item.rejection_reason && (
+        {item.rejection_reason && STOPPED[item.status] && (
           <p className="text-danger text-sm" dir="auto">
-            {t("content.rejectedBecause")} {item.rejection_reason}
+            {t(STOPPED[item.status])} {item.rejection_reason}
           </p>
         )}
       </header>
@@ -76,6 +84,8 @@ export default function ContentPiecePage({
           ))}
         </ul>
       )}
+
+      <Publications publications={item.publications ?? []} />
 
       <div className="grid gap-4 md:grid-cols-2">
         {item.copies.map((copy) => (

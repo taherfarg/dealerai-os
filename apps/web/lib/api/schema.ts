@@ -3149,6 +3149,8 @@ export interface components {
             kind: string;
             /** Locales */
             locales?: string[];
+            /** Publications */
+            publications?: components["schemas"]["PublicationOut"][];
             /** Published At */
             published_at?: string | null;
             /** Rejection Reason */
@@ -4755,6 +4757,26 @@ export interface components {
             description: string;
             /** Quote */
             quote: string;
+        };
+        /**
+         * PublicationOut
+         * @description Where a piece went, one account at a time (T4.3).
+         */
+        PublicationOut: {
+            /** Attempts */
+            attempts: number;
+            /** Error */
+            error: string | null;
+            /** Handle */
+            handle: string | null;
+            /** Permalink */
+            permalink: string | null;
+            /** Platform */
+            platform: string;
+            /** Published At */
+            published_at: string | null;
+            /** Status */
+            status: string;
         };
         /**
          * Purchase

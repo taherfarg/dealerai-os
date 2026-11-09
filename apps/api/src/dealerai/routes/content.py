@@ -7,9 +7,9 @@ happens.
 
 A piece the image agent finished waits at `pending_approval`. A person (marketer
 and up) approves it or rejects it with a reason; scheduling it is the calendar's
-(T3.8), publishing it M4's. A person may change its words in any language until
-it goes out — the edit is marked as theirs (`edited_by_human`) and held to the
-same price guard as the AI's.
+(T3.8), and publishing it the worker's when the slot comes (T4.3). A person may
+change its words in any language until it goes out — the edit is marked as
+theirs (`edited_by_human`) and held to the same price guard as the AI's.
 """
 
 from __future__ import annotations
@@ -93,9 +93,23 @@ class ImageOut(BaseModel):
     height: int | None
 
 
+class PublicationOut(BaseModel):
+    """Where a piece went, one account at a time (T4.3)."""
+
+    platform: str
+    handle: str | None
+    status: str
+    permalink: str | None
+    #: Why it did not go out here, as the platform said it.
+    error: str | None
+    attempts: int
+    published_at: datetime | None
+
+
 class ContentDetail(ContentItemOut):
     copies: list[CopyOut]
     images: list[ImageOut]
+    publications: list[PublicationOut] = Field(default_factory=list)
     #: Copy fields this piece's template prints on its images. Changing one
     #: would leave the images saying the old words, so they are not editable.
     in_image: list[str]
@@ -286,7 +300,15 @@ async def _detail(conn: asyncpg.Connection, tenant_id: UUID, content_id: UUID) -
              from content_assets where content_item_id = $1 order by sort_order""",
         content_id,
     )
+    publications = await conn.fetch(
+        """select ch.platform, ch.handle, p.status, p.permalink, p.error, p.attempts,
+                  p.published_at
+             from publications p join channels ch on ch.id = p.channel_id
+            where p.content_item_id = $1 order by ch.platform""",
+        content_id,
+    )
     item["copies"] = [dict(c) for c in copies]
+    item["publications"] = [dict(p) for p in publications]
     item["images"] = [dict(i) | {"url": url_for(i["storage_path"])} for i in images]
     return item
 

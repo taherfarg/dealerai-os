@@ -124,7 +124,14 @@ class ImageAgent:
                     }
                 )
 
-        await _save(ctx, UUID(str(item_id)), template_key, assets)
+        # The price an image prints is the price it was made with: the publisher
+        # holds it against the car's price when the slot comes (publisher.py).
+        printed = (
+            vehicle.get("price_minor")
+            if "price" in compositor.manifest(template_key).slots
+            else None
+        )
+        await _save(ctx, UUID(str(item_id)), template_key, assets, printed)
         log.info(
             "creative_produced",
             content_item=str(item_id),
@@ -280,7 +287,11 @@ async def _store(ctx: base.AgentContext, shot: compositor.Rendered) -> str:
 
 
 async def _save(
-    ctx: base.AgentContext, item_id: UUID, template_key: str, assets: list[dict[str, Any]]
+    ctx: base.AgentContext,
+    item_id: UUID,
+    template_key: str,
+    assets: list[dict[str, Any]],
+    printed_price: Any = None,
 ) -> None:
     async with tenant_session(ctx.tenant_id) as conn, conn.transaction():
         for order, asset in enumerate(assets):
@@ -296,7 +307,8 @@ async def _save(
                 asset["width"],
                 asset["height"],
                 asset["bytes"],
-                {"template_key": template_key, "locale": asset["locale"], "ms": asset["ms"]},
+                {"template_key": template_key, "locale": asset["locale"], "ms": asset["ms"]}
+                | ({"price_minor": int(printed_price)} if printed_price is not None else {}),
                 order,
             )
         await conn.execute(

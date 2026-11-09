@@ -1988,6 +1988,13 @@
             "title": "Locales",
             "type": "array"
           },
+          "publications": {
+            "items": {
+              "$ref": "#/components/schemas/PublicationOut"
+            },
+            "title": "Publications",
+            "type": "array"
+          },
           "published_at": {
             "anyOf": [
               {
@@ -7456,6 +7463,79 @@
           "quote"
         ],
         "title": "ProposedLineOut",
+        "type": "object"
+      },
+      "PublicationOut": {
+        "description": "Where a piece went, one account at a time (T4.3).",
+        "properties": {
+          "attempts": {
+            "title": "Attempts",
+            "type": "integer"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "handle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Handle"
+          },
+          "permalink": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Permalink"
+          },
+          "platform": {
+            "title": "Platform",
+            "type": "string"
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published At"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "platform",
+          "handle",
+          "status",
+          "permalink",
+          "error",
+          "attempts",
+          "published_at"
+        ],
+        "title": "PublicationOut",
         "type": "object"
       },
       "Purchase": {
