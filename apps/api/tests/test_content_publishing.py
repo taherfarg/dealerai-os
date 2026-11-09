@@ -231,16 +231,96 @@ async def test_a_failure_that_may_pass_is_tried_again_and_posts_once(
     assert (await _item(su, piece))["status"] == "published"
 
 
+async def test_each_account_waits_its_own_time(piece: uuid.UUID, su: asyncpg.Connection) -> None:
+    """Instagram asks for five minutes, Facebook timed out: Facebook's try at
+    thirty seconds leaves Instagram alone until its own time."""
+    ig = _mock("instagram", fail_next=RateLimited(retry_after_seconds=300))
+    fb = _mock("facebook", fail_next=ConnectorError("the platform timed out"))
+    await content.book_due()
+    [booked] = await _due(su)
+    await content.on_publish_due(_event("content.publish_due", booked["payload"]))
+
+    [_, soon] = await _due(su)
+    assert soon["run_after"] - datetime.now(UTC) < timedelta(minutes=1), "Facebook's thirty seconds"
+    await content.on_publish_due(_event("content.publish_due", soon["payload"]))
+    went = await _publications(su, piece)
+    assert (went["facebook"]["status"], went["facebook"]["attempts"]) == ("published", 2)
+    assert (went["instagram"]["status"], went["instagram"]["attempts"]) == ("pending", 1)
+    assert ig.published == {} and len(fb.published) == 1
+
+    [_, _, then] = await _due(su)
+    assert then["run_after"] - datetime.now(UTC) > timedelta(minutes=4), "Instagram's own wait"
+    await content.on_publish_due(_event("content.publish_due", then["payload"]))
+    assert (await _publications(su, piece))["instagram"]["status"] == "published"
+    assert (await _item(su, piece))["status"] == "published"
+
+
+async def test_a_retry_looks_at_the_car_again(piece: uuid.UUID, su: asyncpg.Connection) -> None:
+    """Instagram took it, Facebook waits its next try, and the car sells in
+    between: Facebook is not sent it, and the owners are told the Instagram
+    post now advertises a sold car."""
+    fb = _mock("facebook", fail_next=ConnectorError("the platform timed out"))
+    await content.book_due()
+    [booked] = await _due(su)
+    await content.on_publish_due(_event("content.publish_due", booked["payload"]))
+    vehicle = await su.fetchval("select vehicle_id from content_items where id = $1", piece)
+    await su.execute("update vehicles set status = 'sold' where id = $1", vehicle)
+    await on_vehicle_sold(_event("vehicle.sold", {"vehicle_id": str(vehicle), "status": "sold"}))
+
+    [_, retry] = await _due(su)
+    await content.on_publish_due(_event("content.publish_due", retry["payload"]))
+    went = await _publications(su, piece)
+    assert (went["facebook"]["status"], went["facebook"]["error"]) == (
+        "failed",
+        "facebook: the car is sold",
+    )
+    assert fb.published == {}, "nothing more went out"
+    assert (await _item(su, piece))["status"] == "published", "Instagram has it"
+    told = await su.fetchval(
+        "select title from notifications where kind = 'marketing_stopped' and entity ->> 'id' = $1",
+        str(piece),
+    )
+    assert told == "A post about the MG MG6 is out, and the car is now sold"
+
+
+async def test_a_retry_at_an_old_price_stops_what_has_not_gone_out(
+    piece: uuid.UUID, su: asyncpg.Connection
+) -> None:
+    """Both accounts failed once and the price moves: neither is tried again."""
+    ig = _mock("instagram", fail_next=ConnectorError("down"))
+    fb = _mock("facebook", fail_next=ConnectorError("down"))
+    await content.book_due()
+    [booked] = await _due(su)
+    await content.on_publish_due(_event("content.publish_due", booked["payload"]))
+    await su.execute(
+        """update content_assets set render_meta = render_meta || '{"price_minor": 6600000}'
+            where content_item_id = $1""",
+        piece,
+    )
+    await su.execute(
+        """update vehicles set price_minor = 6400000
+            where id = (select vehicle_id from content_items where id = $1)""",
+        piece,
+    )
+
+    [_, retry] = await _due(su)
+    await content.on_publish_due(_event("content.publish_due", retry["payload"]))
+    item = await _item(su, piece)
+    assert item["status"] == "rejected"
+    assert item["rejection_reason"].startswith("the price changed to AED 64,000")
+    assert {p["status"] for p in (await _publications(su, piece)).values()} == {"failed"}
+    assert ig.published == fb.published == {}
+
+
 async def test_three_failures_and_nothing_went_out_is_a_failed_piece(
     piece: uuid.UUID, su: asyncpg.Connection
 ) -> None:
     ig, fb = _mock("instagram"), _mock("facebook")
     await content.book_due()
-    payload = (await _due(su))[0]["payload"]
     for _ in range(content.ATTEMPTS):
         ig.fail_next, fb.fail_next = ConnectorError("down"), ConnectorError("down")
+        payload = (await _due(su))[-1]["payload"]
         await content.on_publish_due(_event("content.publish_due", payload))
-        payload = {"content_item_id": str(piece)}
     item = await _item(su, piece)
     assert item["status"] == "failed"
     assert item["rejection_reason"] == "facebook: down; instagram: down"

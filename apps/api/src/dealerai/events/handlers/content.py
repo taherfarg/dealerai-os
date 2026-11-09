@@ -6,8 +6,9 @@ handler checks the piece may still go out — the car still for sale, still at
 the price its words and images give — then publishes it to every connected
 Instagram and Facebook account at once, each its own `publications` row: one
 refusing it does not stop the other. A failure that may pass is tried again,
-three times in all; one that cannot is the row's, with its cause. A piece is
-`published` when one channel took it, `failed` when none did.
+three times in all, each account at its own time, and the car is looked at
+again before each try; one that cannot is the row's, with its cause. A piece
+is `published` when one channel took it, `failed` when none did.
 
 Written here, not as an agent: publishing calls no model, and agents may not
 reach connectors (tests/test_import_contracts.py).
@@ -186,14 +187,18 @@ select c.id, c.kind, c.status, c.scheduled_at, c.vehicle_id,
    for update of c
 """
 
-#: Publications still to go: new, waiting their next try, or cut off mid-way
-#: by a worker that died (the idempotency key keeps that from posting twice).
+#: Publications to send now: new, at their next try's time ($2, the time the
+#: retry was booked for — not the database's now, which may read a hair
+#: early), or cut off mid-way by a worker that died (the idempotency key keeps
+#: that from posting twice). One still waiting its own time is left to wait.
 _GOING = """
 update publications p
-   set status = 'publishing', attempts = p.attempts + 1, updated_at = now()
+   set status = 'publishing', attempts = p.attempts + 1, retry_at = null, updated_at = now()
   from channels ch
  where p.content_item_id = $1 and ch.id = p.channel_id
-   and p.status in ('pending', 'publishing')
+   and (p.status = 'publishing'
+        or (p.status = 'pending'
+            and coalesce(p.retry_at, now()) <= greatest(now(), $2::timestamptz)))
 returning p.id, p.attempts, ch.platform, ch.external_id, ch.credentials
 """
 
@@ -232,71 +237,129 @@ async def _tell(
 async def _preflight(conn: asyncpg.Connection, tenant_id: UUID, item: asyncpg.Record) -> bool:
     """True when the piece must not go out, having stopped it and said why.
 
-    The lifecycle's own checks, asked again at the last moment: a car can sell,
-    or its price move, between the event that would have stopped the piece and
-    the slot. Stopping one stops every piece about the car that has the same
-    problem, as the lifecycle would have.
+    The lifecycle's own checks, asked again before every try, the first and
+    each retry: a car can sell, or its price move, between the event that would
+    have stopped the piece and the slot, or while a try waits. Stopping one
+    stops every piece about the car that has the same problem, as the lifecycle
+    would have. The lifecycle leaves a piece part-way out to this check: what
+    has not gone out stops here, and what has is the dealer's to take down.
     ponytail: a piece at an old price is stopped, not made again; regenerating
     it is the content run's, from the vehicle.
     """
     vehicle_id, car = item["vehicle_id"], item["car"] or "car"
     if vehicle_id is None:
         return False
+    item_id, going = item["id"], item["status"] == "publishing"
     state = item["vehicle_status"]
     if state in deals.OFF_SALE:
         await deals.stop_marketing(conn, vehicle_id, state)
-        await _tell(
-            conn,
-            tenant_id,
-            item["id"],
-            Words(
+        if going and await _halt(conn, tenant_id, item_id, "archived", f"the car is {state}"):
+            title = Words(
+                f"A post about the {car} is out, and the car is now {state}",
+                f"نُشر منشور عن {named(car)}، والسيارة لم تعد معروضة للبيع",
+            )
+            body = Words(
+                "It went no further. Take it down where it went out.",
+                "لم يُنشر في مكان آخر. احذفه حيث نُشر.",
+            )
+            kind = "marketing_stopped"
+        else:
+            title = Words(
                 f"A post about the {car} was not published: the car is {state}",
                 f"لم يُنشر منشور عن {named(car)}: السيارة لم تعد معروضة للبيع",
-            ),
-            Words(
+            )
+            body = Words(
                 "Nothing went out. It is archived with the reason.",
                 "لم يُنشر شيء، وأُرشف المنشور مع السبب.",
-            ),
-            dedupe_key=f"publish_failed:{item['id']}",
+            )
+            kind = "publish_failed"
+        await _tell(
+            conn, tenant_id, item_id, title, body, kind=kind, dedupe_key=f"publish_failed:{item_id}"
         )
         return True
-    if item["price_minor"] is not None:
-        currency = item["currency"] or "AED"
-        found = await pricing.stale_content(
-            conn, vehicle_id, price_minor=item["price_minor"], currency=currency
+    if item["price_minor"] is None:
+        return False
+    currency = item["currency"] or "AED"
+    found = await pricing.stale_content(
+        conn, vehicle_id, price_minor=item["price_minor"], currency=currency
+    )
+    if item_id not in found["stopped"] + found["going"]:
+        return False
+    price = str(Money(item["price_minor"], currency))
+    reason = pricing.stale_reason(item["price_minor"], currency)
+    if item_id in found["going"] and await _halt(conn, tenant_id, item_id, "rejected", reason):
+        title = Words(
+            f"A post about the {car} is out at an old price",
+            f"نُشر منشور عن {named(car)} بسعر قديم",
         )
-        if item["id"] in found["stopped"]:
-            price = str(Money(item["price_minor"], currency))
-            await _tell(
-                conn,
-                tenant_id,
-                item["id"],
-                Words(
-                    f"A post about the {car} was not published: it quotes another price",
-                    f"لم يُنشر منشور عن {named(car)}: يذكر سعرًا غير سعرها",
-                ),
-                Words(
-                    f"The price is now {price}. Make a new piece for the car.",
-                    f"السعر الآن {price}. أنشئ منشورًا جديدًا للسيارة.",
-                ),
-                dedupe_key=f"publish_failed:{item['id']}",
-            )
-            return True
+        body = Words(
+            f"The price is now {price}. It went no further. Take it down or correct it "
+            "where it went out.",
+            f"السعر الآن {price}. لم يُنشر في مكان آخر. احذفه أو صحّحه حيث نُشر.",
+        )
+        kind = "content_stale"
+    else:
+        title = Words(
+            f"A post about the {car} was not published: it quotes another price",
+            f"لم يُنشر منشور عن {named(car)}: يذكر سعرًا غير سعرها",
+        )
+        body = Words(
+            f"The price is now {price}. Make a new piece for the car.",
+            f"السعر الآن {price}. أنشئ منشورًا جديدًا للسيارة.",
+        )
+        kind = "publish_failed"
+    await _tell(
+        conn, tenant_id, item_id, title, body, kind=kind, dedupe_key=f"publish_failed:{item_id}"
+    )
+    return True
+
+
+async def _halt(
+    conn: asyncpg.Connection, tenant_id: UUID, item_id: UUID, status: str, reason: str
+) -> bool:
+    """Stop a piece part-way out: what has yet to go out fails with the reason.
+    True when some of it is out — the piece is published there; otherwise it
+    ends as one stopped before its slot would (`status`)."""
+    await conn.execute(
+        """update publications p
+              set status = 'failed', error = ch.platform || ': ' || $2, retry_at = null,
+                  updated_at = now()
+             from channels ch
+            where ch.id = p.channel_id and p.content_item_id = $1
+              and p.status in ('pending', 'publishing')""",
+        item_id,
+        reason,
+    )
+    if await conn.fetchval(
+        """select exists (select 1 from publications
+                           where content_item_id = $1 and status = 'published')""",
+        item_id,
+    ):
+        await _settle(conn, tenant_id, item_id)
+        return True
+    await conn.execute(
+        "update content_items set status = $2, rejection_reason = $3 where id = $1",
+        item_id,
+        status,
+        reason,
+    )
     return False
 
 
-async def _begin(tenant_id: UUID, item_id: UUID, slot: str | None) -> Going | None:
+async def _begin(
+    tenant_id: UUID, item_id: UUID, slot: str | None, due: datetime | None
+) -> Going | None:
     """Check the piece, claim its publications, and gather what they send —
     in one transaction, which ends before anything is sent."""
     async with tenant_session(tenant_id) as conn, conn.transaction():
         item = await conn.fetchrow(_ITEM, item_id)
         if item is None or item["status"] not in ("scheduled", "publishing"):
             return None
+        if item["status"] == "scheduled" and slot and item["scheduled_at"].isoformat() != slot:
+            return None  # moved since it was booked; the new slot books itself
+        if await _preflight(conn, tenant_id, item):
+            return None
         if item["status"] == "scheduled":
-            if slot and item["scheduled_at"].isoformat() != slot:
-                return None  # moved since it was booked; the new slot books itself
-            if await _preflight(conn, tenant_id, item):
-                return None
             channels = await conn.fetch(
                 """select id from channels
                     where platform = any($1::text[]) and status = 'connected'
@@ -351,7 +414,7 @@ async def _begin(tenant_id: UUID, item_id: UUID, slot: str | None) -> Going | No
         kind, chosen = images(
             assets, item["kind"], first or (copies[0]["locale"] if copies else None)
         )
-        targets = await conn.fetch(_GOING, item_id)
+        targets = await conn.fetch(_GOING, item_id, due)
     return Going(
         kind=kind,
         assets=[
@@ -388,8 +451,7 @@ async def _finish(
     going: Going,
     results: Sequence[PublishResult | BaseException],
 ) -> None:
-    retry: timedelta | None = None
-    tries = 0
+    now = datetime.now(UTC)  # once: accounts with the same wait are tried together
     async with tenant_session(tenant_id) as conn, conn.transaction():
         for target, result in zip(going.targets, results, strict=True):
             if isinstance(result, PublishResult):
@@ -405,11 +467,13 @@ async def _finish(
                 continue
             final = isinstance(result, LASTING) or target["attempts"] >= ATTEMPTS
             await conn.execute(
-                """update publications set status = $2, error = $3, updated_at = now()
+                """update publications set status = $2, error = $3, retry_at = $4,
+                          updated_at = now()
                     where id = $1""",
                 target["id"],
                 "failed" if final else "pending",
                 f"{target['platform']}: {cause(result)}",
+                None if final else now + backoff(target["attempts"], result),
             )
             log.warning(
                 "publication_failed",
@@ -419,52 +483,10 @@ async def _finish(
                 final=final,
                 error=cause(result),
             )
-            if not final:
-                wait = backoff(target["attempts"], result)
-                retry = wait if retry is None else min(retry, wait)
-                tries = max(tries, target["attempts"])
 
-        if retry is not None:
-            await emit(
-                conn,
-                "content.publish_due",
-                {"content_item_id": str(item_id)},
-                tenant_id=tenant_id,
-                dedupe_key=f"publish-retry:{item_id}:{tries}",
-                run_after=datetime.now(UTC) + retry,
-                priority=2,
-            )
+        if await _book_next(conn, tenant_id, item_id):
             return
-
-        rows = await conn.fetch(
-            """select p.status, p.error, p.published_at, ch.platform
-                 from publications p join channels ch on ch.id = p.channel_id
-                where p.content_item_id = $1 order by ch.platform""",
-            item_id,
-        )
-        went = [r for r in rows if r["status"] == "published"]
-        failed = [r for r in rows if r["status"] == "failed"]
-        if went:
-            await conn.execute(
-                """update content_items set status = 'published', published_at = $2
-                    where id = $1""",
-                item_id,
-                min(r["published_at"] for r in went),
-            )
-            await emit(
-                conn,
-                "content.published",
-                {"content_item_id": str(item_id)},
-                tenant_id=tenant_id,
-                dedupe_key=f"published:{item_id}",
-            )
-        else:
-            await conn.execute(
-                """update content_items set status = 'failed', rejection_reason = $2
-                    where id = $1""",
-                item_id,
-                "; ".join(r["error"] or r["platform"] for r in failed)[:1000] or "nothing went out",
-            )
+        went, failed = await _settle(conn, tenant_id, item_id)
         if failed:
             where = ", ".join(sorted({r["platform"].title() for r in failed}))
             done = ", ".join(sorted({r["platform"].title() for r in went}))
@@ -485,13 +507,78 @@ async def _finish(
     log.info("content_published", content_item=str(item_id), channels=len(went), failed=len(failed))
 
 
+async def _book_next(conn: asyncpg.Connection, tenant_id: UUID, item_id: UUID) -> bool:
+    """Book the next try for what is still to go out, at the soonest time an
+    account may be tried again; False when nothing waits. Each account keeps
+    its own time: one asking for five minutes is not tried at another's thirty
+    seconds, and the next pass leaves it until then (`_GOING`)."""
+    due = await conn.fetchval(
+        """select min(coalesce(retry_at, now())) from publications
+            where content_item_id = $1 and status = 'pending'""",
+        item_id,
+    )
+    if due is None:
+        return False
+    await emit(
+        conn,
+        "content.publish_due",
+        {"content_item_id": str(item_id), "due": due.isoformat()},
+        tenant_id=tenant_id,
+        dedupe_key=f"publish-retry:{item_id}:{due.isoformat()}",
+        run_after=due,
+        priority=2,
+    )
+    return True
+
+
+async def _settle(
+    conn: asyncpg.Connection, tenant_id: UUID, item_id: UUID
+) -> tuple[list[asyncpg.Record], list[asyncpg.Record]]:
+    """The piece once nothing of it waits: `published` when one account took
+    it, `failed` when none did. Returns what went out and what did not."""
+    rows = await conn.fetch(
+        """select p.status, p.error, p.published_at, ch.platform
+             from publications p join channels ch on ch.id = p.channel_id
+            where p.content_item_id = $1 order by ch.platform""",
+        item_id,
+    )
+    went = [r for r in rows if r["status"] == "published"]
+    failed = [r for r in rows if r["status"] == "failed"]
+    if went:
+        await conn.execute(
+            "update content_items set status = 'published', published_at = $2 where id = $1",
+            item_id,
+            min(r["published_at"] for r in went),
+        )
+        await emit(
+            conn,
+            "content.published",
+            {"content_item_id": str(item_id)},
+            tenant_id=tenant_id,
+            dedupe_key=f"published:{item_id}",
+        )
+    else:
+        await conn.execute(
+            "update content_items set status = 'failed', rejection_reason = $2 where id = $1",
+            item_id,
+            "; ".join(r["error"] or r["platform"] for r in failed)[:1000] or "nothing went out",
+        )
+    return went, failed
+
+
 @handler("content.publish_due")
 async def on_publish_due(event: Event) -> None:
     if event.tenant_id is None:
         raise ValueError("content.publish_due requires a tenant")
     item_id = UUID(str(event.payload["content_item_id"]))
-    going = await _begin(event.tenant_id, item_id, event.payload.get("slot"))
-    if going is None or not going.targets:
+    due = event.payload.get("due")
+    going = await _begin(
+        event.tenant_id,
+        item_id,
+        event.payload.get("slot"),
+        datetime.fromisoformat(due) if due else None,
+    )
+    if going is None:
         return
     results = await asyncio.gather(*(_send(going, target) for target in going.targets))
     await _finish(event.tenant_id, item_id, going, results)

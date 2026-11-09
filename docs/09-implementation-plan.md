@@ -637,7 +637,8 @@ publishes to a sandbox account and returns a permalink.
 
 ### T4.3 — Publisher agent and pipeline — **done** (on the mock connector)
 **Files:** `events/handlers/content.py`, `connectors/channels.py` (`social_for_channel`),
-`worker.py`, migration `0025_content_publishing.sql`, `components/content/Publications.tsx`
+`worker.py`, migrations `0025_content_publishing.sql` and `0026_publication_retries.sql`,
+`components/content/Publications.tsx`
 
 The W4 flow: pre-flight checks, per-channel independent publication, retries, metric-fetch
 scheduling.
@@ -657,13 +658,17 @@ What was built:
   another price than the car's is stopped (`pricing.stale_content`, which now also reads
   the price an image printed — `render_meta.price_minor`, recorded by the image agent). No
   connected Instagram or Facebook moves the piece an hour on, out of quiet hours, and says
-  so. Each stop notifies whoever can act on it.
+  so. Each stop notifies whoever can act on it. The checks run again before every retry: a
+  car that sells, or a price that moves, while an account waits its next try stops what has
+  not gone out, and what has is named to the owners to take down.
 - **Each account its own `publications` row**, published at once and independently. A failure
   that may pass is tried again three times in all, 30 s then 60 s apart (a rate limit's own
-  wait when it gives one); one that cannot — refused, unsupported, expired — fails at once,
-  with the platform's words as the cause. The row's id is the connector's idempotency key,
-  so a retry or a worker that died mid-send posts nothing twice. The piece is `published`
-  when one account took it, `failed` when none did; a refusal is told to the content owners.
+  wait when it gives one), each account at its own time (`publications.retry_at`): one asking
+  for five minutes is not tried at another's thirty seconds. One that cannot — refused,
+  unsupported, expired — fails at once, with the platform's words as the cause. The row's id
+  is the connector's idempotency key, so a retry or a worker that died mid-send posts
+  nothing twice. The piece is `published` when one account took it, `failed` when none did;
+  a refusal is told to the content owners.
 - **Metrics booked:** `content.published` books each publication's +1h, +24h, +7d and +30d
   reads, and `content.metrics_due` writes each window once into `content_metrics` (T6.1's
   handler, on the mock; Meta's insights arrive with T4.2).
