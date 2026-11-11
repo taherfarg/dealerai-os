@@ -26,6 +26,144 @@
         "title": "Acceptance",
         "type": "object"
       },
+      "Acquisition": {
+        "properties": {
+          "notes": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "purchased_at": {
+            "format": "date",
+            "title": "Purchased At",
+            "type": "string"
+          },
+          "reference": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference"
+          },
+          "seller": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seller"
+          },
+          "source": {
+            "enum": [
+              "auction",
+              "trade_in",
+              "private",
+              "dealer",
+              "import",
+              "other"
+            ],
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "purchased_at"
+        ],
+        "title": "Acquisition",
+        "type": "object"
+      },
+      "AcquisitionOut": {
+        "properties": {
+          "notes": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "purchased_at": {
+            "format": "date",
+            "title": "Purchased At",
+            "type": "string"
+          },
+          "reference": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference"
+          },
+          "seller": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seller"
+          },
+          "source": {
+            "enum": [
+              "auction",
+              "trade_in",
+              "private",
+              "dealer",
+              "import",
+              "other"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "vehicle_id": {
+            "format": "uuid",
+            "title": "Vehicle Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "purchased_at",
+          "vehicle_id",
+          "updated_at"
+        ],
+        "title": "AcquisitionOut",
+        "type": "object"
+      },
       "ApprovalOut": {
         "properties": {
           "created_at": {
@@ -355,6 +493,32 @@
           }
         },
         "title": "Bodies",
+        "type": "object"
+      },
+      "Body_extract_costs_v1_vehicles__vehicle_id__costs_extract_post": {
+        "properties": {
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 300,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_extract_costs_v1_vehicles__vehicle_id__costs_extract_post",
         "type": "object"
       },
       "Body_preview_v1_vehicles_import_preview_post": {
@@ -986,6 +1150,349 @@
         "title": "ConversationSummary",
         "type": "object"
       },
+      "CostBatch": {
+        "properties": {
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/CostIn"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Lines",
+            "type": "array"
+          }
+        },
+        "required": [
+          "lines"
+        ],
+        "title": "CostBatch",
+        "type": "object"
+      },
+      "CostIn": {
+        "properties": {
+          "amount_minor": {
+            "minimum": 0.0,
+            "title": "Amount Minor",
+            "type": "integer"
+          },
+          "category": {
+            "enum": [
+              "purchase",
+              "auction_fee",
+              "transport",
+              "shipping",
+              "customs",
+              "registration",
+              "inspection",
+              "repair",
+              "parts",
+              "detailing",
+              "photography",
+              "storage",
+              "commission",
+              "other"
+            ],
+            "title": "Category",
+            "type": "string"
+          },
+          "currency": {
+            "maxLength": 3,
+            "minLength": 3,
+            "title": "Currency",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 300,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "document_path": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Document Path"
+          },
+          "fx_rate": {
+            "anyOf": [
+              {
+                "maxLength": 24,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fx Rate"
+          },
+          "incurred_at": {
+            "format": "date",
+            "title": "Incurred At",
+            "type": "string"
+          },
+          "source": {
+            "default": "manual",
+            "enum": [
+              "manual",
+              "document"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "status": {
+            "default": "actual",
+            "enum": [
+              "estimate",
+              "actual"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "vendor": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vendor"
+          }
+        },
+        "required": [
+          "category",
+          "amount_minor",
+          "currency",
+          "incurred_at"
+        ],
+        "title": "CostIn",
+        "type": "object"
+      },
+      "CostOut": {
+        "properties": {
+          "amount": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "amount_tenant": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "document_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Document Path"
+          },
+          "fx_rate": {
+            "title": "Fx Rate",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "incurred_at": {
+            "format": "date",
+            "title": "Incurred At",
+            "type": "string"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "vendor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vendor"
+          }
+        },
+        "required": [
+          "id",
+          "category",
+          "description",
+          "vendor",
+          "amount",
+          "fx_rate",
+          "amount_tenant",
+          "incurred_at",
+          "status",
+          "source",
+          "document_path",
+          "created_at"
+        ],
+        "title": "CostOut",
+        "type": "object"
+      },
+      "CostPatch": {
+        "properties": {
+          "amount_minor": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount Minor"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "enum": [
+                  "purchase",
+                  "auction_fee",
+                  "transport",
+                  "shipping",
+                  "customs",
+                  "registration",
+                  "inspection",
+                  "repair",
+                  "parts",
+                  "detailing",
+                  "photography",
+                  "storage",
+                  "commission",
+                  "other"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "currency": {
+            "anyOf": [
+              {
+                "maxLength": 3,
+                "minLength": 3,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 300,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "fx_rate": {
+            "anyOf": [
+              {
+                "maxLength": 24,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fx Rate"
+          },
+          "incurred_at": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Incurred At"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "enum": [
+                  "estimate",
+                  "actual"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
+          "vendor": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vendor"
+          }
+        },
+        "title": "CostPatch",
+        "type": "object"
+      },
       "CustomerDetail": {
         "properties": {
           "band": {
@@ -1391,6 +1898,232 @@
           "created_at"
         ],
         "title": "Document",
+        "type": "object"
+      },
+      "Economics": {
+        "properties": {
+          "cost_actual": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "cost_estimate": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "cost_lines": {
+            "title": "Cost Lines",
+            "type": "integer"
+          },
+          "days_in_stock": {
+            "title": "Days In Stock",
+            "type": "integer"
+          },
+          "floor": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MoneyOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "has_acquisition": {
+            "title": "Has Acquisition",
+            "type": "boolean"
+          },
+          "landed_cost": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "margin_at_floor": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MoneyOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "margin_at_price": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MoneyOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "margin_bps_at_price": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Margin Bps At Price"
+          },
+          "margin_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Margin Note"
+          },
+          "price": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MoneyOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "vehicle_id": {
+            "format": "uuid",
+            "title": "Vehicle Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "vehicle_id",
+          "status",
+          "days_in_stock",
+          "cost_actual",
+          "cost_estimate",
+          "landed_cost",
+          "cost_lines",
+          "has_acquisition",
+          "price",
+          "floor",
+          "margin_at_price",
+          "margin_at_floor",
+          "margin_bps_at_price",
+          "margin_note"
+        ],
+        "title": "Economics",
+        "type": "object"
+      },
+      "ExtractionOut": {
+        "properties": {
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "document_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Document Path"
+          },
+          "fx_rate": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fx Rate"
+          },
+          "incurred_at": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Incurred At"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/ProposedLineOut"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "needs_fx_rate": {
+            "title": "Needs Fx Rate",
+            "type": "boolean"
+          },
+          "reference": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference"
+          },
+          "tenant_currency": {
+            "title": "Tenant Currency",
+            "type": "string"
+          },
+          "total_minor": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Minor"
+          },
+          "vendor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vendor"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "currency",
+          "tenant_currency",
+          "vendor",
+          "reference",
+          "incurred_at",
+          "lines",
+          "total_minor",
+          "fx_rate",
+          "needs_fx_rate",
+          "warnings",
+          "document_path"
+        ],
+        "title": "ExtractionOut",
         "type": "object"
       },
       "GenerateAccepted": {
@@ -2821,6 +3554,24 @@
         "title": "Money",
         "type": "object"
       },
+      "MoneyOut": {
+        "properties": {
+          "amount_minor": {
+            "title": "Amount Minor",
+            "type": "integer"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          }
+        },
+        "required": [
+          "amount_minor",
+          "currency"
+        ],
+        "title": "MoneyOut",
+        "type": "object"
+      },
       "MyDay": {
         "properties": {
           "accepting_chats": {
@@ -3116,6 +3867,39 @@
           "reason"
         ],
         "title": "PriceChange",
+        "type": "object"
+      },
+      "ProposedLineOut": {
+        "properties": {
+          "amount_minor": {
+            "title": "Amount Minor",
+            "type": "integer"
+          },
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "quote": {
+            "title": "Quote",
+            "type": "string"
+          }
+        },
+        "required": [
+          "category",
+          "description",
+          "amount_minor",
+          "currency",
+          "quote"
+        ],
+        "title": "ProposedLineOut",
         "type": "object"
       },
       "PushDevice": {
@@ -11433,6 +12217,54 @@
         ]
       }
     },
+    "/v1/vehicles/economics": {
+      "get": {
+        "description": "Landed cost and margin for every car, for the inventory screen's columns.",
+        "operationId": "list_economics_v1_vehicles_economics_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Economics"
+                  },
+                  "title": "Response List Economics V1 Vehicles Economics Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Economics",
+        "tags": [
+          "acquisition"
+        ]
+      }
+    },
     "/v1/vehicles/import": {
       "post": {
         "description": "Import under the mapping the human confirmed.\n\nRows are inserted one at a time, each in its own transaction. A single\nstatement would be faster and would also mean row 12's duplicate VIN throws\naway the other 49 — which is the behaviour this endpoint exists to avoid.",
@@ -11725,6 +12557,496 @@
         "summary": "Update Vehicle",
         "tags": [
           "vehicles"
+        ]
+      }
+    },
+    "/v1/vehicles/{vehicle_id}/acquisition": {
+      "get": {
+        "description": "How the car was bought, or null if nobody has recorded it yet.",
+        "operationId": "get_acquisition_v1_vehicles__vehicle_id__acquisition_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "vehicle_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Vehicle Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/AcquisitionOut"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Get Acquisition V1 Vehicles  Vehicle Id  Acquisition Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Acquisition",
+        "tags": [
+          "acquisition"
+        ]
+      },
+      "put": {
+        "operationId": "put_acquisition_v1_vehicles__vehicle_id__acquisition_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "vehicle_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Vehicle Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Acquisition"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AcquisitionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Acquisition",
+        "tags": [
+          "acquisition"
+        ]
+      }
+    },
+    "/v1/vehicles/{vehicle_id}/costs": {
+      "get": {
+        "operationId": "list_costs_v1_vehicles__vehicle_id__costs_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "vehicle_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Vehicle Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CostOut"
+                  },
+                  "title": "Response List Costs V1 Vehicles  Vehicle Id  Costs Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Costs",
+        "tags": [
+          "acquisition"
+        ]
+      },
+      "post": {
+        "description": "Record cost lines — typed by hand, or confirmed from a reading.\n\nAll or nothing: a batch is one invoice, and half an invoice recorded is a\nlanded cost that is wrong by an amount nobody can see.",
+        "operationId": "add_costs_v1_vehicles__vehicle_id__costs_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "vehicle_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Vehicle Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CostBatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CostOut"
+                  },
+                  "title": "Response Add Costs V1 Vehicles  Vehicle Id  Costs Post",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Add Costs",
+        "tags": [
+          "acquisition"
+        ]
+      }
+    },
+    "/v1/vehicles/{vehicle_id}/costs/extract": {
+      "post": {
+        "description": "Read a purchase document into proposed cost lines. Writes nothing.\n\nThe vehicle is described to the model so it can pick this car's lines out of\na shipping invoice that covers a whole container.",
+        "operationId": "extract_costs_v1_vehicles__vehicle_id__costs_extract_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "vehicle_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Vehicle Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_extract_costs_v1_vehicles__vehicle_id__costs_extract_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExtractionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Extract Costs",
+        "tags": [
+          "acquisition"
+        ]
+      }
+    },
+    "/v1/vehicles/{vehicle_id}/costs/{cost_id}": {
+      "delete": {
+        "operationId": "delete_cost_v1_vehicles__vehicle_id__costs__cost_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "vehicle_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Vehicle Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "cost_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Cost Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Cost",
+        "tags": [
+          "acquisition"
+        ]
+      },
+      "patch": {
+        "operationId": "update_cost_v1_vehicles__vehicle_id__costs__cost_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "vehicle_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Vehicle Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "cost_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Cost Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CostPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CostOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Cost",
+        "tags": [
+          "acquisition"
+        ]
+      }
+    },
+    "/v1/vehicles/{vehicle_id}/economics": {
+      "get": {
+        "operationId": "get_economics_v1_vehicles__vehicle_id__economics_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "vehicle_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Vehicle Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Economics"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Economics",
+        "tags": [
+          "acquisition"
         ]
       }
     },

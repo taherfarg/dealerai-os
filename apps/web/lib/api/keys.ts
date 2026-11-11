@@ -40,4 +40,16 @@ export const keys = {
   channels: (tenantId: string) => ["channels", tenantId] as const,
   templates: (tenantId: string, channelId: string) =>
     ["templates", tenantId, channelId] as const,
+  /** One filtered stock list; `vehicleList` is its prefix. */
+  vehicles: (tenantId: string, filters: string) => ["vehicles", tenantId, filters] as const,
+  vehicleList: (tenantId: string) => ["vehicles", tenantId] as const,
+  vehicle: (tenantId: string, id: string) => ["vehicle", tenantId, id] as const,
+  /** The buy side. `buySide` is the prefix of everything below it, so a cost
+   *  recorded anywhere refreshes every margin on screen. */
+  buySide: (tenantId: string) => ["buy-side", tenantId] as const,
+  economicsList: (tenantId: string) => ["buy-side", tenantId, "economics"] as const,
+  economics: (tenantId: string, id: string) => ["buy-side", tenantId, "economics", id] as const,
+  costs: (tenantId: string, id: string) => ["buy-side", tenantId, "costs", id] as const,
+  acquisition: (tenantId: string, id: string) =>
+    ["buy-side", tenantId, "acquisition", id] as const,
 };

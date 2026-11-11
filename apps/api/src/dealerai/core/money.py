@@ -7,7 +7,7 @@ turns 66000.00 into 65999.99999999999 and a dealer into an angry phone call.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from decimal import Decimal
+from decimal import ROUND_HALF_EVEN, Decimal
 
 #: Minor-unit exponent per currency. The Gulf is not all 2-decimal: KWD, BHD and
 #: OMR are 3-decimal, and getting that wrong is a 1000x pricing error.
@@ -70,3 +70,21 @@ class Money:
 
     def __str__(self) -> str:
         return self.format()
+
+    def convert(self, rate: Decimal | str, to_currency: str) -> Money:
+        """This amount in another currency, at a rate somebody supplied.
+
+        `rate` is units of `to_currency` per one unit of this currency. Rounded
+        once, half to even, at the end: rounding each step is how a ledger of
+        forty lines drifts a dirham from the invoice it was read from. A rate is
+        a fact with a source — this never looks one up.
+        """
+        if isinstance(rate, float):
+            raise TypeError("refusing a float exchange rate; pass a str or Decimal")
+        factor = Decimal(rate)
+        if factor <= 0:
+            raise ValueError(f"an exchange rate must be positive, got {rate}")
+        if to_currency.upper() == self.currency and factor != 1:
+            raise ValueError(f"{self.currency} to itself is a rate of 1, not {rate}")
+        converted = (self.major * factor).scaleb(exponent(to_currency))
+        return Money(int(converted.quantize(Decimal(1), rounding=ROUND_HALF_EVEN)), to_currency)

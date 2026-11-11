@@ -1233,3 +1233,165 @@ export function useBulkReassign() {
     onSettled: () => queryClient.invalidateQueries(),
   });
 }
+
+// --------------------------------------------------------------------------
+// Inventory and the buy side — docs/lifecycle/README.md § L1
+// --------------------------------------------------------------------------
+
+export type Vehicle = components["schemas"]["VehicleOut"];
+export type VehicleStatus = Vehicle["status"];
+export type Economics = components["schemas"]["Economics"];
+export type Cost = components["schemas"]["CostOut"];
+export type CostIn = components["schemas"]["CostIn"];
+export type Acquisition = components["schemas"]["Acquisition"];
+export type Extraction = components["schemas"]["ExtractionOut"];
+
+export type VehicleFilters = { status?: VehicleStatus; q?: string };
+
+export function useVehicles(filters: VehicleFilters) {
+  const { api, tenantId, header } = useTenantApi();
+  return useQuery({
+    queryKey: keys.vehicles(tenantId, JSON.stringify(filters)),
+    queryFn: async () =>
+      unwrap(
+        await api.GET("/v1/vehicles", {
+          params: { header, query: { ...filters, limit: 200 } },
+        }),
+      ),
+  });
+}
+
+export function useVehicle(vehicleId: string) {
+  const { api, tenantId, header } = useTenantApi();
+  return useQuery({
+    queryKey: keys.vehicle(tenantId, vehicleId),
+    queryFn: async () =>
+      unwrap(
+        await api.GET("/v1/vehicles/{vehicle_id}", {
+          params: { header, path: { vehicle_id: vehicleId } },
+        }),
+      ),
+  });
+}
+
+/**
+ * Every buy-side query takes `enabled`: a screen asks only when the person
+ * holds costs.view. The API would refuse anyway — this keeps a salesperson's
+ * screen from making requests that can only come back 403.
+ */
+export function useEconomicsList(enabled: boolean) {
+  const { api, tenantId, header } = useTenantApi();
+  return useQuery({
+    queryKey: keys.economicsList(tenantId),
+    enabled,
+    queryFn: async () =>
+      unwrap(await api.GET("/v1/vehicles/economics", { params: { header } })),
+  });
+}
+
+export function useEconomics(vehicleId: string, enabled: boolean) {
+  const { api, tenantId, header } = useTenantApi();
+  return useQuery({
+    queryKey: keys.economics(tenantId, vehicleId),
+    enabled,
+    queryFn: async () =>
+      unwrap(
+        await api.GET("/v1/vehicles/{vehicle_id}/economics", {
+          params: { header, path: { vehicle_id: vehicleId } },
+        }),
+      ),
+  });
+}
+
+export function useCosts(vehicleId: string, enabled: boolean) {
+  const { api, tenantId, header } = useTenantApi();
+  return useQuery({
+    queryKey: keys.costs(tenantId, vehicleId),
+    enabled,
+    queryFn: async () =>
+      unwrap(
+        await api.GET("/v1/vehicles/{vehicle_id}/costs", {
+          params: { header, path: { vehicle_id: vehicleId } },
+        }),
+      ),
+  });
+}
+
+export function useAcquisition(vehicleId: string, enabled: boolean) {
+  const { api, tenantId, header } = useTenantApi();
+  return useQuery({
+    queryKey: keys.acquisition(tenantId, vehicleId),
+    enabled,
+    queryFn: async () =>
+      unwrap(
+        await api.GET("/v1/vehicles/{vehicle_id}/acquisition", {
+          params: { header, path: { vehicle_id: vehicleId } },
+        }),
+      ),
+  });
+}
+
+export function useSaveAcquisition(vehicleId: string) {
+  const { api, tenantId, header } = useTenantApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: Acquisition) =>
+      unwrap(
+        await api.PUT("/v1/vehicles/{vehicle_id}/acquisition", {
+          params: { header, path: { vehicle_id: vehicleId } },
+          body,
+        }),
+      ),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: keys.buySide(tenantId) }),
+  });
+}
+
+export function useAddCosts(vehicleId: string) {
+  const { api, tenantId, header } = useTenantApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (lines: CostIn[]) =>
+      unwrap(
+        await api.POST("/v1/vehicles/{vehicle_id}/costs", {
+          params: { header, path: { vehicle_id: vehicleId } },
+          body: { lines },
+        }),
+      ),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: keys.buySide(tenantId) }),
+  });
+}
+
+export function useDeleteCost(vehicleId: string) {
+  const { api, tenantId, header } = useTenantApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (costId: string) =>
+      unwrap(
+        await api.DELETE("/v1/vehicles/{vehicle_id}/costs/{cost_id}", {
+          params: { header, path: { vehicle_id: vehicleId, cost_id: costId } },
+        }),
+      ),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: keys.buySide(tenantId) }),
+  });
+}
+
+/** Reads a document into proposed lines. Writes nothing — confirming is useAddCosts. */
+export function useReadInvoice(vehicleId: string) {
+  const { api, header } = useTenantApi();
+  return useMutation({
+    mutationFn: async ({ file, note }: { file: File; note?: string }) => {
+      const form = new FormData();
+      form.append("file", file);
+      if (note) form.append("note", note);
+      return unwrap(
+        await api.POST("/v1/vehicles/{vehicle_id}/costs/extract", {
+          params: { header, path: { vehicle_id: vehicleId } },
+          // The typed body describes the fields; the serializer sends the form.
+          body: { file: "", note },
+          bodySerializer: () => form,
+        }),
+      );
+    },
+  });
+}
+

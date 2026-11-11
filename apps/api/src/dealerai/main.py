@@ -19,6 +19,7 @@ from .db import session
 from .events import handlers as _handlers  # noqa: F401  registers the event handlers
 from .realtime import hub, listen
 from .routes import (
+    acquisition,
     approvals,
     channels,
     content,
@@ -92,6 +93,9 @@ def create_app() -> FastAPI:
     )
     app.include_router(tenants.router)
     app.include_router(approvals.router)
+    # Before vehicles: its GET /{vehicle_id} would otherwise take "economics" for
+    # an id and refuse it as one, and the route below would never be reached.
+    app.include_router(acquisition.router)
     app.include_router(vehicles.router)
     app.include_router(imports.router)
     app.include_router(runs.router)

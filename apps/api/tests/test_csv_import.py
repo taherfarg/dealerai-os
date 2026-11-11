@@ -23,7 +23,8 @@ from dealerai import inventory
 from dealerai.ai import gateway
 from dealerai.config import get_settings
 from dealerai.core.security import mint_test_token
-from dealerai.inventory import _number, build, coerce, decode, read_rows, rows_to_vehicles
+from dealerai.core.text import parse_number as _number
+from dealerai.inventory import build, coerce, decode, read_rows, rows_to_vehicles
 from dealerai.main import app
 
 SECRET = "super-secret-jwt-token-with-at-least-32-characters-long"
@@ -75,6 +76,11 @@ def auth() -> dict[str, str]:
         ("١٦٥٠٠٠", "165000"),
         ("١٦٥,٠٠٠ درهم", "165000"),
         ("12 000 km", "12000"),
+        # Four digits after a lone separator cannot be a thousands group. Read
+        # as one, an exchange rate of 3.6725 becomes 36725.
+        ("3.6725", "3.6725"),
+        ("1,234.5678", "1234.5678"),
+        ("1,250,000", "1250000"),
     ],
 )
 def test_numbers_survive_a_spreadsheet(raw: str, expected: str) -> None:

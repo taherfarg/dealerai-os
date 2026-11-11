@@ -68,12 +68,18 @@ async def tenant_session(
     *,
     user_id: UUID | str | None = None,
     scope: str = "all",
+    buy_side: bool = False,
 ) -> AsyncIterator[asyncpg.Connection]:
     """Open a transaction scoped to one tenant, and optionally to one person.
 
     `scope` is what that person may see — own, team or all — and the visibility
     policies in 0006_sales_core.sql filter on it. The worker keeps the default:
     it acts on rows that were already routed.
+
+    `buy_side` clears a person's session to read what the dealer paid
+    (0016_lifecycle_acquisition.sql). Off unless a route asks: a person's
+    session that forgot to think about it sees no costs, which is the safe way
+    for forgetting to fail. A session with no person sees them regardless.
 
     All three settings use SET LOCAL (set_config(..., true)), which is
     transaction-scoped, so a pooled connection cannot carry a tenant *or a user*
@@ -86,10 +92,12 @@ async def tenant_session(
             await conn.execute(
                 """select set_config('app.tenant_id', $1, true),
                           set_config('app.user_id', $2, true),
-                          set_config('app.scope', $3, true)""",
+                          set_config('app.scope', $3, true),
+                          set_config('app.buy_side', $4, true)""",
                 str(tenant_id),
                 str(user_id) if user_id else "",
                 scope,
+                "on" if buy_side else "",
             )
             yield conn
 
