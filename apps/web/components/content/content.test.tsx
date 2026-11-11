@@ -4,6 +4,7 @@ import type { ContentItem } from "@/lib/api/hooks";
 import { LocaleProvider } from "@/lib/i18n-client";
 import { ContentGrid, mayReview } from "./ContentGrid";
 import { parseHashtags, patchFrom } from "./CopyEditor";
+import { Publications } from "./Publications";
 import { EMPTY_RUN, applyEvent, followRun, parseRunFrame } from "./RunStream";
 
 describe("the run stream", () => {
@@ -126,5 +127,50 @@ describe("content review", () => {
     expect(screen.getByRole("img").getAttribute("alt")).toBe("just arrived");
     expect(screen.getByText("2026 BYD Leopard 7")).toBeTruthy();
     expect(screen.getByText("To approve")).toBeTruthy();
+  });
+});
+
+describe("where a piece went", () => {
+  it("links the post where it went out and gives the platform's words where it did not", () => {
+    render(
+      <LocaleProvider locale="en">
+        <Publications
+          publications={[
+            {
+              platform: "facebook",
+              handle: "polluxmotors",
+              status: "failed",
+              permalink: null,
+              error: "facebook: the page may not post yet",
+              attempts: 1,
+              published_at: null,
+            },
+            {
+              platform: "instagram",
+              handle: "@polluxmotors",
+              status: "published",
+              permalink: "https://instagram.test/p/1",
+              error: null,
+              attempts: 1,
+              published_at: "2026-11-09T06:00:00Z",
+            },
+          ]}
+        />
+      </LocaleProvider>,
+    );
+    expect(screen.getByRole("link", { name: "Open the post" }).getAttribute("href")).toBe(
+      "https://instagram.test/p/1",
+    );
+    expect(screen.getByText("facebook: the page may not post yet")).toBeTruthy();
+    expect(screen.getByText("Failed")).toBeTruthy();
+  });
+
+  it("says nothing before it has gone anywhere", () => {
+    const { container } = render(
+      <LocaleProvider locale="en">
+        <Publications publications={[]} />
+      </LocaleProvider>,
+    );
+    expect(container.textContent).toBe("");
   });
 });

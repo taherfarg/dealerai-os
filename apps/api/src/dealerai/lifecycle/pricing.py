@@ -450,37 +450,47 @@ async def stale_content(
     currency: str,
 ) -> dict[str, list[UUID]]:
     """Stop unpublished pieces that quote a figure that is not the new price,
-    and list the published ones that do.
+    and list the published ones that do — and, as `going`, the ones part-way
+    out, which the publisher stops before its next try (events/handlers/content.py).
 
     "Quotes another figure" is the price guard's question exactly, so the price
     guard answers it: a caption that names anything but the current price is a
-    caption that would publish a wrong one.
+    caption that would publish a wrong one. An image that printed another price
+    is the same mistake in pixels (`render_meta.price_minor`, agents/content/image.py).
     """
     allowed = {Money(price_minor, currency).major}
     stopped: list[UUID] = []
     published: list[UUID] = []
+    going: list[UUID] = []
     rows = await conn.fetch(
         """select c.id, c.status,
-                  string_agg(concat_ws(' ', p.hook, p.caption, p.cta), ' ') as text
+                  (select string_agg(concat_ws(' ', p.hook, p.caption, p.cta), ' ')
+                     from content_copy p where p.content_item_id = c.id) as text,
+                  exists (select 1 from content_assets a
+                           where a.content_item_id = c.id
+                             and (a.render_meta ->> 'price_minor')::bigint <> $3) as printed
              from content_items c
-             join content_copy p on p.content_item_id = c.id
             where c.vehicle_id = $1
-              and c.status = any($2::text[] || array['published'])
-            group by c.id""",
+              and c.status = any($2::text[] || array['publishing', 'published'])""",
         vehicle_id,
         list(UNPUBLISHED),
+        price_minor,
     )
     for row in rows:
-        if not price_guard.check(row["text"] or "", allowed=allowed):
+        if not row["printed"] and not price_guard.check(row["text"] or "", allowed=allowed):
             continue
-        if row["status"] == "published":
-            published.append(row["id"])
+        if row["status"] in ("publishing", "published"):
+            (going if row["status"] == "publishing" else published).append(row["id"])
             continue
         await conn.execute(
             """update content_items set status = 'rejected', rejection_reason = $2
                 where id = $1""",
             row["id"],
-            f"the price changed to {Money(price_minor, currency)}; this quotes another figure",
+            stale_reason(price_minor, currency),
         )
         stopped.append(row["id"])
-    return {"stopped": stopped, "published": published}
+    return {"stopped": stopped, "published": published, "going": going}
+
+
+def stale_reason(price_minor: int, currency: str) -> str:
+    return f"the price changed to {Money(price_minor, currency)}; this quotes another figure"

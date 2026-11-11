@@ -6,12 +6,15 @@ from collections.abc import Mapping
 from typing import Any
 
 from ..config import get_settings
-from .base import MessagingConnector
+from .base import MessagingConnector, NotSupported, SocialConnector
 from .crypto import CredentialsCorrupt, decrypt
-from .mock import whatsapp_simulator
+from .mock import MockConnector, whatsapp_simulator
 from .whatsapp import WhatsAppCloud
 
 _local_mocks: dict[str, MessagingConnector] = {}
+#: The local Instagram and Facebook, one per channel, for as long as the
+#: process lives — what they published is what a test or a person looks at.
+local_social: dict[str, MockConnector] = {}
 
 
 def whatsapp_for_channel(channel: Mapping[str, Any]) -> MessagingConnector:
@@ -31,4 +34,20 @@ def whatsapp_for_channel(channel: Mapping[str, Any]) -> MessagingConnector:
         waba_id=str(channel["account_id"]) if channel.get("account_id") else None,
         access_token=str(token),
         graph_version=settings.whatsapp_graph_version,
+    )
+
+
+def social_for_channel(channel: Mapping[str, Any]) -> SocialConnector:
+    """The connector a channel publishes through.
+
+    ponytail: the local mock only. The Meta connector (T4.2) joins here, where
+    its credentials are decrypted, and until then a real channel is refused
+    with that reason rather than half-published.
+    """
+    stored = dict(channel.get("credentials") or {})
+    if get_settings().is_local and stored.get("provider") == "mock":
+        key = f"{channel['platform']}:{channel['external_id']}"
+        return local_social.setdefault(key, MockConnector(platform=str(channel["platform"])))
+    raise NotSupported(
+        f"publishing to {channel['platform']} needs the Meta connector, which is not built yet"
     )

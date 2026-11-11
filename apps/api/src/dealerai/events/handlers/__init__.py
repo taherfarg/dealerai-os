@@ -13,6 +13,7 @@ asserts the registry is non-empty for that reason.
 from __future__ import annotations
 
 from . import (
+    content,
     copilot,
     crm,
     inbox,
@@ -27,6 +28,7 @@ from . import (
 )
 
 __all__ = [
+    "content",
     "copilot",
     "crm",
     "inbox",

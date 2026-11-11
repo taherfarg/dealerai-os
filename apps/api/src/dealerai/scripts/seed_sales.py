@@ -621,6 +621,17 @@ async def _seed(conn: asyncpg.Connection) -> list[tuple[int, str]]:
         PHONE_NUMBER_ID,
         WABA_ID,
     )
+    # Where a scheduled post goes out locally: the mock connector, one per
+    # platform (connectors/channels.py social_for_channel).
+    await conn.execute(
+        """insert into channels
+             (tenant_id, platform, external_id, display_name, handle, credentials)
+           values ($1, 'instagram', 'pollux-local-ig', 'Pollux Motors', '@polluxmotors',
+                   '{"provider":"mock"}'::jsonb),
+                  ($1, 'facebook', 'pollux-local-fb', 'Pollux Motors', 'polluxmotors',
+                   '{"provider":"mock"}'::jsonb)""",
+        TENANT,
+    )
     await conn.executemany(
         """insert into message_templates
              (tenant_id, channel_id, external_id, name, language, category, status,

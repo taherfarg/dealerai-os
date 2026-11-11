@@ -635,8 +635,10 @@ insights. Must pass `test_contract.py` unmodified.
 **Acceptance:** the contract suite passes against recorded fixtures, and a live smoke test
 publishes to a sandbox account and returns a permalink.
 
-### T4.3 — Publisher agent and pipeline
-**Files:** `agents/content/publisher.py`, `events/handlers/content.py`
+### T4.3 — Publisher agent and pipeline — **done** (on the mock connector)
+**Files:** `events/handlers/content.py`, `connectors/channels.py` (`social_for_channel`),
+`worker.py`, migrations `0025_content_publishing.sql` and `0026_publication_retries.sql`,
+`components/content/Publications.tsx`
 
 The W4 flow: pre-flight checks, per-channel independent publication, retries, metric-fetch
 scheduling.
@@ -644,6 +646,46 @@ scheduling.
 **Acceptance:** a scheduled item publishes within 60 s of its slot. With Instagram
 succeeding and Facebook failing, the item is `published` with one `failed` publication row
 and a visible cause. A vehicle marked sold cancels its scheduled items.
+
+What was built:
+
+- **Due, not booked ahead.** Every 15 s the worker asks `app.content_due()` — the one
+  cross-tenant read, ids only, as `app.tenant_clocks()` is — and books `content.publish_due`
+  for each scheduled piece whose slot has come, deduped on the slot. Scheduling still emits
+  nothing (T3.8), and a piece dragged to another slot is booked when that one comes.
+- **Pre-flight, the lifecycle's own checks asked again at the last moment.** A car no longer
+  for sale archives its pieces (`deals.stop_marketing`); a piece whose words or images give
+  another price than the car's is stopped (`pricing.stale_content`, which now also reads
+  the price an image printed — `render_meta.price_minor`, recorded by the image agent). No
+  connected Instagram or Facebook moves the piece an hour on, out of quiet hours, and says
+  so. Each stop notifies whoever can act on it. The checks run again before every retry: a
+  car that sells, or a price that moves, while an account waits its next try stops what has
+  not gone out, and what has is named to the owners to take down.
+- **Each account its own `publications` row**, published at once and independently. A failure
+  that may pass is tried again three times in all, 30 s then 60 s apart (a rate limit's own
+  wait when it gives one), each account at its own time (`publications.retry_at`): one asking
+  for five minutes is not tried at another's thirty seconds. One that cannot — refused,
+  unsupported, expired — fails at once, with the platform's words as the cause. The row's id
+  is the connector's idempotency key, so a retry or a worker that died mid-send posts
+  nothing twice. The piece is `published` when one account took it, `failed` when none did;
+  a refusal is told to the content owners.
+- **Metrics booked:** `content.published` books each publication's +1h, +24h, +7d and +30d
+  reads, and `content.metrics_due` writes each window once into `content_metrics` (T6.1's
+  handler, on the mock; Meta's insights arrive with T4.2).
+- The content page shows where a piece went: each account, its post, or why not.
+
+> **Deviation: no `agents/content/publisher.py`.** Publishing calls no model, and agents may
+> not reach connectors (`test_agents_do_not_import_connectors`), so the flow is the handler's.
+
+Not built: regenerating a piece stopped for an old price (it is rejected with the reason; a new
+run makes another), the `content.approved` → publish path for autopilot, and a moved post is
+not held to the daily limit. Real Instagram and Facebook wait for T4.1/T4.2:
+`social_for_channel` refuses a channel that is not the local mock with that reason.
+
+Tested in the browser as the owner: a piece put on today's calendar at 11:52 went out to the
+local Instagram three seconds after its slot, and Facebook — set up as a real channel, with no
+connector to reach it — refused it. The page shows the post's link and the refusal, the owner
+was told "Published on Instagram; Facebook refused it", and its four metric reads are booked.
 
 ### T4.4 — Webhook ingestion
 **Files:** `routes/webhooks/meta.py`, `routes/webhooks/whatsapp.py`, `routes/webhooks/verify.py`

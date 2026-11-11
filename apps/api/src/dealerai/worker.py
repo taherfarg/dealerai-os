@@ -19,6 +19,7 @@ from .config import assert_deployable, get_settings
 from .core.logging import configure_logging
 from .db import session
 from .events import handlers as _handlers  # noqa: F401
+from .events.handlers import content as publishing
 from .events.worker import Worker
 from .sales import clock
 
@@ -44,6 +45,18 @@ async def keep_the_clocks(stop: asyncio.Event) -> None:
             await asyncio.wait_for(stop.wait(), timeout=CLOCK_EVERY_SECONDS)
 
 
+async def keep_publishing(stop: asyncio.Event) -> None:
+    """What is due, booked to go out (events/handlers/content.py). One read,
+    which finds nothing nearly every time."""
+    while not stop.is_set():
+        try:
+            await publishing.book_due()
+        except Exception:
+            log.exception("publish_pass_failed")
+        with contextlib.suppress(TimeoutError):
+            await asyncio.wait_for(stop.wait(), timeout=publishing.DUE_EVERY_SECONDS)
+
+
 async def main() -> None:
     configure_logging()
     settings = get_settings()
@@ -60,7 +73,9 @@ async def main() -> None:
     workers = [Worker(f"worker-{i}") for i in range(CONCURRENCY)]
     log.info("worker_started", env=settings.env, concurrency=CONCURRENCY)
     try:
-        await asyncio.gather(*(w.run_forever(stop) for w in workers), keep_the_clocks(stop))
+        await asyncio.gather(
+            *(w.run_forever(stop) for w in workers), keep_the_clocks(stop), keep_publishing(stop)
+        )
     finally:
         await session.close_pool()
         log.info("worker_stopped")
