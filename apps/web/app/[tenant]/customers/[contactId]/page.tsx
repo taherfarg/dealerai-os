@@ -6,6 +6,7 @@ import { use, useState } from "react";
 import { EraseDialog } from "@/components/crm/EraseDialog";
 import { MergeDialog } from "@/components/crm/MergeDialog";
 import { ProfileField, type Field } from "@/components/crm/ProfileField";
+import { Purchases } from "@/components/crm/Purchases";
 import { ReassignDialog } from "@/components/crm/ReassignDialog";
 import { Timeline } from "@/components/crm/Timeline";
 import { ApiError } from "@/lib/api/client";
@@ -105,6 +106,9 @@ export default function CustomerPage({
               </span>
             )}
           </p>
+          <div className="mt-2">
+            <Purchases purchases={record.purchases} tenant={tenant} />
+          </div>
         </div>
         <div className="flex gap-2">
           {may("contacts.reassign") && (

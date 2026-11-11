@@ -18,6 +18,7 @@ const toBps = (text: string) => Math.round(Number(text) * 100);
  * The dealer's pricing rules (docs/lifecycle/README.md § L2): the margin it
  * aims for, the margin the floor keeps, rounding, when demand means hold, and
  * the aging ladder. Changing them changes tomorrow's proposals, never a price.
+ * And what keeping a car costs (§ L8), which the dashboard and the brief count.
  */
 export function PricingSettings() {
   const t = useT();
@@ -38,6 +39,8 @@ export function PricingSettings() {
       floor_margin_bps: toBps(String(form.get("floor"))),
       round_to_major: Number(form.get("round")),
       hold_if_leads_30d: Number(form.get("hold")),
+      holding_rate_bps: toBps(String(form.get("holdingRate"))),
+      holding_per_day_major: Number(form.get("holdingPerDay")),
       steps: ladder,
     });
   };
@@ -106,6 +109,32 @@ export function PricingSettings() {
               dir="ltr"
               required
               defaultValue={current.hold_if_leads_30d ?? 3}
+              className="field mt-1 w-full"
+            />
+          </label>
+          <label className="text-xs">
+            <span className="text-muted">{t("pricingSettings.holdingRate")}</span>
+            <input
+              name="holdingRate"
+              type="number"
+              min={0}
+              max={50}
+              step={0.5}
+              dir="ltr"
+              required
+              defaultValue={toPercent(current.holding_rate_bps ?? 800)}
+              className="field mt-1 w-full"
+            />
+          </label>
+          <label className="text-xs">
+            <span className="text-muted">{t("pricingSettings.holdingPerDay")}</span>
+            <input
+              name="holdingPerDay"
+              type="number"
+              min={0}
+              dir="ltr"
+              required
+              defaultValue={current.holding_per_day_major ?? 0}
               className="field mt-1 w-full"
             />
           </label>

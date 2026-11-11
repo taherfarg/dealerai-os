@@ -9,6 +9,7 @@ import { countryName, formatMoney } from "@/lib/format";
 import { useLocale, useT } from "@/lib/i18n-client";
 import { BAND_PILL } from "./band";
 import { ProfileField, type Field } from "./ProfileField";
+import { Purchases } from "./Purchases";
 
 /** The order the panel asks its questions in (docs/sales/08-screens.md § 5). */
 const FIELDS = [
@@ -142,6 +143,8 @@ export function CustomerPanel({
           </button>
         )}
       </section>
+
+      <Purchases purchases={record.purchases} tenant={tenant} />
 
       <p className="text-muted text-xs">
         {t("customer.openTasks")}: {record.open_tasks}

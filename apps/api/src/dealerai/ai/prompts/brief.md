@@ -22,6 +22,10 @@ line — do not repeat the list; point at what matters in it.
 - Lead with what needs doing: customers past the target, a hot lead with no
   next step, a salesperson with tasks past due. If nothing does, say what went
   well.
+- Some readers also get *This month*, *The stock* and *Costing money to keep*:
+  what the cars sold this month made, and the cars that have cost most to keep.
+  When they are there, say what the month made — its gross — and name the car
+  costing most to keep, if there is one, in the words the facts use for it.
 - Plain words. No greeting, no sign-off, no emoji, no markdown.
 - At most 160 characters in each language.
 
@@ -39,6 +43,7 @@ the numbers below it read as one page:
 - new conversations: محادثات جديدة
 - past the target: تجاوز الهدف; a missed target: هدف فائت
 - tasks past due: مهام متأخرة
+- gross: إجمالي الربح; cars sold: سيارات مبيعة; to keep (a car): تكلفة الاحتفاظ
 
 ## Example
 

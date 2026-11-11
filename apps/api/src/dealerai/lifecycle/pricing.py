@@ -74,6 +74,11 @@ class PricingRules(BaseModel):
     #: Leads on a car in the last 30 days that mean "hold, people are asking".
     #: Zero turns the demand check off.
     hold_if_leads_30d: int = Field(default=3, ge=0, le=1_000)
+    #: What the money tied up in a car costs a year, on its landed cost — the
+    #: holding cost in lifecycle/numbers.py. 8%.
+    holding_rate_bps: int = Field(default=800, ge=0, le=5_000)
+    #: And what keeping it costs a day whatever it cost: storage, insurance.
+    holding_per_day_major: int = Field(default=0, ge=0, le=100_000)
 
 
 class PricingSettings(PricingRules):

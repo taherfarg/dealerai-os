@@ -805,6 +805,45 @@
         "title": "BulkResult",
         "type": "object"
       },
+      "BusinessOut": {
+        "description": "docs/lifecycle/README.md § L8 — the buy side, for those cleared for it.",
+        "properties": {
+          "costly": {
+            "items": {
+              "$ref": "#/components/schemas/CostlyCar"
+            },
+            "title": "Costly",
+            "type": "array"
+          },
+          "holding_per_day": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "in_stock": {
+            "title": "In Stock",
+            "type": "integer"
+          },
+          "month": {
+            "$ref": "#/components/schemas/MonthOut"
+          },
+          "old_after_days": {
+            "title": "Old After Days",
+            "type": "integer"
+          },
+          "tied_up": {
+            "$ref": "#/components/schemas/MoneyOut"
+          }
+        },
+        "required": [
+          "month",
+          "in_stock",
+          "tied_up",
+          "holding_per_day",
+          "old_after_days",
+          "costly"
+        ],
+        "title": "BusinessOut",
+        "type": "object"
+      },
       "CancelIn": {
         "properties": {
           "reason": {
@@ -1882,6 +1921,45 @@
         "title": "CostPatch",
         "type": "object"
       },
+      "CostlyCar": {
+        "properties": {
+          "days_held": {
+            "title": "Days Held",
+            "type": "integer"
+          },
+          "holding": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "margin_left": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MoneyOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "vehicle_id": {
+            "format": "uuid",
+            "title": "Vehicle Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "vehicle_id",
+          "label",
+          "days_held",
+          "holding",
+          "margin_left"
+        ],
+        "title": "CostlyCar",
+        "type": "object"
+      },
       "CustomerDetail": {
         "properties": {
           "band": {
@@ -2003,6 +2081,13 @@
             ],
             "title": "Profile Updated At"
           },
+          "purchases": {
+            "items": {
+              "$ref": "#/components/schemas/Purchase"
+            },
+            "title": "Purchases",
+            "type": "array"
+          },
           "tags": {
             "items": {
               "type": "string"
@@ -2026,7 +2111,8 @@
           "profile",
           "profile_updated_at",
           "leads",
-          "open_tasks"
+          "open_tasks",
+          "purchases"
         ],
         "title": "CustomerDetail",
         "type": "object"
@@ -2430,6 +2516,10 @@
             "title": "Cost Lines",
             "type": "integer"
           },
+          "days_held": {
+            "title": "Days Held",
+            "type": "integer"
+          },
           "days_in_stock": {
             "title": "Days In Stock",
             "type": "integer"
@@ -2447,6 +2537,9 @@
           "has_acquisition": {
             "title": "Has Acquisition",
             "type": "boolean"
+          },
+          "holding_cost": {
+            "$ref": "#/components/schemas/MoneyOut"
           },
           "landed_cost": {
             "$ref": "#/components/schemas/MoneyOut"
@@ -2527,7 +2620,9 @@
           "margin_at_price",
           "margin_at_floor",
           "margin_bps_at_price",
-          "margin_note"
+          "margin_note",
+          "days_held",
+          "holding_cost"
         ],
         "title": "Economics",
         "type": "object"
@@ -4447,6 +4542,16 @@
           "brief": {
             "$ref": "#/components/schemas/Brief"
           },
+          "business": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BusinessOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "date": {
             "format": "date",
             "title": "Date",
@@ -4495,7 +4600,8 @@
           "pipeline",
           "sources",
           "phone_share",
-          "brief"
+          "brief",
+          "business"
         ],
         "title": "ManagerDashboard",
         "type": "object"
@@ -5192,6 +5298,55 @@
           "currency"
         ],
         "title": "MoneyOut",
+        "type": "object"
+      },
+      "MonthOut": {
+        "properties": {
+          "avg_days_held": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Days Held"
+          },
+          "costed": {
+            "title": "Costed",
+            "type": "integer"
+          },
+          "gross": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "gross_per_car": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MoneyOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "revenue": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "sold": {
+            "title": "Sold",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "sold",
+          "revenue",
+          "gross",
+          "costed",
+          "gross_per_car",
+          "avg_days_held"
+        ],
+        "title": "MonthOut",
         "type": "object"
       },
       "MyDay": {
@@ -6123,6 +6278,20 @@
             "title": "Hold If Leads 30D",
             "type": "integer"
           },
+          "holding_per_day_major": {
+            "default": 0,
+            "maximum": 100000.0,
+            "minimum": 0.0,
+            "title": "Holding Per Day Major",
+            "type": "integer"
+          },
+          "holding_rate_bps": {
+            "default": 800,
+            "maximum": 5000.0,
+            "minimum": 0.0,
+            "title": "Holding Rate Bps",
+            "type": "integer"
+          },
           "round_to_major": {
             "default": 500,
             "maximum": 100000.0,
@@ -6169,6 +6338,20 @@
             "maximum": 1000.0,
             "minimum": 0.0,
             "title": "Hold If Leads 30D",
+            "type": "integer"
+          },
+          "holding_per_day_major": {
+            "default": 0,
+            "maximum": 100000.0,
+            "minimum": 0.0,
+            "title": "Holding Per Day Major",
+            "type": "integer"
+          },
+          "holding_rate_bps": {
+            "default": 800,
+            "maximum": 5000.0,
+            "minimum": 0.0,
+            "title": "Holding Rate Bps",
             "type": "integer"
           },
           "round_to_major": {
@@ -6261,6 +6444,70 @@
           "quote"
         ],
         "title": "ProposedLineOut",
+        "type": "object"
+      },
+      "Purchase": {
+        "description": "A car this customer bought — a sold order (docs/lifecycle/README.md § L8).",
+        "properties": {
+          "car": {
+            "title": "Car",
+            "type": "string"
+          },
+          "completed_at": {
+            "format": "date-time",
+            "title": "Completed At",
+            "type": "string"
+          },
+          "destination": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Destination"
+          },
+          "order_id": {
+            "format": "uuid",
+            "title": "Order Id",
+            "type": "string"
+          },
+          "price": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/dealerai__routes__leads__Money"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "purchase_type": {
+            "enum": [
+              "local",
+              "export"
+            ],
+            "title": "Purchase Type",
+            "type": "string"
+          },
+          "vehicle_id": {
+            "format": "uuid",
+            "title": "Vehicle Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "order_id",
+          "vehicle_id",
+          "car",
+          "purchase_type",
+          "destination",
+          "price",
+          "completed_at"
+        ],
+        "title": "Purchase",
         "type": "object"
       },
       "PushDevice": {
@@ -12225,7 +12472,7 @@
     },
     "/v1/dashboard/manager": {
       "get": {
-        "description": "A manager's morning in one request, because it is one screen refreshed\ntogether (docs/sales/06-api-contract.md § 7).\n\nEvery number reads through the caller's own visibility — her teams'\nnumbers because Postgres shows her nothing else. `date` moves the counted\nday; waiting, hot and overdue are always now; the brief is always today's.",
+        "description": "A manager's morning in one request, because it is one screen refreshed\ntogether (docs/sales/06-api-contract.md § 7).\n\nEvery number reads through the caller's own visibility — her teams'\nnumbers because Postgres shows her nothing else. `date` moves the counted\nday; waiting, hot and overdue are always now; the brief is always today's.\nThe business is the month to the counted day and the stock as it is now,\nfor a reader cleared for the buy side — the session is cleared only then.",
         "operationId": "manager_dashboard_v1_dashboard_manager_get",
         "parameters": [
           {
