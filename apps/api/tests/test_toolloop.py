@@ -102,3 +102,62 @@ async def test_without_tools_the_answer_is_one_call(monkeypatch: pytest.MonkeyPa
     assert seen[0]["output_schema"] is Answer
     assert answer.parsed == Answer(reply="AED 235,000.")
     assert answer.hit_turn_limit is False
+
+
+async def test_a_tool_call_goes_back_with_its_thought_signature(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Gemini 3 signs each function call on its Part, and refuses the next turn
+    with a 400 if the signature is not sent back. Rebuilding the model's turn
+    from the bare FunctionCall dropped it."""
+    seen: list[list[Any]] = []
+    signed = types.Part(
+        function_call=types.FunctionCall(name="search_inventory", args={"q": "Land Cruiser"}),
+        thought_signature=b"sig-1",
+    )
+    replies = [
+        types.GenerateContentResponse(
+            candidates=[types.Candidate(content=types.Content(role="model", parts=[signed]))]
+        ),
+        types.GenerateContentResponse(candidates=[]),
+    ]
+
+    async def fake(task: Any, *, messages: list[Any], **kwargs: Any) -> Completion:
+        seen.append(messages)
+        return Completion(
+            text="" if len(seen) == 1 else "AED 235,000.",
+            response=replies[len(seen) - 1],
+            spec=FLASH,
+            cost_usd=0.0,
+            input_tokens=0,
+            output_tokens=0,
+            cached_tokens=0,
+            thought_tokens=0,
+            latency_ms=0,
+        )
+
+    async def tool(name: str, ctx: Any, args: dict[str, Any], **ids: Any) -> Any:
+        return {"vehicles": []}
+
+    monkeypatch.setattr(toolloop, "complete", fake)
+    monkeypatch.setattr(toolloop.registry, "declarations", lambda names: ["search_inventory"])
+    monkeypatch.setattr(toolloop.registry, "call", tool)
+    ctx = TenantContext(
+        tenant_id=uuid.uuid4(),
+        user=AuthedUser(id=uuid.uuid4(), email=None, claims={}),
+        role="sales",
+    )
+    out = await toolloop.converse(
+        TaskKind.STRATEGY,
+        ctx=ctx,
+        system=SystemLayers(role="You plan."),
+        prompt="Plan the week.",
+        tools=["search_inventory"],
+    )
+
+    model_turn = seen[1][1]
+    assert model_turn.role == "model"
+    assert model_turn.parts[0].thought_signature == b"sig-1"
+    assert model_turn.parts[0].function_call.name == "search_inventory"
+    assert out.tool_calls == ["search_inventory"]
+    assert out.text == "AED 235,000."

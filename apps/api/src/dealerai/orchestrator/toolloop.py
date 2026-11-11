@@ -44,13 +44,22 @@ class Conversation:
     hit_turn_limit: bool = False
 
 
-def _function_calls(response: types.GenerateContentResponse) -> list[types.FunctionCall]:
-    calls: list[types.FunctionCall] = []
+def _model_turn(response: types.GenerateContentResponse) -> types.Content | None:
+    """The model's turn exactly as it came back.
+
+    It goes back into the conversation as is, never rebuilt from its calls:
+    Gemini 3 signs a function call on its Part (`thought_signature`, not on the
+    FunctionCall), and refuses the next turn with a 400 when the signature is
+    missing.
+    """
     for candidate in response.candidates or []:
-        for part in (candidate.content.parts if candidate.content else None) or []:
-            if part.function_call:
-                calls.append(part.function_call)
-    return calls
+        if candidate.content and candidate.content.parts:
+            return candidate.content
+    return None
+
+
+def _function_calls(turn: types.Content | None) -> list[types.FunctionCall]:
+    return [p.function_call for p in (turn.parts if turn else None) or [] if p.function_call]
 
 
 async def _run_tool(call: types.FunctionCall, ctx: TenantContext, ids: dict[str, Any]) -> Any:
@@ -113,8 +122,9 @@ async def converse(
         )
         out.cost_usd += result.cost_usd
 
-        calls = _function_calls(result.response)
-        if not calls:
+        reply = _model_turn(result.response)
+        calls = _function_calls(reply)
+        if reply is None or not calls:
             out.text = result.text
             if result.text:
                 # Kept, so the answer phase formats this answer rather than
@@ -126,9 +136,7 @@ async def converse(
                 )
             break
 
-        contents.append(
-            types.Content(role="model", parts=[types.Part(function_call=c) for c in calls])
-        )
+        contents.append(reply)
         responses: list[types.Part] = []
         for call in calls:
             out.tool_calls.append(call.name or "?")

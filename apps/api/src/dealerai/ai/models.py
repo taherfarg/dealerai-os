@@ -62,10 +62,14 @@ class ModelSpec:
 # nothing else in the codebase names a model.
 #
 # Prices are USD per 1M tokens from ai.google.dev/gemini-api/docs/pricing.
-# Pro's rates step up above a 200k-token prompt; we bill at the ≤200k rate,
-# which is where every request in this product lands. If that changes, this is
-# the table to fix.
-PRO = ModelSpec("gemini-2.5-pro", 16_000, DYNAMIC_THINKING, 1.25, 10.00, 0.125)
+#
+# The reasoning tier is the newest GA Gemini 3 model, a Flash: `gemini-2.5-pro`
+# is refused to new API keys ("no longer available to new users", 2026-11) and
+# no 3.x Pro is GA. Gemini 3 signs its function calls; orchestrator/toolloop.py
+# sends each model turn back whole so the signature survives. Billed at the
+# rates Google lists from 2027-01-01 (0.75 / 3.75 / 0.075 until then): a
+# budget check that overstates for seven weeks beats one that understates after.
+PRO = ModelSpec("gemini-3.8-flash", 16_000, DYNAMIC_THINKING, 1.50, 7.50, 0.15)
 FLASH = ModelSpec("gemini-2.5-flash", 8_000, DYNAMIC_THINKING, 0.30, 2.50, 0.03)
 #: Flash with a small fixed thinking budget, for writing to a waiting customer.
 #: Dynamic thinking spent up to 2,700 thought tokens on a two-line WhatsApp

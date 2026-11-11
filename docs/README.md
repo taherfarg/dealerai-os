@@ -53,7 +53,7 @@ These are settled. Changing one invalidates several documents — say so explici
 | Datastore | **Supabase** — Postgres 17 + pgvector + Auth + Storage | RLS on `tenant_id` from line one; auth and storage solved |
 | Tenant isolation | **Row Level Security, always on, no exceptions** | Tenant leakage is the one bug that kills the company |
 | Model provider | **Google Gemini** (`google-genai`) | Single provider. `ai.gateway.complete()` is the only seam, so swapping again is 2 files. |
-| Reasoning model | `gemini-2.5-pro` | Orchestrator, strategy, ads decisions. **GA only** - `gemini-3-pro-preview` was shut down while still the newest Pro. |
+| Reasoning model | `gemini-3.8-flash` | Orchestrator, strategy, ads decisions. **GA only** - `gemini-3-pro-preview` was shut down while still the newest Pro; `gemini-2.5-pro` is refused to new keys and no 3.x Pro is GA. |
 | Workhorse model | `gemini-2.5-flash` | Copy, analysis, sales replies |
 | Cheap model | `gemini-2.5-flash-lite` | Intent classification, spam, routing. Thinking disabled. |
 | Job system | **Postgres `events` outbox + Python worker** (`SKIP LOCKED`) | Redis deferred until throughput demands it — see 01 |

@@ -181,7 +181,7 @@ cost, latency, cache hit rate), and enforces the tenant's monthly cost ceiling.
 
 | Task kind | Model | In / Out per MTok | Cached in | Why |
 |---|---|---|---|---|
-| `orchestrate`, `strategy`, `ads_decision`, `learning` | `gemini-2.5-pro` | $1.25 / $10.00 | $0.125 | Multi-step planning with money attached |
+| `orchestrate`, `strategy`, `ads_decision`, `learning` | `gemini-3.8-flash` | $1.50 / $7.50 (2027 rates) | $0.15 | Multi-step planning with money attached. Newest GA Gemini 3; no 3.x Pro is GA |
 | `copywrite`, `sales_reply`, `analysis`, `creative_direction`, `vision` | `gemini-2.5-flash` | $0.30 / $2.50 | $0.03 | The workhorse. Most calls land here. |
 | `classify_intent`, `spam_filter`, `route`, `tag` | `gemini-2.5-flash-lite` | $0.10 / $0.40 | $0.01 | High volume, trivial decisions. Thinking disabled. |
 | `embed` | multilingual embedding model, 1024-dim | - | - | **Must be multilingual (AR/EN/FR).** See [04](04-memory-architecture.md) SS 3 |
