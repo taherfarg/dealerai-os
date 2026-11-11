@@ -14,14 +14,15 @@ same price guard as the AI's.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime, time
 from typing import Annotated, Any
 from uuid import UUID
 
 import asyncpg
 from fastapi import APIRouter, Depends, Query, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
+from .. import schedule
 from ..core.errors import Conflict, NotFound, Unusable
 from ..core.money import Money
 from ..db.session import tenant_session
@@ -31,6 +32,7 @@ from ..media import compositor
 from ..media.links import url_for
 from ..orchestrator import planner
 from ..orchestrator.executor import PlannedTask
+from ..sales.clock import zone
 
 router = APIRouter(prefix="/v1/content", tags=["content"])
 
@@ -106,6 +108,49 @@ class CopyPatch(BaseModel):
     hashtags: list[str] | None = Field(default=None, max_length=30)
 
 
+class ScheduleIn(BaseModel):
+    """A day and a time on the dealer's own clock: the API owns the timezone,
+    so a browser in another one cannot shift a post by hours."""
+
+    day: date
+    at: time = schedule.DEFAULT_TIME
+
+    @field_validator("at")
+    @classmethod
+    def _no_offset(cls, at: time) -> time:
+        # "10:00+04:00" names a zone the dealer's clock already has; taking it
+        # would compare an aware time with a naive one and fail as a 500.
+        if at.tzinfo is not None:
+            raise ValueError("a time on the dealer's clock, without an offset: 10:00")
+        return at
+
+
+class CalendarItem(ContentItemOut):
+    local_date: date
+    local_time: str
+
+
+class CalendarDay(BaseModel):
+    date: date
+    #: Pieces going out that day, published ones included.
+    count: int
+    #: At the daily limit: nothing more fits.
+    full: bool
+
+
+class CalendarOut(BaseModel):
+    timezone: str
+    max_posts_per_day: int | None
+    #: ["23:00", "07:00"], or none.
+    quiet_hours: list[str] | None
+    days: list[CalendarDay]
+    items: list[CalendarItem]
+    #: Days from today with nothing going out.
+    gaps: list[date]
+    #: Approved and waiting for a slot.
+    unscheduled: list[ContentItemOut]
+
+
 class RejectIn(BaseModel):
     #: Why — what the learning loop (M9) reads, so it is required.
     reason: str = Field(min_length=1, max_length=500)
@@ -147,7 +192,7 @@ async def generate(body: GenerateRequest, ctx: Marketer) -> dict[str, Any]:
     return {"run_id": run_id, "status": "running"}
 
 
-_LIST = """
+_SELECT = """
 select c.id, c.kind, c.concept, c.status, c.vehicle_id, c.run_id, c.rejection_reason,
        c.scheduled_at, c.published_at, c.approved_at, c.created_at,
        coalesce(array_agg(distinct p.locale) filter (where p.locale is not null), '{}') as locales,
@@ -160,6 +205,11 @@ select c.id, c.kind, c.concept, c.status, c.vehicle_id, c.run_id, c.rejection_re
   left join content_copy p on p.content_item_id = c.id
   left join content_assets a on a.content_item_id = c.id
   left join vehicles v on v.id = c.vehicle_id
+"""
+
+_LIST = (
+    _SELECT
+    + """
  where c.tenant_id = $1
    and ($2::uuid is null or c.run_id = $2)
    and ($3::text is null or c.status = $3)
@@ -168,6 +218,19 @@ select c.id, c.kind, c.concept, c.status, c.vehicle_id, c.run_id, c.rejection_re
  order by c.created_at desc
  limit $4
 """
+)
+
+#: What goes out — or went out — in a window, by when.
+_GOING_OUT = (
+    _SELECT
+    + """
+ where c.tenant_id = $1 and c.status in ('scheduled', 'publishing', 'published')
+   and coalesce(c.published_at, c.scheduled_at) >= $2
+   and coalesce(c.published_at, c.scheduled_at) < $3
+ group by c.id, v.id
+ order by coalesce(c.published_at, c.scheduled_at)
+"""
+)
 
 
 #: A copy field → the image slot that prints it (agents/content/image.py `_slots`).
@@ -226,6 +289,61 @@ async def _detail(conn: asyncpg.Connection, tenant_id: UUID, content_id: UUID) -
     item["copies"] = [dict(c) for c in copies]
     item["images"] = [dict(i) | {"url": url_for(i["storage_path"])} for i in images]
     return item
+
+
+async def _clock(conn: asyncpg.Connection, tenant_id: UUID) -> tuple[Any, schedule.Rules]:
+    row = await conn.fetchrow(
+        "select timezone, autonomy_rules from tenants where id = $1", tenant_id
+    )
+    return zone(row["timezone"]), schedule.rules_of(row["autonomy_rules"])
+
+
+@router.get("/calendar", response_model=CalendarOut)
+async def calendar(
+    ctx: Ctx,
+    start: Annotated[date, Query(alias="from")],
+    end: Annotated[date, Query(alias="to")],
+) -> dict[str, Any]:
+    """The days from `from` to `to` on the dealer's clock: what goes out each
+    day against the daily limit, the days from today with nothing, and the
+    approved pieces still waiting for a slot. Reading it changes nothing."""
+    if end < start or (end - start).days >= schedule.MAX_DAYS:
+        raise Unusable(
+            f"a calendar is up to {schedule.MAX_DAYS} days, from on or before to",
+            ar="التقويم حتى 62 يومًا، والبداية قبل النهاية.",
+        )
+    async with tenant_session(ctx.tenant_id) as conn:
+        tz, rules = await _clock(conn, ctx.tenant_id)
+        opens = datetime.combine(start, time.min, tzinfo=tz)
+        closes = datetime.combine(end, time.max, tzinfo=tz)
+        rows = await conn.fetch(_GOING_OUT, ctx.tenant_id, opens, closes)
+        waiting = await conn.fetch(_LIST, ctx.tenant_id, None, "approved", 200, None)
+    items = []
+    counts: dict[date, int] = {}
+    for row in rows:
+        item = _item(row)
+        local = (row["published_at"] or row["scheduled_at"]).astimezone(tz)
+        item |= {"local_date": local.date(), "local_time": f"{local:%H:%M}"}
+        counts[local.date()] = counts.get(local.date(), 0) + 1
+        items.append(item)
+    span = schedule.days(start, end)
+    limit = rules.max_per_day
+    return {
+        "timezone": str(tz),
+        "max_posts_per_day": limit,
+        "quiet_hours": [f"{t:%H:%M}" for t in rules.quiet] if rules.quiet else None,
+        "days": [
+            {
+                "date": day,
+                "count": counts.get(day, 0),
+                "full": limit is not None and counts.get(day, 0) >= limit,
+            }
+            for day in span
+        ],
+        "items": items,
+        "gaps": schedule.gaps(span, counts, today=datetime.now(tz).date()),
+        "unscheduled": [_item(r) for r in waiting if r["scheduled_at"] is None],
+    }
 
 
 @router.get("/{content_id}", response_model=ContentDetail)
@@ -326,6 +444,69 @@ async def approve(content_id: UUID, ctx: Marketer) -> dict[str, Any]:
         )
         if done is None:
             await _refuse(conn, content_id, "approved")
+        return await _detail(conn, ctx.tenant_id, content_id)
+
+
+_SAME_DAY = """
+select count(*) from content_items
+ where tenant_id = $1 and id <> $2 and status in ('scheduled', 'publishing', 'published')
+   and (coalesce(published_at, scheduled_at) at time zone $3)::date = $4
+"""
+
+
+@router.post("/{content_id}/schedule", response_model=ContentDetail)
+async def schedule_piece(content_id: UUID, body: ScheduleIn, ctx: Marketer) -> dict[str, Any]:
+    """An approved piece into a slot — or a scheduled one into another, which is
+    what dragging it on the calendar does. Held to the dealer's posting rules on
+    its own clock, and refused with the rule it breaks. Nothing is sent: the
+    piece goes out when the slot is due (M4)."""
+    async with tenant_session(ctx.tenant_id) as conn, conn.transaction():
+        # One scheduler per dealer at a time, or two people could each take
+        # the last slot of a day.
+        await conn.execute(
+            "select pg_advisory_xact_lock(hashtext($1))",
+            f"content-schedule:{ctx.tenant_id}",
+        )
+        current = await conn.fetchval(
+            "select status from content_items where id = $1 for update", content_id
+        )
+        if current is None:
+            raise NotFound("no such content", ar="لا يوجد محتوى بهذا الرقم.")
+        if current not in ("approved", "scheduled"):
+            raise Conflict(
+                f"a piece that is {current} cannot be scheduled; approve it first",
+                ar="لا يُجدول إلا المحتوى الموافق عليه.",
+            )
+        tz, rules = await _clock(conn, ctx.tenant_id)
+        already = await conn.fetchval(_SAME_DAY, ctx.tenant_id, content_id, str(tz), body.day)
+        refused = schedule.refusal(
+            rules,
+            day=body.day,
+            at=body.at,
+            already=int(already),
+            now=datetime.now(tz).replace(tzinfo=None),
+        )
+        if refused:
+            raise Conflict(refused, ar="لا يمكن الجدولة في هذا الموعد حسب قواعد النشر.")
+        await conn.execute(
+            "update content_items set status = 'scheduled', scheduled_at = $2 where id = $1",
+            content_id,
+            datetime.combine(body.day, body.at, tzinfo=tz),
+        )
+        return await _detail(conn, ctx.tenant_id, content_id)
+
+
+@router.post("/{content_id}/unschedule", response_model=ContentDetail)
+async def unschedule(content_id: UUID, ctx: Marketer) -> dict[str, Any]:
+    """Off the calendar, still approved."""
+    async with tenant_session(ctx.tenant_id) as conn, conn.transaction():
+        done = await conn.fetchval(
+            """update content_items set status = 'approved', scheduled_at = null
+                where id = $1 and status = 'scheduled' returning id""",
+            content_id,
+        )
+        if done is None:
+            await _refuse(conn, content_id, "unscheduled")
         return await _detail(conn, ctx.tenant_id, content_id)
 
 

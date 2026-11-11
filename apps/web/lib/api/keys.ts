@@ -52,6 +52,8 @@ export const keys = {
   /** Every content list; a filtered one is this plus its status. */
   contentList: (tenantId: string) => ["content", tenantId, "list"] as const,
   content: (tenantId: string, id: string) => ["content", tenantId, "item", id] as const,
+  contentCalendar: (tenantId: string, from: string, to: string) =>
+    ["content", tenantId, "calendar", from, to] as const,
   economics: (tenantId: string, id: string) => ["buy-side", tenantId, "economics", id] as const,
   costs: (tenantId: string, id: string) => ["buy-side", tenantId, "costs", id] as const,
   acquisition: (tenantId: string, id: string) =>

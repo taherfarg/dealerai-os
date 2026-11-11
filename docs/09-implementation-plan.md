@@ -581,13 +581,37 @@ requires each function call's `thought_signature` to be sent back on the next tu
 gateway's tool loop drops it. Until that is fixed, no content run gets past planning. Asset
 swap is not built.
 
-### T3.8 — Calendar
-**Files:** `routes/content.py` route `/calendar`, `apps/web/.../content/calendar/`
+### T3.8 — Calendar — **done**
+**Files:** `schedule.py`, `routes/content.py` (`/calendar`, `/schedule`, `/unschedule`),
+`apps/web/app/[tenant]/content/calendar/`, `components/content/Calendar.tsx`
 
 Week and month views, drag to reschedule, gap detection, per-day posting limits.
 
 **Acceptance:** dragging an item updates `scheduled_at` and emits nothing until the slot is
 due. Scheduling above `max_posts_per_day` is refused with a named reason.
+
+What was built:
+
+- The rules are the gate's own — `tenants.autonomy_rules.publishing`: `max_posts_per_day` and
+  `quiet_hours` — applied to a person choosing a slot, on the dealer's clock (`tenants.timezone`).
+  A slot already passed, inside quiet hours, or on a day at its limit is refused (409) with the
+  rule in words: *"Sunday 08 November already has 1 of the 1 posts a day allowed"*.
+- `POST /v1/content/{id}/schedule {day, at}` — an approved piece into a slot, or a scheduled one
+  into another (what dragging does). The day and time are the dealer's own; the API owns the
+  zone, so a browser elsewhere cannot shift a post. One scheduler per dealer at a time (an
+  advisory lock), so two people cannot both take a day's last slot. Nothing is emitted: the
+  piece goes out when the slot is due (M4). `POST /unschedule` takes it off, still approved.
+- `GET /v1/content/calendar?from&to` — up to 62 days: each day's count against the limit,
+  the pieces with their local time, the gaps (days from today with nothing going out), and the
+  approved pieces still waiting for a slot.
+- **Content → Calendar** — week and month; the waiting pieces in a tray, dragged onto a day
+  (keeping their time, 10:00 when new); every card also carries a day and time field, because
+  HTML5 drag and drop does not exist on a phone.
+
+Tested in the browser as the owner, with Pollux set to one post a day: a piece put on Sunday at
+10:00; a second dropped on Sunday refused with the rule; the same piece dropped on Monday;
+the database holds both at 10:00 Dubai and not one content event. The limit is set in the
+autonomy rules; there is no screen for them yet.
 
 ---
 
