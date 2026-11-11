@@ -59,4 +59,7 @@ export const keys = {
   /** Under the buy side's prefix although a salesperson reads it too: a cost
    *  recorded anywhere changes what this car's landed cost is still missing. */
   inbound: (tenantId: string, id: string) => ["buy-side", tenantId, "inbound", id] as const,
+  /** A car's orders. Under the buy side's prefix: each carries its margin. */
+  orders: (tenantId: string, vehicleId: string) =>
+    ["buy-side", tenantId, "orders", vehicleId] as const,
 };

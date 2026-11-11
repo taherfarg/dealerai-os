@@ -27,6 +27,7 @@ APPROVER_ROLE: dict[str, str] = {
     "launch_campaign": "admin",
     "price_change": "admin",
     "recon_over_budget": "admin",
+    "price_below_floor": "admin",
 }
 #: An approval kind nobody classified needs the highest role, not the lowest.
 DEFAULT_APPROVER_ROLE = "admin"

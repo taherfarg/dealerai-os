@@ -82,6 +82,10 @@ see it negotiates down to it; a customer who learns it never pays the asking pri
 - **Where a car is, is not the buy side.** Its journey and ETA are readable by every member — a
   salesperson promising a customer a date needs them. Its papers (a bill of sale is the price,
   printed) and what its landed cost is missing are. `inbound.edit`: owner, admin, manager.
+- **Selling is not taking money.** `orders.edit` (owner, admin, manager, sales) quotes a buyer;
+  `payments.record` (owner, admin, manager) records money received — which is what reserves and
+  sells a car — and lets go of a car a buyer paid to hold. A price under the floor is an owner's or
+  admin's to clear.
 - **No customer-facing agent may read the buy side.** A test fails the build if a tool queries
   it, and the price guard would block a cost figure in a reply anyway — two locks, not one.
 
@@ -98,7 +102,7 @@ Each ends in something a dealer can use. The order is the order every later stag
 | **L3** ✅ | **Reconditioning** | Inspection, work orders, repair estimates from inspection photos, budget alerts, ready-to-sell date | A repair over budget raises an approval before the money is spent |
 | **L4** ✅ | **Inbound** | Shipments, customs, transport, registration milestones; document checklist; fees flow into the ledger | A US-auction car shows where it is and what is missing, and its landed cost is complete the day it arrives |
 | **L5** | Appraisal and sourcing | Valuation from own history, trade-in appraisal with damage read from photos, maximum bid, a buying list from unmet demand | The buying list names cars customers asked for this month that the dealer does not have |
-| **L6** | Deal desk | Offers inside the floor, reservations by deposit, payment in stages (deposit, balance on inspection and documents, logistics as it ships), an invoice that separates price, fees, freight and duties, transfer receipts read into payments; no bank finance (Q3) | An offer below the floor cannot be sent; a deposit reserves the car and stops its marketing |
+| **L6** ✅ | **Deal desk** | Offers inside the floor, reservations by deposit, payment in stages (deposit, balance on inspection and documents, logistics as it ships), an invoice that separates price, fees, freight and duties, transfer receipts read into payments; no bank finance (Q3) | An offer below the floor cannot be sent; a deposit reserves the car and stops its marketing |
 | **L7** | Handover and export | The export file per destination — Pollux's own procedures for Algeria, Tunisia and everywhere else ([pollux.md](pollux.md)): RTA export inspection and certificate, export plates, customs card, bill of lading draft then original, Dubai Chamber certificate, commercial invoice — as an outbound journey on L4's machinery; RTA transfer and delivery checklist for a local sale | Every document for one sale is drafted from the record and a person signs it, and an export car shows which step of its destination's procedure it is on |
 | **L8** | After the sale, and the numbers | After-sale programme, service reminders, trade-back signals; per-car P&L, gross per unit, turn, holding cost in the dashboard and the morning brief | The owner's morning brief says what the month made and which cars are costing money to keep |
 
@@ -319,6 +323,56 @@ another car cannot be applied. A sailing date in the future is a schedule, not a
 
 ---
 
+## L6 — Deal desk
+
+### Data
+
+`supabase/migrations/0020_lifecycle_deals.sql`. Tenant-wide: an order is what a buyer agreed to
+pay, not what the dealer paid.
+
+- **`sale_orders`** — the buyer (by name, and the lead or contact when there is one), local or
+  export and the destination country, the deposit, and the status: quoted, reserved, completed,
+  cancelled. Several buyers can be quoted one car; **one** can hold it — a unique index on the
+  car's reserved or completed order, so two deposits recorded at once cannot both win.
+- **`sale_charges`** — the invoice: the car, then fees, freight, duties and other lines, each its
+  own line, as Pollux's invoices are.
+- **`sale_payments`** — money received, by stage, in whatever currency it came in, converted once
+  into the dealer's at a rate a person supplied or the receipt printed.
+
+### The rules
+
+- **Three stages.** The deposit is part of the price; the balance is the rest of the price and the
+  fees, due on inspection and documents; logistics is freight and duties, as the car ships. The
+  next payment is for the first stage still owed.
+- **The floor.** An order priced under the car's floor asks an owner or admin
+  (`APPROVER_ROLE["price_below_floor"]`), and nothing can be taken against it until they approve —
+  **that exact price**. Requote it lower and it asks again.
+- **The deposit reserves the car.** The payment that completes the deposit holds the car: the order
+  and the car become reserved, and `vehicle.status_changed` stops its marketing.
+- **Sold** is every line paid: the car is sold and `vehicle.sold` emitted. **Cancelled** lets a held
+  car go back on sale; what was paid stays on the record — a refund is a payment of its own.
+- **A car off sale is not marketed** (`vehicle.sold`, `vehicle.status_changed` — both parked until
+  now, so a car sold by hand used to keep its scheduled posts). Unpublished content is archived;
+  published posts are named to whoever owns content, because a post already out is theirs to take
+  down. Telling the customers who asked about the car is S7's, and joins the same handler.
+- **The margin** on an order — price less landed cost — is shown only to those cleared for the buy
+  side.
+
+### The AI: reading a transfer receipt
+
+`POST /v1/orders/{id}/payments/read` takes the SWIFT copy or bank slip a buyer sends and returns a
+proposed payment: the amount as printed and found in its own line, the currency, the date, the
+reference, the payer, and the stage it is most likely for. **No exchange rate unless the receipt
+prints one.** It records nothing; `POST /payments` records what a person confirmed.
+
+### Screens
+
+- **Vehicle → Sale** — every order for the car: its invoice, the three stages (due, paid, left),
+  the payments, and for those who may: record a payment (typed, or read from a receipt), mark as
+  sold, cancel. A price under the floor says so and links to the approvals queue.
+
+---
+
 ## Status
 
 | Slice | State |
@@ -327,7 +381,8 @@ another car cannot be applied. A sailing date in the future is a schedule, not a
 | **L2** | **Done.** Migration `0017`, `lifecycle/pricing.py`, `events/handlers/lifecycle.py`, the pricing card and settings screen. Tested end to end in the browser: a 60-day car proposed, approved by the owner, applied by the worker. In the suite: a manager may propose but not approve, a price that moved before the decision is never overwritten, stale drafts are rejected. |
 | **L3** | **Done.** Migration `0018`, `lifecycle/recon.py`, `routes/recon.py`, the reconditioning tab and settings screen. Tested end to end in the browser: AED 1,500 of paint approved inside a AED 2,000 budget, AED 900 of tyres sent for approval, approved by the owner and applied by the worker, the tyres finished at AED 1,100 and the owner told of the overrun, the car marked ready and put on sale; a photo read by the live model and priced from the rate card. The reader is tested live (`npm run eval:inspection`): nothing invented on a photo with no car, the damage found on the photo that shows it. |
 | **L4** | **Done.** Migration `0019`, `lifecycle/inbound.py`, `routes/inbound.py`, the arrival tab. Tested end to end in the browser as a manager: an auction car's journey started from its purchase, a bill of lading read by the live model and applied in one confirmation (shipped on its date, ETA and carrier filled, the paper received), the car delivered, and the owner and manager told it arrived with customs still unrecorded and four papers missing. The reader is tested live (`npm run eval:shipping`): both VINs on a two-car bill of lading read as printed, the right car matched, another car refused. |
-| L5–L8 | Not started. L6 (deal desk) is next, then L7 (handover and export) — see the note under Slices. |
+| **L6** | **Done.** Migration `0020`, `lifecycle/deals.py`, `routes/deals.py`, the sale tab. Tested end to end in the browser as a manager: a quote under the floor refused any payment and asked the owner; a quote at the list price plus freight reserved the car on its deposit; the worker archived the car's scheduled post and told the owner a published one still advertises it. The receipt reader is tested live (`npm run eval:receipt`): a SWIFT copy read at its instructed amount, not its charge, with no rate supplied. |
+| L5, L7, L8 | Not started. L7 (handover and export) is next. |
 
 ## Open questions for Pollux
 

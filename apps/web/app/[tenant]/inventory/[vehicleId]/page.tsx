@@ -4,6 +4,7 @@ import Link from "next/link";
 import { use } from "react";
 import { Auto, Ltr } from "@/components/Bidi";
 import { BuySide } from "@/components/inventory/BuySide";
+import { Deal } from "@/components/inventory/Deal";
 import { Inbound } from "@/components/inventory/Inbound";
 import { Recon } from "@/components/inventory/Recon";
 import { ApiError } from "@/lib/api/client";
@@ -28,8 +29,8 @@ export default function VehiclePage({
   const seesCost = permissions.includes("costs.view");
   // Where a car is, is everybody's; what it cost is not.
   const tabs = seesCost
-    ? (["overview", "inbound", "costs", "recon"] as const)
-    : (["overview", "inbound"] as const);
+    ? (["overview", "inbound", "sale", "costs", "recon"] as const)
+    : (["overview", "inbound", "sale"] as const);
 
   if (vehicle.isError) {
     const problem = vehicle.error instanceof ApiError ? vehicle.error.problem : null;
@@ -105,6 +106,13 @@ export default function VehiclePage({
           <BuySide vehicleId={vehicleId} canEdit={permissions.includes("costs.edit")} />
         ) : tab.tab === "inbound" ? (
           <Inbound vehicleId={vehicleId} canEdit={permissions.includes("inbound.edit")} />
+        ) : tab.tab === "sale" ? (
+          <Deal
+            vehicleId={vehicleId}
+            listPrice={car.price}
+            canQuote={permissions.includes("orders.edit")}
+            canTakePayment={permissions.includes("payments.record")}
+          />
         ) : tab.tab === "recon" && seesCost ? (
           <Recon
             vehicleId={vehicleId}

@@ -11,7 +11,7 @@ import structlog
 from ...core.money import Money
 from ...core.words import Words, named, same
 from ...db.session import tenant_session
-from ...lifecycle import inbound, pricing, recon
+from ...lifecycle import deals, inbound, pricing, recon
 from ...sales.clock import zone
 from ..bus import Event, handler
 from .notify import notify
@@ -121,15 +121,23 @@ async def after_price_change(event: Event) -> None:
 
 @handler("approval.requested")
 async def on_approval_requested(event: Event) -> None:
-    """A repair that would take a car over budget, told to whoever decides it,
-    the moment it is asked — the work is waiting on them.
+    """A repair over budget, or an order under the floor, told to whoever
+    decides it the moment it is asked — a workshop or a buyer is waiting.
 
-    Every approval emits this; only reconditioning rings a bell here. Price
-    proposals are told once a morning by the sweep, and the reviewer's queue for
-    the other kinds is M4's (docs/09-implementation-plan.md).
+    Every approval emits this; only these two ring a bell here. Price proposals
+    are told once a morning by the sweep, and the reviewer's queue for the other
+    kinds is M4's (docs/09-implementation-plan.md).
     """
     tenant_id = event.tenant_id
-    if tenant_id is None or event.payload.get("kind") != recon.KIND:
+    kind = event.payload.get("kind")
+    titles = {
+        recon.KIND: Words("A repair needs your approval", "إصلاح ينتظر موافقتك"),
+        deals.KIND: Words(
+            "An order under the floor needs your approval",
+            "طلب بسعر أقل من الحد الأدنى ينتظر موافقتك",
+        ),
+    }
+    if tenant_id is None or kind not in titles:
         return
     approval_id = str(event.payload["approval_id"])
     summary = str(event.payload.get("summary") or "")
@@ -139,8 +147,8 @@ async def on_approval_requested(event: Event) -> None:
                 conn,
                 tenant_id=tenant_id,
                 user_id=user_id,
-                kind="recon_approval",
-                title=Words("A repair needs your approval", "إصلاح ينتظر موافقتك"),
+                kind="recon_approval" if kind == recon.KIND else "price_below_floor",
+                title=titles[kind],
                 # The car, the work and the amounts: numbers and names read the
                 # same in either language.
                 body=same(summary),
@@ -285,3 +293,70 @@ async def on_inbound_sweep(event: Event) -> None:
                     dedupe_key=f"inbound_late:{day}",
                 )
     log.info("inbound_swept", tenant_id=str(tenant_id), late=len(overdue))
+
+
+async def _off_sale(event: Event) -> None:
+    """A car that is not for sale any more is not marketed any more.
+
+    Unpublished content about it is archived; published content is named to
+    whoever can take it down, because nothing here can. Telling customers who
+    asked about the car that it has gone is S7's, and joins this handler then.
+    """
+    tenant_id = event.tenant_id
+    if tenant_id is None:
+        return
+    vehicle_id = UUID(str(event.payload["vehicle_id"]))
+    status = str(event.payload.get("status") or "")
+    async with tenant_session(tenant_id) as conn, conn.transaction():
+        found = await deals.stop_marketing(conn, vehicle_id, status)
+        if found["published"]:
+            n = len(found["published"])
+            car = await conn.fetchrow(
+                "select make, model, model_year from vehicles where id = $1", vehicle_id
+            )
+            label = (
+                " ".join(str(p) for p in (car["model_year"], car["make"], car["model"]) if p)
+                if car
+                else ""
+            )
+            state_en, state_ar = {
+                "reserved": ("reserved", "محجوزة"),
+                "sold": ("sold", "مباعة"),
+            }.get(status, ("off sale", "غير معروضة للبيع"))
+            for user_id in await _members(conn, tenant_id, CONTENT_OWNERS):
+                await notify(
+                    conn,
+                    tenant_id=tenant_id,
+                    user_id=user_id,
+                    kind="marketing_stopped",
+                    title=Words(
+                        f"{n} published posts advertise a car that is {state_en}"
+                        if n != 1
+                        else f"A published post advertises a car that is {state_en}",
+                        f"{n} من المنشورات تعلن عن سيارة {state_ar}",
+                    ),
+                    body=Words(
+                        f"{label}. Take them down or mark the car as sold in them.",
+                        f"{named(label)}. احذفها أو اذكر فيها أن السيارة بيعت.",
+                    ),
+                    entity={"type": "vehicle", "id": str(vehicle_id)},
+                    dedupe_key=f"marketing_stopped:{vehicle_id}:{status}",
+                )
+    if found["stopped"] or found["published"]:
+        log.info(
+            "marketing_stopped",
+            vehicle_id=str(vehicle_id),
+            status=status,
+            stopped=len(found["stopped"]),
+            published=len(found["published"]),
+        )
+
+
+@handler("vehicle.sold")
+async def on_vehicle_sold(event: Event) -> None:
+    await _off_sale(event)
+
+
+@handler("vehicle.status_changed")
+async def on_vehicle_status_changed(event: Event) -> None:
+    await _off_sale(event)

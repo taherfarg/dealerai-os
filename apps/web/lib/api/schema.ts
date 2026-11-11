@@ -843,6 +843,108 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/orders/{order_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Order */
+        get: operations["get_order_v1_orders__order_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Order
+         * @description Correct a quote. Once a deposit holds the car, the invoice is what was agreed.
+         */
+        patch: operations["update_order_v1_orders__order_id__patch"];
+        trace?: never;
+    };
+    "/v1/orders/{order_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel Order
+         * @description The buyer walked away. Letting go of a car somebody paid to hold is the
+         *     cashier's call, not the salesperson's.
+         */
+        post: operations["cancel_order_v1_orders__order_id__cancel_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orders/{order_id}/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Complete Order
+         * @description Every line of the invoice paid: the car is sold.
+         */
+        post: operations["complete_order_v1_orders__order_id__complete_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orders/{order_id}/payments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Record Payment
+         * @description Record money received. The payment that completes the deposit reserves the car.
+         */
+        post: operations["record_payment_v1_orders__order_id__payments_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orders/{order_id}/payments/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Read Receipt
+         * @description Read a transfer receipt into a proposed payment. Records nothing.
+         */
+        post: operations["read_receipt_v1_orders__order_id__payments_read_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/pipelines": {
         parameters: {
             query?: never;
@@ -1762,6 +1864,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/vehicles/{vehicle_id}/orders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Orders */
+        get: operations["list_orders_v1_vehicles__vehicle_id__orders_get"];
+        put?: never;
+        /**
+         * Create Order
+         * @description Quote a buyer. Under the floor, the quote waits for an owner or admin
+         *     before anything can be taken against it.
+         */
+        post: operations["create_order_v1_vehicles__vehicle_id__orders_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/vehicles/{vehicle_id}/price": {
         parameters: {
             query?: never;
@@ -2190,6 +2314,11 @@ export interface components {
             /** File */
             file: string;
         };
+        /** Body_read_receipt_v1_orders__order_id__payments_read_post */
+        Body_read_receipt_v1_orders__order_id__payments_read_post: {
+            /** File */
+            file: string;
+        };
         /** Body_read_shipping_v1_vehicles__vehicle_id__inbound_read_post */
         Body_read_shipping_v1_vehicles__vehicle_id__inbound_read_post: {
             /** File */
@@ -2254,6 +2383,11 @@ export interface components {
                 [key: string]: string;
             };
         };
+        /** CancelIn */
+        CancelIn: {
+            /** Reason */
+            reason: string;
+        };
         /** ChannelOut */
         ChannelOut: {
             /** Display Name */
@@ -2289,6 +2423,26 @@ export interface components {
             name: string | null;
             /** Platform */
             platform: string;
+        };
+        /** ChargeIn */
+        ChargeIn: {
+            /** Amount Minor */
+            amount_minor: number;
+            /** Description */
+            description?: string | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "fee" | "freight" | "duties" | "other";
+        };
+        /** ChargeOut */
+        ChargeOut: {
+            amount: components["schemas"]["MoneyOut"];
+            /** Description */
+            description: string | null;
+            /** Kind */
+            kind: string;
         };
         /** CommitOut */
         CommitOut: {
@@ -3440,6 +3594,95 @@ export interface components {
              */
             open: string;
         };
+        /** OrderIn */
+        OrderIn: {
+            /** Buyer Name */
+            buyer_name: string;
+            /** Charges */
+            charges?: components["schemas"]["ChargeIn"][];
+            /** Contact Id */
+            contact_id?: string | null;
+            /** Deposit Minor */
+            deposit_minor: number;
+            /** Destination */
+            destination?: string | null;
+            /** Lead Id */
+            lead_id?: string | null;
+            /** Price Minor */
+            price_minor: number;
+            /**
+             * Purchase Type
+             * @enum {string}
+             */
+            purchase_type: "local" | "export";
+        };
+        /** OrderOut */
+        OrderOut: {
+            /** Approval Id */
+            approval_id: string | null;
+            /** Buyer Name */
+            buyer_name: string;
+            /** Cancel Reason */
+            cancel_reason: string | null;
+            /** Cancelled At */
+            cancelled_at: string | null;
+            /** Charges */
+            charges: components["schemas"]["ChargeOut"][];
+            /** Cleared */
+            cleared: boolean;
+            /** Completed At */
+            completed_at: string | null;
+            /** Contact Id */
+            contact_id: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Currency */
+            currency: string;
+            /** Destination */
+            destination: string | null;
+            floor: components["schemas"]["MoneyOut"] | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Lead Id */
+            lead_id: string | null;
+            margin: components["schemas"]["MoneyOut"] | null;
+            /** Payments */
+            payments: components["schemas"]["PaymentOut"][];
+            price: components["schemas"]["MoneyOut"];
+            /** Purchase Type */
+            purchase_type: string;
+            /** Reserved At */
+            reserved_at: string | null;
+            schedule: components["schemas"]["ScheduleOut"];
+            /** Status */
+            status: string;
+            /**
+             * Vehicle Id
+             * Format: uuid
+             */
+            vehicle_id: string;
+        };
+        /** OrderPatch */
+        OrderPatch: {
+            /** Buyer Name */
+            buyer_name?: string | null;
+            /** Charges */
+            charges?: components["schemas"]["ChargeIn"][] | null;
+            /** Deposit Minor */
+            deposit_minor?: number | null;
+            /** Destination */
+            destination?: string | null;
+            /** Price Minor */
+            price_minor?: number | null;
+            /** Purchase Type */
+            purchase_type?: ("local" | "export") | null;
+        };
         /** OutcomeIn */
         OutcomeIn: {
             /** Final Text */
@@ -3480,6 +3723,62 @@ export interface components {
             received_on: string | null;
             /** Status */
             status: string;
+        };
+        /** PaymentIn */
+        PaymentIn: {
+            /** Amount Minor */
+            amount_minor: number;
+            /** Currency */
+            currency: string;
+            /** Document Path */
+            document_path?: string | null;
+            /** Fx Rate */
+            fx_rate?: string | null;
+            /**
+             * Method
+             * @default bank_transfer
+             * @enum {string}
+             */
+            method: "bank_transfer" | "cash" | "card" | "other";
+            /**
+             * Received On
+             * Format: date
+             */
+            received_on: string;
+            /** Reference */
+            reference?: string | null;
+            /**
+             * Stage
+             * @enum {string}
+             */
+            stage: "deposit" | "balance" | "logistics";
+        };
+        /** PaymentOut */
+        PaymentOut: {
+            amount: components["schemas"]["MoneyOut"];
+            amount_tenant: components["schemas"]["MoneyOut"];
+            /** Document Path */
+            document_path: string | null;
+            /** Fx Rate */
+            fx_rate: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Method */
+            method: string;
+            /**
+             * Received On
+             * Format: date
+             */
+            received_on: string;
+            /** Reference */
+            reference: string | null;
+            /** Source */
+            source: string;
+            /** Stage */
+            stage: string;
         };
         /** PhoneShare */
         PhoneShare: {
@@ -3712,6 +4011,28 @@ export interface components {
              * Format: uuid
              */
             owner_id: string;
+        };
+        /** ReceiptOut */
+        ReceiptOut: {
+            amount: components["schemas"]["MoneyOut"] | null;
+            /** Bank */
+            bank: string | null;
+            /** Document Path */
+            document_path: string | null;
+            /** Fx Rate */
+            fx_rate: string | null;
+            /** Needs Fx Rate */
+            needs_fx_rate: boolean;
+            /** Paid On */
+            paid_on: string | null;
+            /** Payer */
+            payer: string | null;
+            /** Reference */
+            reference: string | null;
+            /** Stage */
+            stage: string | null;
+            /** Warnings */
+            warnings: string[];
         };
         /** RecommendationOut */
         RecommendationOut: {
@@ -4014,6 +4335,16 @@ export interface components {
             /** Title */
             title: string;
         };
+        /** ScheduleOut */
+        ScheduleOut: {
+            /** Next Stage */
+            next_stage: string | null;
+            outstanding: components["schemas"]["MoneyOut"];
+            paid: components["schemas"]["MoneyOut"];
+            /** Stages */
+            stages: components["schemas"]["StageOut"][];
+            total: components["schemas"]["MoneyOut"];
+        };
         /** ScoreReason */
         ScoreReason: {
             /** Evidence Message Id */
@@ -4125,6 +4456,14 @@ export interface components {
             by: string | null;
             /** Text */
             text: string | null;
+        };
+        /** StageOut */
+        StageOut: {
+            due: components["schemas"]["MoneyOut"];
+            left: components["schemas"]["MoneyOut"];
+            paid: components["schemas"]["MoneyOut"];
+            /** Stage */
+            stage: string;
         };
         /** StageRef */
         StageRef: {
@@ -6492,6 +6831,220 @@ export interface operations {
             };
         };
     };
+    get_order_v1_orders__order_id__get: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_order_v1_orders__order_id__patch: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OrderPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_order_v1_orders__order_id__cancel_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CancelIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    complete_order_v1_orders__order_id__complete_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    record_payment_v1_orders__order_id__payments_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PaymentIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_receipt_v1_orders__order_id__payments_read_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_read_receipt_v1_orders__order_id__payments_read_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReceiptOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_pipelines_v1_pipelines_get: {
         parameters: {
             query?: never;
@@ -8593,6 +9146,76 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ShippingOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_orders_v1_vehicles__vehicle_id__orders_get: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                vehicle_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_order_v1_vehicles__vehicle_id__orders_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                vehicle_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OrderIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderOut"];
                 };
             };
             /** @description Validation Error */
