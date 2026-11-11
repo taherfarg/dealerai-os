@@ -15,7 +15,12 @@ from uuid import UUID
 async def event_line(
     conn: Any, tenant_id: UUID, conversation_id: UUID, kind: str, text: str, **extra: str
 ) -> None:
-    """`kind` is what happened; `text` is what the thread shows."""
+    """`kind` is what happened; `text` is the sentence in English.
+
+    A screen says a kind it knows in its reader's language and falls back to
+    `text` (apps/web/lib/words.ts). `name=` is who or what it happened to — the
+    assignee, the stage — kept beside the sentence so it can be said either way.
+    """
     await conn.execute(
         """insert into messages (tenant_id, conversation_id, kind, type, direction, sender,
                                  origin, event)

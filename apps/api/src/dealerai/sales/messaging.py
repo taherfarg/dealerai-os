@@ -12,6 +12,11 @@ from collections.abc import Mapping, Sequence
 from datetime import datetime
 from typing import Any
 
+from ..core.words import Words
+
+#: Said wherever a customer who opted out is about to be written to.
+OPTED_OUT = Words("The customer asked not to be messaged.", "طلب العميل ألّا نراسله.")
+
 _PUNCTUATION = re.compile(r"[^\w\s]")
 _TATWEEL = "ـ"
 _VARIABLE = re.compile(r"\{\{(\d+)\}\}")
@@ -55,12 +60,15 @@ def window_is_open(expires_at: datetime | None, now: datetime) -> bool:
     return expires_at is not None and now < expires_at
 
 
-def template_block_reason(category: str, consent: Mapping[str, Any]) -> str | None:
+def template_block_reason(category: str, consent: Mapping[str, Any]) -> Words | None:
     """Why this template may not go to this customer, or None when it may."""
     if consent.get("opted_out_at"):
-        return "The customer asked not to be messaged."
+        return OPTED_OUT
     if category == "marketing" and consent.get("marketing") is not True:
-        return "Marketing templates need the customer's recorded marketing consent."
+        return Words(
+            "Marketing templates need the customer's recorded marketing consent.",
+            "القوالب التسويقية تحتاج موافقة مسجلة من العميل على الرسائل التسويقية.",
+        )
     return None
 
 

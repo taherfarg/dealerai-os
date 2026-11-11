@@ -1,0 +1,11 @@
+# The image is built from the repository's root (apps/api/Dockerfile).
+#
+# Everything is left out, and then what the image is made of is let back in —
+# so no .env, no .storage and no customer's file can be in a build's context,
+# whatever a laptop happens to hold.
+*
+!package.json
+!apps/api/pyproject.toml
+!apps/api/uv.lock
+!apps/api/src
+**/__pycache__

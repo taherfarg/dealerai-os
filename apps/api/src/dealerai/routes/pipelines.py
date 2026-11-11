@@ -72,11 +72,26 @@ def _workable(stages: list[StageIn]) -> None:
     """
     categories = [stage.category for stage in stages]
     if categories.count("won") != 1:
-        raise Unusable("a pipeline has exactly one won stage")
+        raise Unusable("a pipeline has exactly one won stage", ar="للمسار مرحلة فوز واحدة لا غير.")
     if "lost" not in categories:
-        raise Unusable("a pipeline needs somewhere to put a lost lead")
+        raise Unusable(
+            "a pipeline needs somewhere to put a lost lead",
+            ar="يحتاج المسار مرحلة للفرص الخاسرة.",
+        )
     if not categories.count("open"):
-        raise Unusable("a pipeline needs at least one stage leads live in")
+        raise Unusable(
+            "a pipeline needs at least one stage leads live in",
+            ar="يحتاج المسار مرحلة مفتوحة واحدة على الأقل.",
+        )
+
+
+def _leads_ar(count: int) -> str:
+    """A count of leads the way Arabic says it: one, two, a few, many."""
+    if count == 1:
+        return "فرصة واحدة"
+    if count == 2:
+        return "فرصتين"
+    return f"{count} فرص" if 3 <= count % 100 <= 10 else f"{count} فرصة"
 
 
 async def _one(conn: Any, pipeline_id: UUID) -> dict[str, Any]:
@@ -127,7 +142,8 @@ async def replace_stages(
             if held:
                 raise StageInUse(
                     f"{existing[stage_id]} still holds {held} "
-                    f"{'lead' if held == 1 else 'leads'}. Move them first."
+                    f"{'lead' if held == 1 else 'leads'}. Move them first.",
+                    ar=f"ما زالت مرحلة «{existing[stage_id]}» تضم {_leads_ar(held)}. انقلها أولًا.",
                 )
             await conn.execute("delete from pipeline_stages where id = $1", stage_id)
 

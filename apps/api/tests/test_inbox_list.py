@@ -15,6 +15,7 @@ from conftest import MANAGER, OWNER, SALES_1, SALES_2, TEAM_LOCAL, TENANT_A, res
 from dealerai.config import get_settings
 from dealerai.core.security import mint_test_token
 from dealerai.main import app
+from dealerai.routes.inbox import _preview
 
 SECRET = "super-secret-jwt-token-with-at-least-32-characters-long"
 CHANNEL = uuid.UUID("cccccccc-6666-4666-8666-000000000001")
@@ -259,6 +260,14 @@ def test_the_row_carries_what_the_screen_draws(client: TestClient) -> None:
     # A voice note has no body, so the preview says what arrived.
     assert row["last_message"]["type"] == "audio"  # type: ignore[index]
     assert "land cruiser" in str(row["last_message"]["preview"])  # type: ignore[index]
+
+
+def test_a_photo_with_no_caption_has_no_words() -> None:
+    """What kind of thing arrived is the screen's to say, in its reader's language."""
+    assert _preview({"body": None, "transcript": None, "last_type": "image"}) == ""
+    assert _preview({"body": "The white one", "transcript": None, "last_type": "image"}) == (
+        "The white one"
+    )
 
 
 def test_search_finds_a_voice_note_by_what_was_said(client: TestClient) -> None:

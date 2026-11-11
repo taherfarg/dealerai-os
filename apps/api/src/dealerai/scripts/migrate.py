@@ -15,6 +15,7 @@ import hashlib
 import os
 import sys
 from pathlib import Path
+from urllib.parse import urlsplit, urlunsplit
 
 import asyncpg
 
@@ -73,8 +74,33 @@ def load_env_file(path: Path) -> None:
         os.environ[key.strip()] = value.strip()
 
 
-async def run() -> int:
+async def ensure_database(dsn: str) -> None:
+    """Create the database a DSN names, when the server does not have it yet.
+
+    For a laptop and CI, where a second database — the end-to-end suite's — is
+    a name and nothing more. A hosted project's database is made by the host.
+    """
+    parts = urlsplit(dsn)
+    name = parts.path.lstrip("/")
+    conn = await asyncpg.connect(urlunsplit(parts._replace(path="/postgres")))
+    try:
+        if not await conn.fetchval("select 1 from pg_database where datname = $1", name):
+            # A name cannot be a parameter. This one is ours, from our own
+            # configuration; quoted all the same.
+            quoted = name.replace('"', '""')
+            await conn.execute(f'create database "{quoted}"')
+            print(f"create database {name}")
+    finally:
+        await conn.close()
+
+
+async def run(*, create: bool = False) -> int:
     settings = get_settings()
+    if create:
+        if not settings.is_local:
+            print(f"refusing --create: ENV is {settings.env!r}, expected 'local'")
+            return 1
+        await ensure_database(settings.migration_dsn)
     directory = migrations_dir()
     files = sorted(p for p in directory.glob("*.sql"))
     if not files:
@@ -135,11 +161,16 @@ def main() -> None:
         "--env-file",
         help="dotenv to load first, e.g. .env.staging. Relative to the repo root.",
     )
+    parser.add_argument(
+        "--create",
+        action="store_true",
+        help="make the database first, if it is not there. Local only.",
+    )
     args = parser.parse_args()
     if args.env_file:
         path = Path(args.env_file)
         load_env_file(path if path.is_absolute() else repo_root() / path)
-    sys.exit(asyncio.run(run()))
+    sys.exit(asyncio.run(run(create=args.create)))
 
 
 if __name__ == "__main__":

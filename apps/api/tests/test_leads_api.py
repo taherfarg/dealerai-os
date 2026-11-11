@@ -142,6 +142,7 @@ def test_moving_a_lead_writes_its_history_and_a_line_in_the_conversation(
         f"/v1/conversations/{lead['conversation_id']}/messages", headers=_auth(SALES_1)
     ).json()["data"]
     assert thread[-1]["event"]["text"] == "Lead moved to Qualified"
+    assert thread[-1]["event"]["name"] == "Qualified"
 
 
 def test_the_stage_clock_restarts_on_every_move(

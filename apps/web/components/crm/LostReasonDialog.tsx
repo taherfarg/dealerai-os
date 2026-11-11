@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Modal } from "@/components/Modal";
 import { useT } from "@/lib/i18n-client";
 
 /**
@@ -20,12 +21,7 @@ export function LostReasonDialog({
   const t = useT();
   const [reason, setReason] = useState("");
   return (
-    <div
-      role="dialog"
-      aria-label={t("lost.title")}
-      className="bg-surface border-border fixed inset-x-4 top-24 z-40 mx-auto max-w-sm rounded-lg border p-4 shadow-xl"
-    >
-      <h2 className="text-sm font-medium">{t("lost.title")}</h2>
+    <Modal title={t("lost.title")} onClose={onCancel}>
       <input
         autoFocus
         value={reason}
@@ -34,23 +30,22 @@ export function LostReasonDialog({
         onChange={(event) => setReason(event.target.value)}
         onKeyDown={(event) => {
           if (event.key === "Enter" && reason.trim()) onConfirm(reason.trim());
-          if (event.key === "Escape") onCancel();
         }}
-        className="mt-3 min-h-11 w-full rounded-md border border-black/10 px-3 text-sm dark:border-white/15"
+        className="field mt-3 w-full"
       />
       <div className="mt-4 flex justify-end gap-2">
-        <button type="button" onClick={onCancel} className="min-h-11 px-3 text-sm">
+        <button type="button" onClick={onCancel} className="btn btn-quiet">
           {t("common.cancel")}
         </button>
         <button
           type="button"
           disabled={!reason.trim()}
           onClick={() => onConfirm(reason.trim())}
-          className="bg-accent min-h-11 rounded-md px-4 text-sm font-medium text-black disabled:opacity-50"
+          className="btn btn-primary"
         >
           {t("lost.confirm")}
         </button>
       </div>
-    </div>
+    </Modal>
   );
 }

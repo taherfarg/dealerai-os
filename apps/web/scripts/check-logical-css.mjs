@@ -25,7 +25,29 @@ const BANNED = [
   [/(?<![\w-])(left|right)-[\w.[\]/-]+/g, "use start-/end-"],
   [/(?<![\w-])border-(l|r)(?![\w-])/g, "use border-s / border-e"],
   [/(?<![\w-])rounded-(l|r|tl|tr|bl|br)-/g, "use logical rounded-s/-e/-ss/-se/-es/-ee"],
+  // Logical in Tailwind 4, and still wrong: it puts a margin on each child, and
+  // a child with a direction of its own has its own idea of which side that is.
+  [/(?<![\w-])space-x-[\w.[\]/-]+/g, "use gap-* on the parent"],
 ];
+
+// The net has to hold before it is trusted: each of these must be caught, and
+// each of these let through.
+for (const [sample, caught] of [
+  ["ml-4", true],
+  ["text-left", true],
+  ["right-0", true],
+  ["border-l", true],
+  ["rounded-tl-md", true],
+  ["space-x-4", true],
+  ["ms-4", false],
+  ["text-start", false],
+  ["gap-x-4", false],
+  ["border-solid", false],
+]) {
+  if (BANNED.some(([re]) => sample.match(re) !== null) !== caught) {
+    throw new Error(`check-logical-css: ${sample} should ${caught ? "" : "not "}be refused`);
+  }
+}
 
 function* walk(dir) {
   for (const entry of readdirSync(dir)) {

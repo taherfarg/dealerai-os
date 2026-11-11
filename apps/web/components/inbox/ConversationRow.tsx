@@ -2,8 +2,11 @@
 
 import Link from "next/link";
 import type { Conversation } from "@/lib/api/hooks";
-import { countryFlag, formatRelative } from "@/lib/format";
-import { useT } from "@/lib/i18n-client";
+import { Avatar } from "@/components/Avatar";
+import { Auto, CustomerName } from "@/components/Bidi";
+import { formatRelative } from "@/lib/format";
+import { useLocale, useT } from "@/lib/i18n-client";
+import { word } from "@/lib/words";
 import { WaitingTimer } from "./WaitingTimer";
 
 /** What the preview says came from us, rather than from the customer. */
@@ -28,51 +31,61 @@ export function ConversationRow({
   active: boolean;
 }) {
   const t = useT();
+  const locale = useLocale();
   const { contact, last_message: last } = conversation;
   const unread = conversation.unread_count;
+  const ours = prefix(conversation, t("inbox.you"), t("inbox.fromPhone"));
   return (
     <li data-sla={conversation.sla_state ?? "none"}>
       <Link
         href={href}
         aria-current={active ? "page" : undefined}
-        className={`block border-b border-black/5 px-3 py-3 transition-colors dark:border-white/10 ${
-          active ? "bg-background" : "hover:bg-background"
+        className={`flex gap-3 rounded-2xl p-3 transition-colors ${
+          active ? "bg-accent-soft" : "hover:bg-surface"
         }`}
       >
-        <div className="flex items-baseline justify-between gap-2">
-          <span className="truncate text-sm font-medium">
-            {countryFlag(contact.country)} {contact.name ?? t("inbox.unknownCustomer")}
-          </span>
-          {last && (
-            <time className="text-muted shrink-0 text-xs" dateTime={last.at}>
-              {formatRelative(last.at)}
-            </time>
-          )}
-        </div>
+        {/* The flag rides on the avatar, so the name beside it is given none. */}
+        <Avatar name={contact.name} country={contact.country} size="lg" />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-baseline justify-between gap-2">
+            <CustomerName country={null} name={contact.name} className="text-[15px] font-semibold" />
+            {last && (
+              <time className="text-muted shrink-0 text-xs" dateTime={last.at}>
+                {formatRelative(last.at, locale)}
+              </time>
+            )}
+          </div>
 
-        <p className="text-muted mt-1 truncate text-sm">
-          {last
-            ? `${prefix(conversation, t("inbox.you"), t("inbox.fromPhone"))}${last.preview}`
-            : t("inbox.noMessages")}
-        </p>
+          {/* What was said sits in an element of its own: it chooses its
+              direction and is cut at its own end, and "You:" stays the reader's. */}
+          <p className="text-muted mt-0.5 flex gap-1 text-sm">
+            {last ? (
+              <>
+                {ours && <span className="shrink-0">{ours}</span>}
+                {/* No words arrived — a photo, a voice note: the app says what
+                    kind of thing it was, in the reader's language. */}
+                <Auto className="min-w-0 truncate">
+                  {last.preview || word(t, "preview", last.type, t("preview.unsupported"))}
+                </Auto>
+              </>
+            ) : (
+              t("inbox.noMessages")
+            )}
+          </p>
 
-        <div className="mt-2 flex flex-wrap items-center gap-2">
-          <WaitingTimer waitingSince={conversation.waiting_since} state={conversation.sla_state} />
-          {conversation.assignee ? (
-            <span className="text-muted text-xs">{conversation.assignee.name}</span>
-          ) : (
-            <span className="bg-accent/20 rounded-full px-2 py-0.5 text-xs font-medium">
-              {t("inbox.unassigned")}
-            </span>
-          )}
-          {unread > 0 && (
-            <span
-              className="bg-accent ms-auto min-w-5 rounded-full px-1.5 py-0.5 text-center text-xs font-medium text-black"
-              aria-label={t("inbox.unreadCount")}
-            >
-              {unread}
-            </span>
-          )}
+          <div className="mt-1.5 flex flex-wrap items-center gap-2">
+            <WaitingTimer waitingSince={conversation.waiting_since} state={conversation.sla_state} />
+            {conversation.assignee ? (
+              <span className="text-muted text-xs">{conversation.assignee.name}</span>
+            ) : (
+              <span className="pill pill-accent">{t("inbox.unassigned")}</span>
+            )}
+            {unread > 0 && (
+              <span className="badge ms-auto" aria-label={t("inbox.unreadCount")}>
+                {unread}
+              </span>
+            )}
+          </div>
         </div>
       </Link>
     </li>

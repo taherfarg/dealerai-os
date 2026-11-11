@@ -125,5 +125,16 @@ async def listen_connection() -> AsyncIterator[asyncpg.Connection]:
 
 async def healthcheck() -> dict[str, Any]:
     async with system_session() as conn:
-        await conn.fetchval("select 1")
-    return {"database": "ok"}
+        # What is due and not yet taken. With a worker running that is nothing,
+        # or seconds old; with none it only grows — which is how anybody outside
+        # the process can tell (docs/sales/01-architecture.md § 8).
+        row = await conn.fetchrow(
+            """select count(*) as waiting,
+                      coalesce(extract(epoch from now() - min(run_after)), 0)::int as oldest
+                 from events
+                where status = 'pending' and run_after <= now()"""
+        )
+    return {
+        "database": "ok",
+        "queue": {"waiting": row["waiting"], "oldest_seconds": row["oldest"]},
+    }

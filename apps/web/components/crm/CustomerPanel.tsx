@@ -2,8 +2,12 @@
 
 import Link from "next/link";
 import { useCreateLead, useCustomer, useEditCustomer, type CustomerDetail } from "@/lib/api/hooks";
-import { countryFlag, formatMoney } from "@/lib/format";
-import { useT } from "@/lib/i18n-client";
+import { Avatar } from "@/components/Avatar";
+import { Auto, CustomerName, Ltr } from "@/components/Bidi";
+import { Icon } from "@/components/Icon";
+import { countryName, formatMoney } from "@/lib/format";
+import { useLocale, useT } from "@/lib/i18n-client";
+import { BAND_PILL } from "./band";
 import { ProfileField, type Field } from "./ProfileField";
 
 /** The order the panel asks its questions in (docs/sales/08-screens.md § 5). */
@@ -36,6 +40,7 @@ export function CustomerPanel({
   onEvidence?: (messageId: string) => void;
 }) {
   const t = useT();
+  const locale = useLocale();
   const customer = useCustomer(contactId);
   const edit = useEditCustomer(contactId);
   const createLead = useCreateLead();
@@ -44,15 +49,21 @@ export function CustomerPanel({
   const record: CustomerDetail = customer.data;
   const profile = (record.profile ?? {}) as Record<string, Field>;
   const openLead = record.leads.find((lead) => lead.stage.category === "open");
+  const country = countryName(record.country ?? null, locale);
 
   return (
     <div className="flex h-full flex-col gap-4 p-4" data-customer-panel>
-      <header className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <h2 className="truncate text-sm font-medium">
-            {countryFlag(record.country)} {record.name ?? t("inbox.unknownCustomer")}
+      <header className="flex items-start gap-3">
+        {/* The flag rides on the avatar, and the country is said in words below. */}
+        <Avatar name={record.name} country={record.country} size="xl" />
+        <div className="min-w-0 flex-1">
+          <h2 className="text-base font-semibold">
+            <CustomerName country={null} name={record.name} />
           </h2>
-          <p className="text-muted truncate text-xs">{record.phone}</p>
+          <p className="text-muted truncate text-xs">
+            <Ltr>{record.phone}</Ltr>
+          </p>
+          {country && <p className="text-muted text-xs">{country}</p>}
           <p className="text-muted mt-1 text-xs">{record.owner?.name ?? t("customers.nobody")}</p>
         </div>
         {onClose && (
@@ -60,23 +71,21 @@ export function CustomerPanel({
             type="button"
             onClick={onClose}
             aria-label={t("customer.close")}
-            className="text-muted min-h-11 px-2 text-sm lg:hidden"
+            className="icon-btn text-muted lg:hidden"
           >
-            ✕
+            <Icon name="close" />
           </button>
         )}
       </header>
 
       {record.opted_out && (
-        <p className="rounded-md bg-red-500/10 px-2 py-1 text-xs text-red-700 dark:text-red-300">
-          {t("customer.optedOut")}
-        </p>
+        <p className="pill pill-danger self-start">{t("customer.optedOut")}</p>
       )}
 
       {record.tags.length > 0 && (
         <ul className="flex flex-wrap gap-1">
           {record.tags.map((tag) => (
-            <li key={tag} className="bg-background rounded-full px-2 py-0.5 text-xs">
+            <li key={tag} dir="auto" className="pill">
               {tag}
             </li>
           ))}
@@ -87,7 +96,7 @@ export function CustomerPanel({
         <h3 className="text-muted mb-1 text-xs font-semibold uppercase tracking-wide">
           {t("customer.whatWeKnow")}
         </h3>
-        <div className="divide-y divide-black/5 dark:divide-white/10">
+        <div className="divide-y divide-border">
           {FIELDS.map((name) => (
             <ProfileField
               key={name}
@@ -107,15 +116,19 @@ export function CustomerPanel({
         {openLead ? (
           <Link
             href={`/${tenant}/pipeline?lead=${openLead.id}`}
-            className="hover:bg-background block rounded-md border border-black/5 p-2 dark:border-white/10"
+            // A gap on the row, never a margin on one of its parts: a part with
+            // its own direction has its own idea of which side is the start.
+            className="border-border hover:bg-surface flex flex-wrap items-center gap-x-2 gap-y-2 rounded-2xl border p-3"
           >
-            <span className="text-sm">{openLead.vehicle?.label ?? openLead.pipeline_name}</span>
-            <span className="text-muted ms-2 text-xs">{openLead.stage.name}</span>
-            {openLead.budget && (
-              <span className="text-muted ms-2 text-xs">{formatMoney(openLead.budget)}</span>
-            )}
+            <Auto className="w-full text-sm font-medium">
+              {openLead.vehicle?.label ?? openLead.pipeline_name}
+            </Auto>
+            <Auto className="pill">{openLead.stage.name}</Auto>
             {openLead.band && (
-              <span className="ms-2 text-xs font-medium">{t(`band.${openLead.band}`)}</span>
+              <span className={`pill ${BAND_PILL[openLead.band]}`}>{t(`band.${openLead.band}`)}</span>
+            )}
+            {openLead.budget && (
+              <Ltr className="ms-auto text-sm font-semibold">{formatMoney(openLead.budget)}</Ltr>
             )}
           </Link>
         ) : (
@@ -123,7 +136,7 @@ export function CustomerPanel({
             type="button"
             disabled={createLead.isPending}
             onClick={() => createLead.mutate({ contact_id: contactId })}
-            className="hover:bg-background min-h-11 w-full rounded-md border border-dashed border-black/15 text-sm disabled:opacity-60 dark:border-white/20"
+            className="btn w-full border-dashed"
           >
             {t("customer.createLead")}
           </button>
@@ -136,7 +149,7 @@ export function CustomerPanel({
 
       <Link
         href={`/${tenant}/customers/${contactId}`}
-        className="text-muted mt-auto text-xs underline"
+        className="btn mt-auto"
       >
         {t("customer.full")}
       </Link>

@@ -85,7 +85,7 @@ export function HoursEditor({
                       value={minute(hours.open)}
                       aria-invalid={bad.has(day)}
                       onChange={(event) => setDay(day, { ...hours, open: event.target.value })}
-                      className="min-h-11 rounded-md border border-black/10 px-2 dark:border-white/15"
+                      className="field px-3"
                     />
                     <input
                       type="time"
@@ -93,10 +93,10 @@ export function HoursEditor({
                       value={minute(hours.close)}
                       aria-invalid={bad.has(day)}
                       onChange={(event) => setDay(day, { ...hours, close: event.target.value })}
-                      className="min-h-11 rounded-md border border-black/10 px-2 dark:border-white/15"
+                      className="field px-3"
                     />
                     {bad.has(day) && (
-                      <span role="alert" className="text-xs text-red-600 dark:text-red-400">
+                      <span role="alert" className="text-xs text-danger">
                         {t("routing.closeAfterOpen")}
                       </span>
                     )}

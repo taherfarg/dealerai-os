@@ -51,7 +51,10 @@ _COLUMNS = "id, shortcut, title, body, updated_at"
 def _bodies(body: Bodies) -> dict[str, str]:
     kept = {lang: text.strip() for lang, text in body.model_dump().items() if text and text.strip()}
     if not kept:
-        raise Unusable("a quick reply needs its text in at least one language")
+        raise Unusable(
+            "a quick reply needs its text in at least one language",
+            ar="يحتاج الرد السريع نصًا بلغة واحدة على الأقل.",
+        )
     return kept
 
 
@@ -76,7 +79,10 @@ async def add_quick_reply(ctx: Editor, body: QuickReplyIn) -> dict[str, Any]:
                 ctx.user.id,
             )
         except asyncpg.UniqueViolationError as exc:
-            raise Conflict(f"{body.shortcut} is already a quick reply") from exc
+            raise Conflict(
+                f"{body.shortcut} is already a quick reply",
+                ar=f"الاختصار {body.shortcut} مستخدم في رد سريع آخر.",
+            ) from exc
     return dict(row)
 
 
@@ -93,7 +99,10 @@ async def save_quick_reply(ctx: Editor, reply_id: UUID, body: QuickReplyIn) -> d
                 _bodies(body.body),
             )
         except asyncpg.UniqueViolationError as exc:
-            raise Conflict(f"{body.shortcut} is already a quick reply") from exc
+            raise Conflict(
+                f"{body.shortcut} is already a quick reply",
+                ar=f"الاختصار {body.shortcut} مستخدم في رد سريع آخر.",
+            ) from exc
     if row is None:
         raise NotFound("no such quick reply")
     return dict(row)

@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
-import { nextQuery, readFilters } from "./filters";
+import { act, renderHook } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { nextQuery, readFilters, useFilters } from "./filters";
 
 const DEFAULTS = { view: "all", band: "", q: "" };
 
@@ -32,5 +33,44 @@ describe("filters in the URL", () => {
   it("does not write the same filter twice", () => {
     const next = nextQuery(DEFAULTS, new URLSearchParams("band=warm"), { band: "hot" });
     expect(next).toBe("band=hot");
+  });
+});
+
+// The page as it was last drawn: no filter chosen. The address moves on without it.
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/pollux-motors/customers",
+  useSearchParams: () => new URLSearchParams(""),
+  useRouter: () => ({ replace: () => undefined }),
+}));
+
+describe("changing a filter", () => {
+  beforeEach(() => {
+    window.history.replaceState(null, "", "/pollux-motors/customers");
+  });
+
+  it("is in the address at once, with nothing to wait for", () => {
+    const { result } = renderHook(() => useFilters({ q: "", band: "" }));
+    act(() => result.current[1]({ q: "Omar" }));
+    expect(window.location.search).toBe("?q=Omar");
+  });
+
+  it("keeps the choice made a moment before, though the page has not been drawn again", () => {
+    // A tab pressed and a search typed straight after it; letters typed faster
+    // than the page redraws. The second change must build on the first.
+    const { result } = renderHook(() => useFilters({ q: "", band: "" }));
+    act(() => {
+      result.current[1]({ band: "hot" });
+      result.current[1]({ q: "Omar" });
+    });
+    expect(window.location.search).toBe("?band=hot&q=Omar");
+  });
+
+  it("takes a default back out of the address", () => {
+    window.history.replaceState(null, "", "/pollux-motors/customers?q=Omar&band=hot");
+    const { result } = renderHook(() => useFilters({ q: "", band: "" }));
+    act(() => result.current[1]({ q: "" }));
+    expect(window.location.search).toBe("?band=hot");
+    act(() => result.current[1]({ band: "" }));
+    expect(window.location.pathname + window.location.search).toBe("/pollux-motors/customers");
   });
 });

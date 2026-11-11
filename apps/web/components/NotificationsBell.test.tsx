@@ -61,6 +61,15 @@ beforeEach(() => {
 });
 
 describe("NotificationsBell", () => {
+  it("closes on Escape and gives focus back to the bell", () => {
+    show();
+    fireEvent.click(bell());
+    const list = screen.getByRole("dialog", { name: /notifications/i });
+    fireEvent.keyDown(list, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(document.activeElement).toBe(bell());
+  });
+
   it("says how many are waiting, and does not clear them for being looked at", () => {
     show();
     expect(bell().textContent).toContain("2");

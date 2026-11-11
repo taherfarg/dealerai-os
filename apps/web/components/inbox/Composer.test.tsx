@@ -122,3 +122,58 @@ describe("Composer", () => {
     expect(box.value).toBe("/pr");
   });
 });
+
+describe("Composer, once the 24-hour window has closed", () => {
+  const TEMPLATES = [
+    {
+      id: "template-1",
+      channel_id: "channel-1",
+      external_id: "x",
+      name: "price_update",
+      language: "en_US",
+      category: "utility",
+      status: "approved",
+      body: "Hello {{1}}, the {{2}} price is now {{3}}.",
+      rejected_reason: null,
+      synced_at: "2026-10-01T00:00:00Z",
+    },
+  ];
+
+  function showClosed() {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<(request: Request) => Promise<Response>>(
+        async () =>
+          new Response(JSON.stringify(TEMPLATES), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }),
+      ),
+    );
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={client}>
+        <TenantApiProvider tenantId="tenant-1" slug="pollux">
+          <LocaleProvider locale="en">
+            <Composer conversationId="conversation-1" channelId="channel-1" windowOpen={false} />
+          </LocaleProvider>
+        </TenantApiProvider>
+      </QueryClientProvider>,
+    );
+  }
+
+  it("offers a template in place of the reply box, which WhatsApp would refuse", async () => {
+    showClosed();
+    expect(await screen.findByRole("option", { name: "price_update · English" })).toBeDefined();
+    expect(screen.queryByRole("textbox", { name: "Write a reply" })).toBeNull();
+  });
+
+  it("still takes a note for colleagues, which goes to nobody's phone", async () => {
+    showClosed();
+    await screen.findByRole("combobox");
+    fireEvent.click(screen.getByRole("button", { name: "Internal note" }));
+    expect(screen.getByRole("textbox", { name: "Internal note" })).toBeDefined();
+    expect(screen.queryByRole("combobox")).toBeNull();
+  });
+});
+

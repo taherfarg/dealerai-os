@@ -26,9 +26,9 @@ const onEdit = vi.fn();
 const onRegenerate = vi.fn();
 const onOutcome = vi.fn();
 
-function show(suggestion: Suggestion = ready) {
+function show(suggestion: Suggestion = ready, locale: "en" | "ar" = "en") {
   return render(
-    <LocaleProvider locale="en">
+    <LocaleProvider locale={locale}>
       <DraftPanel
         suggestion={suggestion}
         onSend={onSend}
@@ -66,6 +66,20 @@ describe("DraftPanel", () => {
     show({ ...ready, status: "blocked", text: null, blocked_reason: "Price is not ours" });
     expect(screen.getByText(/Price is not ours/)).toBeDefined();
     expect(screen.queryByRole("button", { name: "Send draft" })).toBeNull();
+  });
+
+  it("says which check held a draft back, in the reader's language", () => {
+    const held = {
+      ...ready,
+      status: "blocked" as const,
+      text: null,
+      blocked_reason: "price: 'AED 199,000' is not a price from the record",
+    };
+    const { unmount } = show(held);
+    expect(screen.getByText(/it quoted a price that is not on the car's record/)).toBeDefined();
+    unmount();
+    show(held, "ar");
+    expect(screen.getByText(/ذكرت سعرًا غير مسجّل للسيارة/)).toBeDefined();
   });
 
   it("shows a template's message, not its name", () => {

@@ -26,6 +26,7 @@ idempotent on `(event_type, dedupe_key)`.
 | `channel.sync_watchdog` | +2h, +20h | Alert if no history arrived | 8 |
 | `contact.reassigned` | Reassign API | Notify the new owner | 8 |
 | `notification.push_requested` | A notification row | Web push to the user's subscriptions | 8 |
+| `task.due_check` | The `tasks_book_due` trigger, at the task's due time | Tell the assignee, unless it was done or moved | 5 |
 | `message.media_requested` | Ingest | Download media to Storage | 5 |
 | `message.transcription_requested` | Media stored, audio | Transcribe | 5 |
 | `copilot.draft_requested` | Ingest, +20 s | Draft loop ([04](04-ai-copilot.md) §3) | 5 |

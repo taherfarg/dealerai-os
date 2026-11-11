@@ -219,10 +219,12 @@ must pass. Instagram and Messenger (Phase 2) are new files against the same suit
 
 | Component | Change |
 |---|---|
-| `api` | Must support long-lived streaming responses (Fly.io / Railway, not serverless). One extra Postgres connection per process for LISTEN, on the session pooler |
-| `worker` | Media download, transcription and push added; no new system packages |
-| `web` | Vercel; `NEXT_PUBLIC_API_URL`; PWA manifest and service worker |
-| Supabase | Region decision Q1 ([00](00-prd.md) §12); Storage bucket for message media |
+| `api` | Must support long-lived streaming responses — Fly.io, beside the database: Singapore for staging, Mumbai for the pilot, as decided on 2026-10-05 ([`fly.toml`](../../fly.toml)); not serverless. One extra Postgres connection per process for LISTEN, on the session pooler. One image, `apps/api/Dockerfile`, which serves the API by default. Outside a laptop it refuses to start with settings that would fail on the first request, naming each (`config.deploy_problems`) |
+| `worker` | Media download, transcription and push added; no new system packages. The same image, with `python -m dealerai.worker`, and the same refusal |
+| `web` | Vercel was the plan, and its free plan is for non-commercial personal use: staging's web app is a second free service on Render, beside the API, and the pilot's host is not decided ([10](10-staging.md) §1, §5). `NEXT_PUBLIC_API_URL`; PWA manifest and service worker |
+| Supabase | A new project: the first one is gone, which answers Q1 ([00](00-prd.md) §12) by where the new one is made. Sessions are verified against the keys it publishes (`core/security.py`). Storage for message media is not set up, and needs a decision first ([10](10-staging.md) §8) |
+
+The order to do all of it in, and how to tell each step worked: [10](10-staging.md).
 
 New configuration (declared in `config.py`, generated into `.env.example`):
 `WHATSAPP_APP_ID`, `WHATSAPP_APP_SECRET`, `WHATSAPP_VERIFY_TOKEN`, `WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID`,
@@ -255,7 +257,7 @@ Everything in Phase 1 except coexistence onboarding is buildable and testable of
 | Signal | Where |
 |---|---|
 | Webhook ack latency, per type | structlog + `/internal/metrics` histogram |
-| Queue depth and oldest pending age | `/internal/health` |
+| Queue depth and oldest pending age | `/internal/health`: `queue.waiting`, `queue.oldest_seconds` — what is due and not yet taken. With no worker it only grows, which `npm run smoke` reads |
 | LISTEN connection state, open SSE streams | `/internal/health` |
 | Channel health (token, quality rating, sync state) | `channels.health`, surfaced in Settings |
 | Draft latency, cost, acceptance by intent | `agent_traces` + `ai_suggestions` |

@@ -34,6 +34,7 @@ vi.mock("@/lib/api/hooks", () => ({
   useAddNote: () => ({ mutate: vi.fn(), isPending: false, isError: false }),
   useQuickReplies: () => ({ data: [] }),
   useCreateLead: () => ({ mutate: vi.fn() }),
+  useCustomer: () => ({ data: undefined }),
   useCreateTask: () => ({ mutate: vi.fn() }),
   useEditCustomer: () => ({ mutate: vi.fn() }),
 }));
@@ -80,5 +81,23 @@ describe("copilot in the thread", () => {
         .toBe("New price for you"),
     );
     expect(sessionStorage.getItem("dealerai:followup-edit:conversation-1")).toBeNull();
+  });
+});
+
+describe("the thread's messages", () => {
+  it("are a log, so a screen reader hears a message arrive", () => {
+    render(<LocaleProvider locale="en"><Thread tenant="pollux" conversationId="conversation-1" /></LocaleProvider>);
+    const log = screen.getByRole("log", { name: "Messages" });
+    expect(log.getAttribute("aria-live")).toBe("polite");
+    // The list stays a list inside it: a log is not one.
+    expect(log.querySelector("ul")).not.toBeNull();
+  });
+});
+
+describe("the thread's header", () => {
+  it("turns the back arrow round for somebody who reads right to left", () => {
+    render(<LocaleProvider locale="ar"><Thread tenant="pollux" conversationId="conversation-1" /></LocaleProvider>);
+    const back = screen.getByRole("link", { name: "العودة إلى المحادثات" });
+    expect(back.querySelector("span")?.className).toContain("rtl:-scale-x-100");
   });
 });

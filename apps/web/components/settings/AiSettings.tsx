@@ -18,7 +18,7 @@ import { changes } from "./changes";
 type Ai = Pick<SalesSettings, "drafts_enabled" | "arabic_register" | "follow_up_cadence_days">;
 
 const NEVER = ["send", "price", "promise", "reserved", "optOut"] as const;
-const FIELD = "min-h-11 rounded-md border border-black/10 px-2 dark:border-white/15";
+const FIELD = "field px-3";
 
 function percent(rate: number | null): string {
   return rate == null ? "—" : `${Math.round(rate * 100)}%`;
@@ -47,7 +47,7 @@ function AcceptanceTable({ acceptance }: { acceptance: Acceptance }) {
         {rows.map((row, index) => (
           <tr
             key={row.intent ?? `all-${index}`}
-            className={`border-t border-black/5 text-center dark:border-white/10 ${
+            className={`border-t border-border text-center ${
               index === 0 ? "font-semibold" : ""
             }`}
           >
@@ -156,7 +156,7 @@ export function AiSettings() {
                   onClick={() =>
                     edit({ follow_up_cadence_days: cadence.filter((_, at) => at !== index) })
                   }
-                  className="hover:bg-background min-h-11 min-w-11 rounded-md"
+                  className="icon-btn"
                 >
                   ×
                 </button>
@@ -167,7 +167,7 @@ export function AiSettings() {
             <button
               type="button"
               onClick={() => edit({ follow_up_cadence_days: [...cadence, 14] })}
-              className="hover:bg-background min-h-11 rounded-md px-3 underline"
+              className="btn btn-quiet"
             >
               {t("ai.addFollowUp")}
             </button>
@@ -190,7 +190,7 @@ export function AiSettings() {
       </section>
 
       {(dirty || save.isError) && (
-        <div className="bg-surface border-border sticky bottom-16 flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3 shadow-lg md:bottom-0">
+        <div className="bg-surface border-border sticky bottom-28 flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3 shadow-lg md:bottom-0">
           <span role={save.isError ? "alert" : undefined} className="text-sm">
             {save.isError
               ? save.error instanceof ApiError
@@ -205,7 +205,7 @@ export function AiSettings() {
                 setDraft(null);
                 save.reset();
               }}
-              className="min-h-11 px-3 text-sm"
+              className="btn btn-quiet"
             >
               {t("settings.discard")}
             </button>
@@ -213,7 +213,7 @@ export function AiSettings() {
               type="button"
               disabled={!dirty || save.isPending || cadence.some((days) => !(days >= 1))}
               onClick={() => save.mutate(patch, { onSuccess: () => setDraft(null) })}
-              className="bg-accent min-h-11 rounded-md px-4 text-sm font-medium text-black disabled:opacity-50"
+              className="btn btn-primary"
             >
               {t("common.save")}
             </button>

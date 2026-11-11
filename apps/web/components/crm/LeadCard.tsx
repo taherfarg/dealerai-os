@@ -2,14 +2,12 @@
 
 import type { Lead, Stage } from "@/lib/api/hooks";
 import { useNow } from "@/lib/clock";
-import { countryFlag, formatMoney, formatRelative } from "@/lib/format";
-import { useT } from "@/lib/i18n-client";
-
-const BAND_TONE: Record<string, string> = {
-  hot: "bg-red-500/15 text-red-700 dark:text-red-300",
-  warm: "bg-amber-500/15 text-amber-800 dark:text-amber-200",
-  cold: "bg-blue-500/10 text-blue-700 dark:text-blue-300",
-};
+import { Avatar } from "@/components/Avatar";
+import { Auto, CustomerName, Ltr } from "@/components/Bidi";
+import { formatDue, formatMoney } from "@/lib/format";
+import { useLocale, useT } from "@/lib/i18n-client";
+import { counted } from "@/lib/words";
+import { BAND_PILL } from "./band";
 
 /**
  * One lead on the board.
@@ -33,6 +31,7 @@ export function LeadCard({
   now?: number;
 }) {
   const t = useT();
+  const locale = useLocale();
   const clock = useNow(60_000, now);
   // Never below zero: the ticking clock lags by up to a minute, and a lead
   // moved a second ago would otherwise read "-1 days here".
@@ -46,35 +45,38 @@ export function LeadCard({
       draggable
       data-lead={lead.id}
       onDragStart={(event) => event.dataTransfer.setData("text/plain", lead.id)}
-      className="border-border bg-surface rounded-md border p-2 shadow-sm"
+      // A white card on its soft column ([11] § 5.2).
+      className="bg-background rounded-2xl p-3 shadow-sm"
     >
       <button type="button" onClick={onOpen} className="block w-full text-start">
-        <span className="flex items-baseline justify-between gap-2">
-          <span className="truncate text-sm font-medium">
-            {countryFlag(lead.contact.country)} {lead.contact.name}
-          </span>
+        <span className="flex items-center gap-2">
+          {/* The flag rides on the avatar, so the name beside it is given none. */}
+          <Avatar name={lead.contact.name} country={lead.contact.country} size="sm" />
+          <CustomerName
+            country={null}
+            name={lead.contact.name}
+            className="flex-1 text-sm font-medium"
+          />
           {lead.band && (
-            <span
-              className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${BAND_TONE[lead.band]}`}
-            >
+            <span className={`pill shrink-0 ${BAND_PILL[lead.band]}`}>
               {t(`band.${lead.band}`)} {lead.score ?? ""}
             </span>
           )}
         </span>
 
-        <span className="text-muted mt-1 block truncate text-xs">
-          {lead.vehicle?.label ?? t("pipeline.noCar")}
+        <span className="text-muted mt-1 flex text-xs">
+          <Auto className="min-w-0 truncate">{lead.vehicle?.label ?? t("pipeline.noCar")}</Auto>
         </span>
 
         <span className="text-muted mt-1 flex flex-wrap items-center gap-2 text-[11px]">
-          {lead.budget && <span>{formatMoney(lead.budget)}</span>}
+          {lead.budget && <Ltr>{formatMoney(lead.budget)}</Ltr>}
           <span>{lead.owner?.name ?? t("customers.nobody")}</span>
           <span>
-            {days} {t("pipeline.daysInStage")}
+            {counted(locale, days, "days")} {t("pipeline.here")}
           </span>
           {lead.next_action_at && (
             <span>
-              {t("pipeline.nextAction")} {formatRelative(lead.next_action_at, new Date(clock))}
+              {t("pipeline.nextAction")} {formatDue(lead.next_action_at, locale, new Date(clock))}
             </span>
           )}
         </span>
@@ -84,7 +86,7 @@ export function LeadCard({
         aria-label={t("pipeline.moveTo")}
         value={lead.stage.id}
         onChange={(event) => onMove(event.target.value)}
-        className="text-muted mt-2 min-h-11 w-full rounded-md border border-black/10 bg-transparent text-xs dark:border-white/15"
+        className="field text-muted mt-2 w-full px-3 text-xs"
       >
         {stages.map((stage) => (
           <option key={stage.id} value={stage.id}>

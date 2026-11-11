@@ -18,6 +18,7 @@ import structlog
 from ...agents.sales import brief as brief_agent
 from ...core.errors import BudgetExceeded
 from ...core.permissions import permissions_for, scope_for
+from ...core.words import Words
 from ...db.session import tenant_session
 from ...guards import facts as facts_guard
 from ...sales import dashboard
@@ -97,8 +98,9 @@ async def _brief(
                 tenant_id=tenant_id,
                 user_id=user_id,
                 kind="brief_ready",
-                title="Your morning brief",
-                body=headline["en"] if headline else None,
+                title=Words("Your morning brief", "موجزك الصباحي"),
+                # Written in both languages from the start, for the dashboard.
+                body=Words(headline["en"], headline["ar"]) if headline else None,
                 entity={"type": "brief", "id": str(brief_id)},
                 dedupe_key=f"brief:{day}",
             )

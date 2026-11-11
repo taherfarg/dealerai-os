@@ -32,6 +32,27 @@ const mine = (value: unknown): Field => ({
 });
 
 describe("ProfileField", () => {
+  it("says a stored choice as a word, in the reader's language", () => {
+    render(
+      <LocaleProvider locale="ar">
+        <ProfileField name="purchase_type" field={mine("local")} onSave={() => {}} />
+      </LocaleProvider>,
+    );
+    expect(screen.getByRole("button", { name: "محلي" })).toBeDefined();
+  });
+
+  it("offers the choices as words, saves the code, and saves nothing when nothing changed", () => {
+    const onSave = vi.fn();
+    show("payment", mine("cash"), { onSave });
+    fireEvent.click(screen.getByRole("button", { name: "Cash" }));
+    expect(screen.getByRole("option", { name: "Finance" })).toBeDefined();
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "cash" } });
+    expect(onSave).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Cash" }));
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "finance" } });
+    expect(onSave).toHaveBeenCalledWith("finance");
+  });
+
   it("marks a value the AI inferred, and leaves a person's unmarked", () => {
     const { container, unmount } = show("budget", ai({ amount_minor: 15000000, currency: "AED" }));
     expect(screen.getByText("AED 150,000")).toBeDefined();
@@ -90,8 +111,10 @@ describe("ProfileField", () => {
   it("offers the only two answers a choice has", () => {
     show("purchase_type", null);
     fireEvent.click(screen.getByRole("button", { name: /not known yet/i }));
-    const options = screen.getAllByRole("option").map((option) => option.textContent);
-    expect(options).toEqual(["Not known yet", "local", "export"]);
+    const options = screen.getAllByRole("option") as HTMLOptionElement[];
+    expect(options.map((option) => option.textContent)).toEqual(["Not known yet", "Local", "Export"]);
+    // Read as words, stored as the codes they always were.
+    expect(options.map((option) => option.value)).toEqual(["", "local", "export"]);
   });
 
   it("hands a plain number to whoever is typing over a budget", () => {

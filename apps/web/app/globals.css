@@ -7,52 +7,296 @@
  * work and no `[dir=rtl] .foo { ... }` overrides to forget.
  */
 
+/*
+ * Every colour has a name here, with one value for light and one for dark
+ * ([11] § 3.1). No component writes a colour of its own: `npm run
+ * check:colours` refuses it, and app/palette.test.ts holds every pair that
+ * carries text to 4.5 to 1 in both.
+ */
 :root {
+  /* The browser's own parts follow the mode too: a select's list, a date's
+     calendar, a scrollbar. */
+  color-scheme: light dark;
+
+  /* The canvas: what white panels sit on, and what a conversation is drawn on. */
+  --ground: #edf3ef;
   --background: #ffffff;
-  --foreground: #0a0a0a;
-  --muted: #6b7280;
-  --border: #e5e7eb;
-  --surface: #f9fafb;
-  --brand: #0a2540;
-  --accent: #c8a15a;
-  --danger: #b42318;
-  --success: #067647;
+  --surface: #f1f5f2;
+  --border: #e1e8e3;
+  --border-strong: #cfd9d2;
+  --foreground: #14201a;
+  --muted: #53615a;
+  --accent: #0f7a55;
+  --on-accent: #ffffff;
+  --accent-ink: #0b5c40;
+  --accent-soft: #dff3e8;
+  --danger: #a51d12;
+  --danger-soft: #fde7e4;
+  --warning: #7a4a00;
+  --warning-soft: #fff0cf;
+  --info: #0c4a80;
+  --info-soft: #d7ebff;
+  --hot: #8a3b0c;
+  --hot-soft: #ffe2cf;
+
+  /* Seven tints for avatars, one chosen from a person's name ([11] § 3.6). */
+  --tint-0: #ffe2cf;
+  --tint-0-ink: #8a3b0c;
+  --tint-1: #e6defc;
+  --tint-1-ink: #4a2f9e;
+  --tint-2: #d7ebff;
+  --tint-2-ink: #0c4a80;
+  --tint-3: #ffdfe6;
+  --tint-3-ink: #8f1f3c;
+  --tint-4: #d9f2e4;
+  --tint-4-ink: #0b5c40;
+  --tint-5: #fdefc4;
+  --tint-5-ink: #6e4a00;
+  --tint-6: #dcf1f4;
+  --tint-6-ink: #0e5560;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-    --muted: #9ca3af;
-    --border: #262626;
-    --surface: #141414;
-    --brand: #7aa5d2;
-    --accent: #d8b876;
-    --danger: #f97066;
-    --success: #47cd89;
+    --ground: #0c1210;
+    --background: #141c18;
+    --surface: #1c2620;
+    --border: #27332c;
+    --border-strong: #35443b;
+    --foreground: #e8efe9;
+    --muted: #9fb0a6;
+    /* The same green in both: white has to stay readable on it. What changes
+       is accent-ink, the green that is text. */
+    --accent: #0f7a55;
+    --on-accent: #ffffff;
+    --accent-ink: #6fdcb3;
+    --accent-soft: #12382b;
+    --danger: #ff9d94;
+    --danger-soft: #3b1512;
+    --warning: #f5c873;
+    --warning-soft: #3a2a08;
+    --info: #9ccbf5;
+    --info-soft: #0e2a44;
+    --hot: #ffb48a;
+    --hot-soft: #3d1d0a;
+
+    --tint-0: #4a2410;
+    --tint-0-ink: #ffc9a6;
+    --tint-1: #2e2460;
+    --tint-1-ink: #cfc4ff;
+    --tint-2: #10304f;
+    --tint-2-ink: #b5d8ff;
+    --tint-3: #4d1626;
+    --tint-3-ink: #ffc2d0;
+    --tint-4: #12382b;
+    --tint-4-ink: #9fe6c5;
+    --tint-5: #40300a;
+    --tint-5-ink: #f7dc8f;
+    --tint-6: #0f3840;
+    --tint-6-ink: #a9e3ec;
   }
 }
 
 @theme inline {
+  --color-ground: var(--ground);
   --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
   --color-foreground: var(--foreground);
   --color-muted: var(--muted);
-  --color-border: var(--border);
-  --color-surface: var(--surface);
-  --color-brand: var(--brand);
   --color-accent: var(--accent);
+  --color-on-accent: var(--on-accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
   --color-danger: var(--danger);
-  --color-success: var(--success);
+  --color-danger-soft: var(--danger-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-hot: var(--hot);
+  --color-hot-soft: var(--hot-soft);
+  --color-tint-0: var(--tint-0);
+  --color-tint-0-ink: var(--tint-0-ink);
+  --color-tint-1: var(--tint-1);
+  --color-tint-1-ink: var(--tint-1-ink);
+  --color-tint-2: var(--tint-2);
+  --color-tint-2-ink: var(--tint-2-ink);
+  --color-tint-3: var(--tint-3);
+  --color-tint-3-ink: var(--tint-3-ink);
+  --color-tint-4: var(--tint-4);
+  --color-tint-4-ink: var(--tint-4-ink);
+  --color-tint-5: var(--tint-5);
+  --color-tint-5-ink: var(--tint-5-ink);
+  --color-tint-6: var(--tint-6);
+  --color-tint-6-ink: var(--tint-6-ink);
+  /* What went well is said in the accent's own green. */
+  --color-success: var(--accent-ink);
+}
+
+/* Softer corners everywhere at once: what a component writes as rounded-md
+   and rounded-lg ([11] § 3.3). Pills and bubbles come with their screens. */
+@theme {
+  --radius-md: 0.75rem;
+  --radius-lg: 1.125rem;
+}
+
+@layer components {
+  /* A round button that holds one icon and has a name ([11] § 3.4). */
+  .icon-btn {
+    position: relative;
+    display: inline-grid;
+    place-items: center;
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+    border-radius: 9999px;
+  }
+  .icon-btn:hover {
+    background: var(--surface);
+  }
+
+  /* A count, on the corner of what it counts. */
+  .badge {
+    display: inline-grid;
+    place-items: center;
+    min-width: 1.125rem;
+    height: 1.125rem;
+    padding-inline: 0.3125rem;
+    border-radius: 9999px;
+    background: var(--accent);
+    color: var(--on-accent);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    line-height: 1;
+  }
+
+  /* A button: 44 px to press, outlined unless it says otherwise. */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    min-height: 2.75rem;
+    padding-inline: 1rem;
+    border: 1px solid var(--border-strong);
+    border-radius: 9999px;
+    background: var(--background);
+    font-size: 0.875rem;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  .btn:hover {
+    background: var(--surface);
+  }
+  .btn:disabled {
+    opacity: 0.5;
+  }
+  .btn-primary {
+    border-color: transparent;
+    background: var(--accent);
+    color: var(--on-accent);
+  }
+  .btn-primary:hover {
+    background: color-mix(in srgb, var(--accent) 88%, black);
+  }
+  .btn-quiet {
+    border-color: transparent;
+    background: transparent;
+  }
+  /* The button that cannot be taken back. */
+  .btn-danger {
+    border-color: transparent;
+    background: var(--danger);
+    color: var(--background);
+  }
+  .btn-danger:hover {
+    background: color-mix(in srgb, var(--danger) 88%, black);
+  }
+
+  /* Somewhere to type or to choose. */
+  .field {
+    min-height: 2.75rem;
+    padding-inline: 1rem;
+    border: 1px solid var(--border-strong);
+    border-radius: 9999px;
+    background: var(--background);
+    font-size: 0.875rem;
+  }
+  textarea.field {
+    padding-block: 0.625rem;
+    border-radius: 1.375rem;
+  }
+  .field-soft {
+    border-color: transparent;
+    background: var(--surface);
+  }
+
+  /* A state said in a word, on its own soft fill. */
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    min-height: 1.5rem;
+    padding-inline: 0.625rem;
+    border-radius: 9999px;
+    background: var(--surface);
+    font-size: 0.75rem;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  .pill-danger {
+    background: var(--danger-soft);
+    color: var(--danger);
+  }
+  .pill-warning {
+    background: var(--warning-soft);
+    color: var(--warning);
+  }
+  .pill-info {
+    background: var(--info-soft);
+    color: var(--info);
+  }
+  .pill-accent {
+    background: var(--accent-soft);
+    color: var(--accent-ink);
+  }
+  .pill-hot {
+    background: var(--hot-soft);
+    color: var(--hot);
+  }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  /* One family for Latin and Arabic, set on <html> by app/fonts.ts. */
+  font-family: var(--font-readex), system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
-/* Arabic needs a face that actually has the glyphs, and a little more leading. */
+/* Arabic wants a little more leading than Latin does. */
 [dir="rtl"] body {
-  font-family: "Segoe UI", "Noto Sans Arabic", "IBM Plex Sans Arabic", system-ui, sans-serif;
   line-height: 1.75;
+}
+
+/* One focus ring, the accent's, wherever the keyboard is ([07] § 10). */
+:focus-visible {
+  outline: 2px solid var(--accent-ink);
+  outline-offset: 2px;
+}
+
+/* Arabic letters join; spacing them pulls words apart ([07] § 6). */
+[dir="rtl"] [class*="tracking-"] {
+  letter-spacing: normal;
+}
+
+/* Somebody who asked their device for less motion gets none from us. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

@@ -28,9 +28,15 @@ def test_only_session_module_opens_connections() -> None:
         SRC / "db" / "session.py",
         # Both need the elevated migration role, and neither serves a request:
         # the runner owns the schema, and the local seed writes auth.users and a
-        # tenant, refusing before it connects unless ENV=local.
+        # tenant — and somebody new for the local sign-in (routes/dev.py, itself
+        # mounted only when ENV=local) — refusing before it connects unless
+        # ENV=local.
         SRC / "scripts" / "migrate.py",
         SRC / "scripts" / "seed_sales.py",
+        # The same elevated role, to give the application's own role a password
+        # on a hosted database — and then one connection as that role, to prove
+        # it signs in. Run by hand from a laptop; refuses when ENV=local.
+        SRC / "scripts" / "app_password.py",
     }
     offenders = [
         str(p.relative_to(SRC))

@@ -7,6 +7,7 @@ import uuid
 import asyncpg
 
 from conftest import TENANT_A, USER_A, USER_B
+from dealerai.core.words import named
 from dealerai.events.bus import Event
 from dealerai.events.handlers import crm
 
@@ -56,8 +57,8 @@ async def test_the_new_owner_is_told_where_to_find_them(
     await crm.on_contact_reassigned(_event(contact, USER_B, USER_A))
 
     [told] = await _told(su, USER_B)
-    assert told["title"] == "Omar Al Mazrouei is yours now"
-    assert told["body"] == "Handed over by Sara Mansour"
+    assert told["title"] == f"{named('Omar Al Mazrouei')} is yours now"
+    assert told["body"] == f"Handed over by {named('Sara Mansour')}"
     assert told["href"] == f"/customers/{contact}", "the bell has to land on the customer"
     assert told["kind"] == "contact_assigned"
 

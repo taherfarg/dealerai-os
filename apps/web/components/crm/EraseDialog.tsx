@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { Auto } from "@/components/Bidi";
+import { Modal } from "@/components/Modal";
 import { ApiError } from "@/lib/api/client";
 import { useEraseCustomer, useExportCustomer, type CustomerDetail } from "@/lib/api/hooks";
 import { useT } from "@/lib/i18n-client";
@@ -29,14 +31,9 @@ export function EraseDialog({
   const confirmed = typed.trim().toLowerCase() === expected.toLowerCase();
 
   return (
-    <div
-      role="dialog"
-      aria-label={t("erase.title")}
-      className="bg-surface border-border fixed inset-x-4 top-20 z-40 mx-auto max-w-md rounded-lg border p-4 shadow-xl"
-    >
-      <h2 className="text-sm font-medium">{t("erase.title")}</h2>
-      <p className="text-muted mt-1 text-xs" dir="auto">
-        {customer.name}
+    <Modal title={t("erase.title")} onClose={onClose}>
+      <p className="text-muted mt-1 text-xs">
+        <Auto>{customer.name}</Auto>
       </p>
 
       <section className="mt-3 text-xs">
@@ -69,13 +66,13 @@ export function EraseDialog({
         <input
           value={typed}
           onChange={(event) => setTyped(event.target.value)}
-          className="min-h-11 rounded-md border border-black/10 px-2 text-sm dark:border-white/15"
+          className="field px-3"
           dir="auto"
         />
       </label>
 
       {erase.isError && (
-        <p role="alert" className="mt-2 text-xs text-red-600 dark:text-red-400">
+        <p role="alert" className="mt-2 text-xs text-danger">
           {erase.error instanceof ApiError
             ? (erase.error.problem.detail ?? erase.error.problem.title)
             : t("settings.saveFailed")}
@@ -83,18 +80,18 @@ export function EraseDialog({
       )}
 
       <div className="mt-4 flex justify-end gap-2">
-        <button type="button" onClick={onClose} className="min-h-11 px-3 text-sm">
+        <button type="button" onClick={onClose} className="btn btn-quiet">
           {t("common.cancel")}
         </button>
         <button
           type="button"
           disabled={!confirmed || erase.isPending}
           onClick={() => erase.mutate(undefined, { onSuccess: onErased })}
-          className="min-h-11 rounded-md bg-red-600 px-4 text-sm font-medium text-white disabled:opacity-50"
+          className="btn btn-danger"
         >
           {t("erase.confirm")}
         </button>
       </div>
-    </div>
+    </Modal>
   );
 }

@@ -48,7 +48,7 @@ async def current_user(request: Request) -> AuthedUser:
     scheme, _, token = header.partition(" ")
     if scheme.lower() != "bearer" or not token:
         raise Unauthenticated("expected an Authorization: Bearer header")
-    return decode_supabase_jwt(token)
+    return await decode_supabase_jwt(token)
 
 
 CurrentUser = Annotated[AuthedUser, Depends(current_user)]
@@ -87,7 +87,10 @@ def require_role(minimum: str) -> Callable[[TenantContext], Awaitable[TenantCont
 
     async def guard(ctx: Ctx) -> TenantContext:
         if not ctx.at_least(minimum):
-            raise Forbidden(f"this action requires the {minimum} role or higher")
+            raise Forbidden(
+                f"this action requires the {minimum} role or higher",
+                ar=f"هذا الإجراء يحتاج دور {minimum} أو أعلى.",
+            )
         return ctx
 
     return guard
@@ -103,7 +106,10 @@ def require_permission(permission: str) -> Callable[[TenantContext], Awaitable[T
 
     async def guard(ctx: Ctx) -> TenantContext:
         if not ctx.may(permission):
-            raise Forbidden(f"this action requires the {permission} permission")
+            raise Forbidden(
+                f"this action requires the {permission} permission",
+                ar=f"هذا الإجراء يحتاج صلاحية {permission}.",
+            )
         return ctx
 
     return guard

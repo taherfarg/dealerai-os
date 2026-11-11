@@ -9,6 +9,7 @@ from zoneinfo import ZoneInfo
 import asyncpg
 import pytest
 
+from dealerai.config import get_settings
 from dealerai.db.session import tenant_session
 from dealerai.sales import dashboard
 from dealerai.sales.scoring import from_stored, score
@@ -74,6 +75,29 @@ async def test_the_seed_has_copilot_examples_and_embedded_policies(db: None) -> 
             )
             == 1
         )
+
+
+async def test_the_seed_runs_with_no_model_key(db: None, monkeypatch: pytest.MonkeyPatch) -> None:
+    """CI's end-to-end job has Postgres and nothing else. The workspace must
+    seed there, policies and all, without buying a vector."""
+    from dealerai.ai import embeddings, gateway
+
+    # The real embedder, and nothing it could reach a model with.
+    monkeypatch.setattr(seed_sales, "embed", embeddings.embed)
+    monkeypatch.setattr(get_settings(), "google_api_key", "")
+    monkeypatch.setattr(gateway, "_client", None)
+    monkeypatch.setattr(gateway, "_loop_clients", {})
+
+    assert await seed() == 0
+    async with tenant_session(TENANT) as conn:
+        policies = await conn.fetch(
+            """select d.status, count(c.id) as chunks, count(c.embedding) as embedded
+                 from documents d left join doc_chunks c on c.document_id = d.id
+                group by d.id"""
+        )
+    assert len(policies) == 3
+    assert all(row["status"] == "ready" and row["chunks"] > 0 for row in policies)
+    assert all(row["embedded"] == 0 for row in policies), "a made-up vector would answer questions"
 
 
 async def test_the_seed_can_run_twice(db: None) -> None:

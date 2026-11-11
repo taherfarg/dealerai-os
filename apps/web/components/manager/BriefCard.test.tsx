@@ -38,6 +38,25 @@ function show(locale: Locale, over: Partial<ManagerDashboard["brief"]> = {}) {
 }
 
 describe("BriefCard", () => {
+  it("keeps what is wrong apart from who it is about, so neither is cut from its start", () => {
+    render(
+      <LocaleProvider locale="ar">
+        <BriefCard
+          tenant="pollux"
+          brief={{
+            headline: null,
+            items: [
+              { kind: "waiting", id: "c1", name: "Omar Al Mazrouei", owner: null, count: null },
+            ],
+          } as never}
+        />
+      </LocaleProvider>,
+    );
+    const name = screen.getByText("Omar Al Mazrouei");
+    expect(name.getAttribute("dir")).toBe("auto");
+    expect(name.textContent).toBe("Omar Al Mazrouei");
+  });
+
   it("shows the headline in the reader's language", () => {
     show("ar");
     expect(screen.getByText("عميلان تجاوزا الهدف.")).toBeDefined();

@@ -7,8 +7,10 @@ import {
   type Customer,
   type CustomerDetail,
 } from "@/lib/api/hooks";
-import { countryFlag, formatRelative } from "@/lib/format";
-import { useT } from "@/lib/i18n-client";
+import { Auto, CustomerName, Ltr } from "@/components/Bidi";
+import { Modal } from "@/components/Modal";
+import { formatRelative } from "@/lib/format";
+import { useLocale, useT } from "@/lib/i18n-client";
 
 /**
  * Two records, one customer.
@@ -27,6 +29,7 @@ export function MergeDialog({
   onMerged?: () => void;
 }) {
   const t = useT();
+  const locale = useLocale();
   const [search, setSearch] = useState("");
   const [chosen, setChosen] = useState<Customer | null>(null);
   const found = useCustomers({ q: search });
@@ -38,12 +41,7 @@ export function MergeDialog({
     .slice(0, 8);
 
   return (
-    <div
-      role="dialog"
-      aria-label={t("customer.merge")}
-      className="bg-surface border-border fixed inset-x-4 top-20 z-40 mx-auto max-w-lg rounded-lg border p-4 shadow-xl"
-    >
-      <h2 className="text-sm font-medium">{t("merge.title")}</h2>
+    <Modal title={t("merge.title")} onClose={onClose}>
 
       <label className="mt-3 block">
         <span className="text-muted text-xs">{t("merge.search")}</span>
@@ -51,7 +49,7 @@ export function MergeDialog({
           type="search"
           value={search}
           onChange={(event) => setSearch(event.target.value)}
-          className="mt-1 min-h-11 w-full rounded-md border border-black/10 px-3 text-sm dark:border-white/15"
+          className="field mt-1 w-full"
         />
       </label>
 
@@ -62,13 +60,11 @@ export function MergeDialog({
               type="button"
               onClick={() => setChosen(row)}
               className={`flex min-h-11 w-full items-center justify-between gap-2 rounded-md px-2 text-start text-sm ${
-                chosen?.id === row.id ? "bg-accent/20" : "hover:bg-background"
+                chosen?.id === row.id ? "bg-accent/20" : "hover:bg-surface"
               }`}
             >
-              <span>
-                {countryFlag(row.country)} {row.name}
-              </span>
-              <span className="text-muted text-xs">{row.phone}</span>
+              <CustomerName country={row.country} name={row.name} />
+              <Ltr className="text-muted shrink-0 text-xs">{row.phone}</Ltr>
             </button>
           </li>
         ))}
@@ -84,23 +80,27 @@ export function MergeDialog({
           ).map(([label, name, phone, owner]) => (
             <section key={label} className="border-border rounded-md border p-2">
               <h3 className="text-muted font-semibold uppercase">{label}</h3>
-              <p className="mt-1 text-sm">{name}</p>
-              <p className="text-muted">{phone}</p>
+              <p className="mt-1 text-sm">
+                <Auto>{name}</Auto>
+              </p>
+              <p className="text-muted">
+                <Ltr>{phone}</Ltr>
+              </p>
               <p className="text-muted">{owner ?? t("customers.nobody")}</p>
             </section>
           ))}
           <p className="text-muted col-span-2">
-            {t("customers.lastSeen")}: {formatRelative(chosen.last_seen_at)}
+            {t("customers.lastSeen")}: {formatRelative(chosen.last_seen_at, locale)}
           </p>
         </div>
       )}
 
-      <p className="mt-3 rounded-md bg-amber-500/10 px-2 py-1 text-xs text-amber-800 dark:text-amber-200">
+      <p className="mt-3 rounded-md bg-warning-soft px-2 py-1 text-xs text-warning">
         {t("merge.warning")}
       </p>
 
       <div className="mt-4 flex justify-end gap-2">
-        <button type="button" onClick={onClose} className="min-h-11 px-3 text-sm">
+        <button type="button" onClick={onClose} className="btn btn-quiet">
           {t("common.cancel")}
         </button>
         <button
@@ -118,11 +118,11 @@ export function MergeDialog({
               },
             )
           }
-          className="bg-accent min-h-11 rounded-md px-4 text-sm font-medium text-black disabled:opacity-50"
+          className="btn btn-primary"
         >
           {t("merge.confirm")}
         </button>
       </div>
-    </div>
+    </Modal>
   );
 }
