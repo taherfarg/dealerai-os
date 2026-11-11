@@ -27,6 +27,8 @@ RETENTION_AT = time(3, 0)
 #: An hour before the brief, so proposals made overnight are waiting when the
 #: owner opens the app — docs/lifecycle/README.md § L2.
 PRICING_AT = time(7, 0)
+#: The same morning: cars past their ETA — docs/lifecycle/README.md § L4.
+INBOUND_AT = time(7, 0)
 
 
 def zone(name: str | None) -> ZoneInfo:
@@ -72,6 +74,16 @@ async def schedule(conn: Any, tenant_id: UUID, tz: ZoneInfo, now: datetime) -> N
         tenant_id=tenant_id,
         dedupe_key=f"pricing:{pricing_day}",
         run_after=pricing,
+    )
+    arrivals = next_at(INBOUND_AT, tz, now)
+    arrivals_day = arrivals.astimezone(tz).date().isoformat()
+    await emit(
+        conn,
+        "inbound.sweep_due",
+        {"date": arrivals_day},
+        tenant_id=tenant_id,
+        dedupe_key=f"inbound:{arrivals_day}",
+        run_after=arrivals,
     )
     sweep = next_at(RETENTION_AT, tz, now)
     sweep_day = sweep.astimezone(tz).date().isoformat()

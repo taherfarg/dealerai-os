@@ -28,6 +28,8 @@ _HREFS: dict[str, str] = {
     "task": "/tasks",
     "brief": "/dashboard",
     "vehicle": "/inventory/{id}",
+    # The stock list as a whole: the id is a day, and the link does not need it.
+    "inventory": "/inventory",
     # The queue as a whole: the id is a day, and the link does not need it.
     "approval_queue": "/approvals",
 }
