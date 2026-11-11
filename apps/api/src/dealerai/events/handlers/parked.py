@@ -29,7 +29,6 @@ PARKED: dict[str, str] = {
     "vehicle.sold": "S7 follow-ups — stop offering a car that is gone",
     "vehicle.ready": "M4 publishing — a car with a full record can be marketed",
     "vehicle.photos_assessed": "M4 publishing — creative picks from ranked photos",
-    "approval.requested": "M4 approvals — the reviewer's queue",
     "agent_run.finished": "M4 run history — what the agents did, for the dashboard",
 }
 

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { use } from "react";
 import { Auto, Ltr } from "@/components/Bidi";
 import { BuySide } from "@/components/inventory/BuySide";
+import { Recon } from "@/components/inventory/Recon";
 import { ApiError } from "@/lib/api/client";
 import { useMe, useVehicle } from "@/lib/api/hooks";
 import { useFilters } from "@/lib/filters";
@@ -22,8 +23,9 @@ export default function VehiclePage({
   const me = useMe();
   const vehicle = useVehicle(vehicleId);
   const [tab, setTab] = useFilters({ tab: "overview" });
-  const seesCost = (me.data?.permissions ?? []).includes("costs.view");
-  const tabs = seesCost ? (["overview", "costs"] as const) : (["overview"] as const);
+  const permissions = me.data?.permissions ?? [];
+  const seesCost = permissions.includes("costs.view");
+  const tabs = seesCost ? (["overview", "costs", "recon"] as const) : (["overview"] as const);
 
   if (vehicle.isError) {
     const problem = vehicle.error instanceof ApiError ? vehicle.error.problem : null;
@@ -96,9 +98,12 @@ export default function VehiclePage({
 
       <div className="mt-4">
         {tab.tab === "costs" && seesCost ? (
-          <BuySide
+          <BuySide vehicleId={vehicleId} canEdit={permissions.includes("costs.edit")} />
+        ) : tab.tab === "recon" && seesCost ? (
+          <Recon
             vehicleId={vehicleId}
-            canEdit={(me.data?.permissions ?? []).includes("costs.edit")}
+            canRun={permissions.includes("recon.edit")}
+            canSetBudget={permissions.includes("costs.edit")}
           />
         ) : (
           <>

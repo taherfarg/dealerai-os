@@ -71,6 +71,10 @@ class Money:
     def __str__(self) -> str:
         return self.format()
 
+    def display(self) -> str:
+        """As the screens write it: "AED 235,000", no ".00" on a whole amount."""
+        return self.format() if self.major % 1 else f"{self.currency} {self.major:,.0f}"
+
     def convert(self, rate: Decimal | str, to_currency: str) -> Money:
         """This amount in another currency, at a rate somebody supplied.
 
