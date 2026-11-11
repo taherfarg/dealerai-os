@@ -11,7 +11,7 @@ import { useEffect } from "react";
 import { unwrap } from "./client";
 import { useTenantApi } from "./context";
 import { keys } from "./keys";
-import type { components } from "./schema";
+import type { components, paths } from "./schema";
 
 export type Conversation = components["schemas"]["ConversationSummary"];
 export type ConversationPage = components["schemas"]["ConversationPage"];
@@ -1832,5 +1832,190 @@ export function useFinishOrder(vehicleId: string) {
         : unwrap(await api.POST("/v1/orders/{order_id}/complete", { params }));
     },
   );
+}
+
+// --------------------------------------------------------------------------
+// The export file — docs/lifecycle/README.md § L7
+// --------------------------------------------------------------------------
+
+export type ExportFile = components["schemas"]["ExportOut"];
+export type ExportStep = ExportFile["steps"][number];
+export type Consignee = components["schemas"]["Consignee"];
+export type Invoice = components["schemas"]["InvoiceOut"];
+export type DraftCheck = components["schemas"]["DraftCheckOut"];
+export type DocumentSettings = components["schemas"]["DocumentSettings"];
+export type StepCode =
+  paths["/v1/orders/{order_id}/export/steps/{code}"]["post"]["parameters"]["path"]["code"];
+
+export function useExportFile(orderId: string, enabled: boolean) {
+  const { api, tenantId, header } = useTenantApi();
+  return useQuery({
+    queryKey: keys.exportFile(tenantId, orderId),
+    enabled,
+    queryFn: async () =>
+      unwrap(
+        await api.GET("/v1/orders/{order_id}/export", {
+          params: { header, path: { order_id: orderId } },
+        }),
+      ),
+  });
+}
+
+/** Every write to the file answers with the whole file: it goes straight on screen. */
+function useFileWrite<In>(orderId: string, run: (input: In) => Promise<ExportFile>) {
+  const { tenantId } = useTenantApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: run,
+    onSuccess: (file) => {
+      queryClient.setQueryData(keys.exportFile(tenantId, orderId), file);
+      // What the invoice says about the consignee is drawn from the same row.
+      queryClient.invalidateQueries({ queryKey: keys.invoice(tenantId, orderId) });
+    },
+  });
+}
+
+export function useStartExport(orderId: string) {
+  const { api, header } = useTenantApi();
+  return useFileWrite(orderId, async () =>
+    unwrap(
+      await api.POST("/v1/orders/{order_id}/export/start", {
+        params: { header, path: { order_id: orderId } },
+      }),
+    ),
+  );
+}
+
+export function useSetConsignee(orderId: string) {
+  const { api, header } = useTenantApi();
+  return useFileWrite(orderId, async (body: Consignee) =>
+    unwrap(
+      await api.PATCH("/v1/orders/{order_id}/export", {
+        params: { header, path: { order_id: orderId } },
+        body,
+      }),
+    ),
+  );
+}
+
+export function useMoveStep(orderId: string) {
+  const { api, header } = useTenantApi();
+  return useFileWrite(
+    orderId,
+    async ({ code, ...body }: components["schemas"]["StepIn"] & { code: StepCode }) =>
+      unwrap(
+        await api.POST("/v1/orders/{order_id}/export/steps/{code}", {
+          params: { header, path: { order_id: orderId, code } },
+          body,
+        }),
+      ),
+  );
+}
+
+export function useUploadStep(orderId: string) {
+  const { api, header } = useTenantApi();
+  return useFileWrite(orderId, async ({ code, file }: { code: StepCode; file: File }) => {
+    const form = new FormData();
+    form.append("file", file);
+    return unwrap(
+      await api.POST("/v1/orders/{order_id}/export/steps/{code}/document", {
+        params: { header, path: { order_id: orderId, code } },
+        // The typed body describes the fields; the serializer sends the form.
+        body: { file: "" },
+        bodySerializer: () => form,
+      }),
+    );
+  });
+}
+
+/** A step's paper, saved by the browser. A fetch rather than a link: the
+ *  request needs an Authorization header an <a href> cannot send. */
+export function useDownloadStep(orderId: string) {
+  const { api, header } = useTenantApi();
+  return useMutation({
+    mutationFn: async (code: StepCode) => {
+      const response = await api.GET("/v1/orders/{order_id}/export/steps/{code}/document", {
+        params: { header, path: { order_id: orderId, code } },
+        parseAs: "blob",
+      });
+      const blob = unwrap(response) as unknown as Blob;
+      const disposition = response.response.headers.get("content-disposition") ?? "";
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = /filename="([^"]+)"/.exec(disposition)?.[1] ?? code;
+      link.click();
+      URL.revokeObjectURL(url);
+    },
+  });
+}
+
+/** Reads a bill of lading draft against the order. Confirms nothing. */
+export function useCheckDraft(orderId: string) {
+  const { api, tenantId, header } = useTenantApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (file: File) => {
+      const form = new FormData();
+      form.append("file", file);
+      return unwrap(
+        await api.POST("/v1/orders/{order_id}/export/bl-check", {
+          params: { header, path: { order_id: orderId } },
+          body: { file: "" },
+          bodySerializer: () => form,
+        }),
+      );
+    },
+    // The draft is now kept on its step.
+    onSettled: () => queryClient.invalidateQueries({ queryKey: keys.exportFile(tenantId, orderId) }),
+  });
+}
+
+export function useInvoice(orderId: string) {
+  const { api, tenantId, header } = useTenantApi();
+  return useQuery({
+    queryKey: keys.invoice(tenantId, orderId),
+    queryFn: async () =>
+      unwrap(
+        await api.GET("/v1/orders/{order_id}/invoice", {
+          params: { header, path: { order_id: orderId } },
+        }),
+      ),
+  });
+}
+
+export function useSignInvoice(orderId: string) {
+  const { api, tenantId, header } = useTenantApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () =>
+      unwrap(
+        await api.POST("/v1/orders/{order_id}/invoice/sign", {
+          params: { header, path: { order_id: orderId } },
+        }),
+      ),
+    onSuccess: (invoice) => {
+      queryClient.setQueryData(keys.invoice(tenantId, orderId), invoice);
+      queryClient.invalidateQueries({ queryKey: keys.exportFile(tenantId, orderId) });
+    },
+  });
+}
+
+export function useDocumentSettings() {
+  const { api, tenantId, header } = useTenantApi();
+  return useQuery({
+    queryKey: keys.documentSettings(tenantId),
+    queryFn: async () => unwrap(await api.GET("/v1/settings/documents", { params: { header } })),
+  });
+}
+
+export function useSaveDocumentSettings() {
+  const { api, tenantId, header } = useTenantApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: DocumentSettings) =>
+      unwrap(await api.PUT("/v1/settings/documents", { params: { header }, body })),
+    onSuccess: (saved) => queryClient.setQueryData(keys.documentSettings(tenantId), saved),
+  });
 }
 

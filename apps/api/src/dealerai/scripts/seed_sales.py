@@ -513,12 +513,22 @@ async def _seed(conn: asyncpg.Connection) -> list[tuple[int, str]]:
     )
 
     await conn.execute(
-        """insert into tenants (id, slug, name, timezone, currency, locales, sales_settings)
-           values ($1, $2, 'Pollux Motors', $3, 'AED', '{en,ar,fr}', $4::jsonb)""",
+        """insert into tenants (id, slug, name, timezone, currency, locales, sales_settings,
+                                document_settings)
+           values ($1, $2, 'Pollux Motors', $3, 'AED', '{en,ar,fr}', $4::jsonb, $5::jsonb)""",
         TENANT,
         TENANT_SLUG,
         TIMEZONE,
         json.dumps({"first_response_target_min": TARGET_MIN, "unassigned_visible_to_sales": True}),
+        # What polluxmotors.com publishes about the seller (docs/lifecycle/pollux.md).
+        # The tax registration number is not public, so it is left for Pollux.
+        json.dumps(
+            {
+                "legal_name": "Pollux Motors",
+                "address": "Office WS 12, DAZ Business Center 2, DUCAMZ, Ras Al Khor, Dubai, UAE",
+                "phone": "+971 50 266 7900",
+            }
+        ),
     )
 
     # Pollux's own boards rather than the default one every new workspace gets:

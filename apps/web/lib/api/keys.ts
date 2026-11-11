@@ -62,4 +62,7 @@ export const keys = {
   /** A car's orders. Under the buy side's prefix: each carries its margin. */
   orders: (tenantId: string, vehicleId: string) =>
     ["buy-side", tenantId, "orders", vehicleId] as const,
+  exportFile: (tenantId: string, orderId: string) => ["export-file", tenantId, orderId] as const,
+  invoice: (tenantId: string, orderId: string) => ["invoice", tenantId, orderId] as const,
+  documentSettings: (tenantId: string) => ["document-settings", tenantId] as const,
 };

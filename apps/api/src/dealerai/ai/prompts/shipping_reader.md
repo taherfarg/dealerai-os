@@ -15,6 +15,8 @@ return before anything is recorded, and code decides which car the paper is for.
 - `reference` and `reference_quote` — the bill of lading, booking or declaration
   number, and the whole printed line it is on.
 - `carrier` — the shipping line or freight forwarder that issued it.
+- `shipper` and `consignee` — who sends the cargo and who receives it, as
+  printed (a name; leave out addresses).
 - `vessel`, `container` — as printed.
 - `port_of_loading`, `port_of_discharge` — as printed.
 - `departed_on` — the shipped-on-board or sailing date, as `YYYY-MM-DD`, only if

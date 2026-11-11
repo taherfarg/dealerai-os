@@ -84,3 +84,30 @@ async def test_a_car_not_on_the_paper_does_not_match(db: None, seeded: None) -> 
         today=TODAY,
     )
     assert not proposal.matches
+
+
+DRAFT = [
+    "GRIMALDI DEUTSCHLAND         BILL OF LADING  -  DRAFT FOR CONFIRMATION",
+    "B/L No. GRIM26DZ0042",
+    "Shipper: POLLUX MOTORS, DUCAMZ, DUBAI",
+    "Consignee: SARL ATLAS AUTO, 12 RUE DIDOUCHE MOURAD, ALGIERS",
+    "Port of loading: JEBEL ALI          Port of discharge: ALGIERS, ALGERIA",
+    "1 x NEW 2026 BYD SEAL 06   VIN LGXCE4CB0T0001234",
+]
+
+
+async def test_a_draft_names_its_shipper_and_consignee(db: None, seeded: None) -> None:
+    """What L7 checks a draft against the order with: who receives the car."""
+    proposal = await read(
+        tenant_id=TENANT_A,
+        data=_document(DRAFT),
+        mime_type="image/png",
+        car_vin="LGXCE4CB0T0001234",
+        today=TODAY,
+    )
+    assert proposal.matches
+    assert proposal.consignee is not None and "ATLAS AUTO" in proposal.consignee.upper()
+    assert proposal.shipper is not None and "POLLUX" in proposal.shipper.upper()
+    assert (
+        proposal.port_of_discharge is not None and "ALGIERS" in proposal.port_of_discharge.upper()
+    )

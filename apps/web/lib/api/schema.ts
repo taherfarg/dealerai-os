@@ -905,6 +905,146 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/orders/{order_id}/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Export */
+        get: operations["get_export_v1_orders__order_id__export_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Set Consignee
+         * @description Who receives the car, where, and how it travels.
+         */
+        patch: operations["set_consignee_v1_orders__order_id__export_patch"];
+        trace?: never;
+    };
+    "/v1/orders/{order_id}/export/bl-check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Check Bl Draft
+         * @description Read the shipping line's bill of lading draft and compare it with the
+         *     order, before the buyer is asked to confirm it. Keeps the draft on its step;
+         *     confirming is still a person's.
+         */
+        post: operations["check_bl_draft_v1_orders__order_id__export_bl_check_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orders/{order_id}/export/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start Export
+         * @description Lay out the procedure for an order reserved before this existed. A
+         *     deposit lays it out by itself.
+         */
+        post: operations["start_export_v1_orders__order_id__export_start_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orders/{order_id}/export/steps/{code}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Move Step */
+        post: operations["move_step_v1_orders__order_id__export_steps__code__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orders/{order_id}/export/steps/{code}/document": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download Step Document
+         * @description The paper a step produced, for the file the buyer is sent. The path is
+         *     the one recorded on the step — never one the browser names.
+         */
+        get: operations["download_step_document_v1_orders__order_id__export_steps__code__document_get"];
+        put?: never;
+        /** Upload Step Document */
+        post: operations["upload_step_document_v1_orders__order_id__export_steps__code__document_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orders/{order_id}/invoice": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Invoice
+         * @description The signed invoice as signed, or the draft the record makes today.
+         */
+        get: operations["get_invoice_v1_orders__order_id__invoice_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orders/{order_id}/invoice/sign": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Sign Invoice */
+        post: operations["sign_invoice_v1_orders__order_id__invoice_sign_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/orders/{order_id}/payments": {
         parameters: {
             query?: never;
@@ -1155,6 +1295,28 @@ export interface paths {
          */
         get: operations["acceptance_v1_settings_ai_acceptance_get"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/settings/documents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Document Settings */
+        get: operations["get_document_settings_v1_settings_documents_get"];
+        /**
+         * Put Document Settings
+         * @description What every document from now on says about the seller. A signed invoice
+         *     keeps what it said.
+         */
+        put: operations["put_document_settings_v1_settings_documents_put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -2295,6 +2457,11 @@ export interface components {
             /** Fr */
             fr?: string | null;
         };
+        /** Body_check_bl_draft_v1_orders__order_id__export_bl_check_post */
+        Body_check_bl_draft_v1_orders__order_id__export_bl_check_post: {
+            /** File */
+            file: string;
+        };
         /** Body_extract_costs_v1_vehicles__vehicle_id__costs_extract_post */
         Body_extract_costs_v1_vehicles__vehicle_id__costs_extract_post: {
             /** File */
@@ -2348,6 +2515,11 @@ export interface components {
         };
         /** Body_upload_paper_v1_vehicles__vehicle_id__inbound_documents__code__file_post */
         Body_upload_paper_v1_vehicles__vehicle_id__inbound_documents__code__file_post: {
+            /** File */
+            file: string;
+        };
+        /** Body_upload_step_document_v1_orders__order_id__export_steps__code__document_post */
+        Body_upload_step_document_v1_orders__order_id__export_steps__code__document_post: {
             /** File */
             file: string;
         };
@@ -2444,6 +2616,17 @@ export interface components {
             /** Kind */
             kind: string;
         };
+        /** CheckOut */
+        CheckOut: {
+            /** Expected */
+            expected: string | null;
+            /** Found */
+            found: string | null;
+            /** Name */
+            name: string;
+            /** Ok */
+            ok: boolean | null;
+        };
         /** CommitOut */
         CommitOut: {
             /** Approval Id */
@@ -2459,6 +2642,19 @@ export interface components {
             journey?: components["schemas"]["Journey"];
             milestone?: components["schemas"]["Step"] | null;
             paper?: components["schemas"]["Paper"] | null;
+        };
+        /** Consignee */
+        Consignee: {
+            /** Consignee Address */
+            consignee_address?: string | null;
+            /** Consignee Name */
+            consignee_name?: string | null;
+            /** Consignee Phone */
+            consignee_phone?: string | null;
+            /** Port Of Discharge */
+            port_of_discharge?: string | null;
+            /** Shipping Method */
+            shipping_method?: ("container" | "shared_container" | "roro" | "air") | null;
         };
         /** ContactSummary */
         ContactSummary: {
@@ -2761,12 +2957,42 @@ export interface components {
             /** Title */
             title: string | null;
         };
+        /**
+         * DocumentSettings
+         * @description Who the documents say sold the car.
+         */
+        DocumentSettings: {
+            /** Address */
+            address?: string | null;
+            /** Email */
+            email?: string | null;
+            /**
+             * Invoice Prefix
+             * @default INV
+             */
+            invoice_prefix: string;
+            /** Legal Name */
+            legal_name?: string | null;
+            /** Phone */
+            phone?: string | null;
+            /** Trn */
+            trn?: string | null;
+        };
         /** DoneIn */
         DoneIn: {
             /** Actual Minor */
             actual_minor: number;
             /** Vendor */
             vendor?: string | null;
+        };
+        /** DraftCheckOut */
+        DraftCheckOut: {
+            /** Checks */
+            checks: components["schemas"]["CheckOut"][];
+            /** Clean */
+            clean: boolean;
+            /** Warnings */
+            warnings: string[];
         };
         /** Economics */
         Economics: {
@@ -2794,6 +3020,30 @@ export interface components {
              * Format: uuid
              */
             vehicle_id: string;
+        };
+        /** ExportOut */
+        ExportOut: {
+            /** Consignee Address */
+            consignee_address: string | null;
+            /** Consignee Name */
+            consignee_name: string | null;
+            /** Consignee Phone */
+            consignee_phone: string | null;
+            /**
+             * Order Id
+             * Format: uuid
+             */
+            order_id: string;
+            /** Port Of Discharge */
+            port_of_discharge: string | null;
+            /** Procedure */
+            procedure: string;
+            /** Shipping Method */
+            shipping_method: string | null;
+            /** Stage */
+            stage: string | null;
+            /** Steps */
+            steps: components["schemas"]["StepOut"][];
         };
         /** ExtractionOut */
         ExtractionOut: {
@@ -3001,6 +3251,21 @@ export interface components {
             role: "viewer" | "sales" | "marketer" | "manager" | "admin" | "owner";
             /** Token */
             token: string;
+        };
+        /** InvoiceOut */
+        InvoiceOut: {
+            /** Document */
+            document: {
+                [key: string]: unknown;
+            };
+            /** Problems */
+            problems: string[];
+            /** Signed */
+            signed: boolean;
+            /** Signed At */
+            signed_at: string | null;
+            /** Signed By */
+            signed_by: string | null;
         };
         /** ItemBatch */
         ItemBatch: {
@@ -4531,6 +4796,33 @@ export interface components {
             code: "purchased" | "paid" | "picked_up" | "at_origin_port" | "departed" | "arrived_port" | "customs_cleared" | "delivered" | "collected" | "registered";
             /** Done On */
             done_on?: string | null;
+        };
+        /** StepIn */
+        StepIn: {
+            /** Done On */
+            done_on?: string | null;
+            /** Note */
+            note?: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "done" | "skipped";
+        };
+        /** StepOut */
+        StepOut: {
+            /** Code */
+            code: string;
+            /** Done On */
+            done_on: string | null;
+            /** Has Document */
+            has_document: boolean;
+            /** Note */
+            note: string | null;
+            /** Status */
+            status: string;
+            /** Takes Document */
+            takes_document: boolean;
         };
         /** StockRow */
         StockRow: {
@@ -6971,6 +7263,322 @@ export interface operations {
             };
         };
     };
+    get_export_v1_orders__order_id__export_get: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExportOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_consignee_v1_orders__order_id__export_patch: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Consignee"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExportOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    check_bl_draft_v1_orders__order_id__export_bl_check_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_check_bl_draft_v1_orders__order_id__export_bl_check_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DraftCheckOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_export_v1_orders__order_id__export_start_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExportOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    move_step_v1_orders__order_id__export_steps__code__post: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                order_id: string;
+                code: "customer_documents" | "assign_vehicle" | "customs_card" | "book_shipping" | "export_inspection" | "export_plates" | "deliver_to_carrier" | "export_certificate" | "bl_draft_confirmed" | "bl_original" | "chamber_certificate" | "commercial_invoice" | "file_delivered" | "rta_registration" | "delivered";
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StepIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExportOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    download_step_document_v1_orders__order_id__export_steps__code__document_get: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                order_id: string;
+                code: "customer_documents" | "assign_vehicle" | "customs_card" | "book_shipping" | "export_inspection" | "export_plates" | "deliver_to_carrier" | "export_certificate" | "bl_draft_confirmed" | "bl_original" | "chamber_certificate" | "commercial_invoice" | "file_delivered" | "rta_registration" | "delivered";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_step_document_v1_orders__order_id__export_steps__code__document_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                order_id: string;
+                code: "customer_documents" | "assign_vehicle" | "customs_card" | "book_shipping" | "export_inspection" | "export_plates" | "deliver_to_carrier" | "export_certificate" | "bl_draft_confirmed" | "bl_original" | "chamber_certificate" | "commercial_invoice" | "file_delivered" | "rta_registration" | "delivered";
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_step_document_v1_orders__order_id__export_steps__code__document_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExportOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_invoice_v1_orders__order_id__invoice_get: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvoiceOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sign_invoice_v1_orders__order_id__invoice_sign_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvoiceOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     record_payment_v1_orders__order_id__payments_post: {
         parameters: {
             query?: never;
@@ -7528,6 +8136,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Acceptance"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_document_settings_v1_settings_documents_get: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentSettings"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_document_settings_v1_settings_documents_put: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DocumentSettings"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentSettings"];
                 };
             };
             /** @description Validation Error */

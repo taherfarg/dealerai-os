@@ -52,7 +52,7 @@ export function Shell({
     // screen that has to fit the window exactly (the inbox). An open
     // conversation has the whole of a phone's screen: the row and the bar step
     // aside for it, and the way out is its own back arrow.
-    <div className="group/shell grid min-h-screen grid-rows-[auto_1fr] [--shell-top:3.3125rem] has-[[data-thread]]:[--shell-top:0px] md:grid-cols-[5.5rem_1fr] md:grid-rows-1 md:[--shell-top:0px]">
+    <div className="group/shell print:block grid min-h-screen grid-rows-[auto_1fr] [--shell-top:3.3125rem] has-[[data-thread]]:[--shell-top:0px] md:grid-cols-[5.5rem_1fr] md:grid-rows-1 md:[--shell-top:0px]">
       {/* The first stop for a keyboard: on a desk the navigation is some
           fifteen Tabs long, and every page begins after it. Seen only while
           it has focus. */}
@@ -64,7 +64,7 @@ export function Shell({
       </a>
       {/* One element, two shapes ([11] § 4): a row across the top of a phone, a
           rail down the side of a desk. So there is one bell and one account. */}
-      <aside className="border-border bg-background flex items-center gap-2 border-b px-3 py-1 max-md:group-has-[[data-thread]]/shell:hidden md:sticky md:top-0 md:h-dvh md:flex-col md:gap-3 md:overflow-y-auto md:border-b-0 md:border-e md:px-2 md:py-3">
+      <aside className="print:hidden border-border bg-background flex items-center gap-2 border-b px-3 py-1 max-md:group-has-[[data-thread]]/shell:hidden md:sticky md:top-0 md:h-dvh md:flex-col md:gap-3 md:overflow-y-auto md:border-b-0 md:border-e md:px-2 md:py-3">
         <span
           role="img"
           aria-label="DealerAI"
@@ -112,7 +112,7 @@ export function Shell({
       {/* On a desk the page is a white sheet on the canvas ([11] § 5.2); on a
           phone the sheet is the whole screen. The inbox draws its own panels
           edge to edge, and the sheet steps aside for it. */}
-      <main id="page" className="bg-ground min-w-0 md:p-4">
+      <main id="page" className="bg-ground min-w-0 md:p-4 print:bg-transparent print:p-0">
         <div className="bg-background min-h-full p-4 pb-28 has-[>[data-inbox]]:contents md:rounded-[1.125rem] md:p-6">
           {children}
         </div>
@@ -120,7 +120,7 @@ export function Shell({
 
       <nav
         aria-label={t(locale, "nav.main")}
-        className="border-border bg-background fixed inset-x-3 bottom-3 z-10 grid grid-cols-5 gap-1 rounded-3xl border p-1.5 shadow-lg group-has-[[data-thread]]/shell:hidden md:hidden"
+        className="print:hidden border-border bg-background fixed inset-x-3 bottom-3 z-10 grid grid-cols-5 gap-1 rounded-3xl border p-1.5 shadow-lg group-has-[[data-thread]]/shell:hidden md:hidden"
       >
         <NavLinks slug={tenant.slug} items={MOBILE} />
       </nav>

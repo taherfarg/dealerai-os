@@ -518,6 +518,20 @@
         "title": "Bodies",
         "type": "object"
       },
+      "Body_check_bl_draft_v1_orders__order_id__export_bl_check_post": {
+        "properties": {
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_check_bl_draft_v1_orders__order_id__export_bl_check_post",
+        "type": "object"
+      },
       "Body_extract_costs_v1_vehicles__vehicle_id__costs_extract_post": {
         "properties": {
           "file": {
@@ -677,6 +691,20 @@
           "file"
         ],
         "title": "Body_upload_paper_v1_vehicles__vehicle_id__inbound_documents__code__file_post",
+        "type": "object"
+      },
+      "Body_upload_step_document_v1_orders__order_id__export_steps__code__document_post": {
+        "properties": {
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_step_document_v1_orders__order_id__export_steps__code__document_post",
         "type": "object"
       },
       "Brief": {
@@ -967,6 +995,55 @@
         "title": "ChargeOut",
         "type": "object"
       },
+      "CheckOut": {
+        "properties": {
+          "expected": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected"
+          },
+          "found": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Found"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "ok": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ok"
+          }
+        },
+        "required": [
+          "name",
+          "ok",
+          "expected",
+          "found"
+        ],
+        "title": "CheckOut",
+        "type": "object"
+      },
       "CommitOut": {
         "properties": {
           "approval_id": {
@@ -1031,6 +1108,77 @@
           }
         },
         "title": "Confirmation",
+        "type": "object"
+      },
+      "Consignee": {
+        "properties": {
+          "consignee_address": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Consignee Address"
+          },
+          "consignee_name": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Consignee Name"
+          },
+          "consignee_phone": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Consignee Phone"
+          },
+          "port_of_discharge": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Port Of Discharge"
+          },
+          "shipping_method": {
+            "anyOf": [
+              {
+                "enum": [
+                  "container",
+                  "shared_container",
+                  "roro",
+                  "air"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shipping Method"
+          }
+        },
+        "title": "Consignee",
         "type": "object"
       },
       "ContactSummary": {
@@ -2141,6 +2289,80 @@
         "title": "Document",
         "type": "object"
       },
+      "DocumentSettings": {
+        "description": "Who the documents say sold the car.",
+        "properties": {
+          "address": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "invoice_prefix": {
+            "default": "INV",
+            "maxLength": 12,
+            "minLength": 1,
+            "title": "Invoice Prefix",
+            "type": "string"
+          },
+          "legal_name": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Legal Name"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone"
+          },
+          "trn": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trn"
+          }
+        },
+        "title": "DocumentSettings",
+        "type": "object"
+      },
       "DoneIn": {
         "properties": {
           "actual_minor": {
@@ -2165,6 +2387,35 @@
           "actual_minor"
         ],
         "title": "DoneIn",
+        "type": "object"
+      },
+      "DraftCheckOut": {
+        "properties": {
+          "checks": {
+            "items": {
+              "$ref": "#/components/schemas/CheckOut"
+            },
+            "title": "Checks",
+            "type": "array"
+          },
+          "clean": {
+            "title": "Clean",
+            "type": "boolean"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "checks",
+          "clean",
+          "warnings"
+        ],
+        "title": "DraftCheckOut",
         "type": "object"
       },
       "Economics": {
@@ -2279,6 +2530,105 @@
           "margin_note"
         ],
         "title": "Economics",
+        "type": "object"
+      },
+      "ExportOut": {
+        "properties": {
+          "consignee_address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Consignee Address"
+          },
+          "consignee_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Consignee Name"
+          },
+          "consignee_phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Consignee Phone"
+          },
+          "order_id": {
+            "format": "uuid",
+            "title": "Order Id",
+            "type": "string"
+          },
+          "port_of_discharge": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Port Of Discharge"
+          },
+          "procedure": {
+            "title": "Procedure",
+            "type": "string"
+          },
+          "shipping_method": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shipping Method"
+          },
+          "stage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stage"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/StepOut"
+            },
+            "title": "Steps",
+            "type": "array"
+          }
+        },
+        "required": [
+          "order_id",
+          "procedure",
+          "stage",
+          "steps",
+          "consignee_name",
+          "consignee_address",
+          "consignee_phone",
+          "port_of_discharge",
+          "shipping_method"
+        ],
+        "title": "ExportOut",
         "type": "object"
       },
       "ExtractionOut": {
@@ -2961,6 +3311,58 @@
           "role"
         ],
         "title": "InviteOut",
+        "type": "object"
+      },
+      "InvoiceOut": {
+        "properties": {
+          "document": {
+            "additionalProperties": true,
+            "title": "Document",
+            "type": "object"
+          },
+          "problems": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Problems",
+            "type": "array"
+          },
+          "signed": {
+            "title": "Signed",
+            "type": "boolean"
+          },
+          "signed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Signed At"
+          },
+          "signed_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Signed By"
+          }
+        },
+        "required": [
+          "signed",
+          "signed_at",
+          "signed_by",
+          "document",
+          "problems"
+        ],
+        "title": "InvoiceOut",
         "type": "object"
       },
       "ItemBatch": {
@@ -7897,6 +8299,101 @@
           "code"
         ],
         "title": "Step",
+        "type": "object"
+      },
+      "StepIn": {
+        "properties": {
+          "done_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Done On"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "done",
+              "skipped"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "StepIn",
+        "type": "object"
+      },
+      "StepOut": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "done_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Done On"
+          },
+          "has_document": {
+            "title": "Has Document",
+            "type": "boolean"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "takes_document": {
+            "title": "Takes Document",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "code",
+          "status",
+          "done_on",
+          "note",
+          "has_document",
+          "takes_document"
+        ],
+        "title": "StepOut",
         "type": "object"
       },
       "StockRow": {
@@ -12995,6 +13492,600 @@
         ]
       }
     },
+    "/v1/orders/{order_id}/export": {
+      "get": {
+        "operationId": "get_export_v1_orders__order_id__export_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "order_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Order Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExportOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Export",
+        "tags": [
+          "export"
+        ]
+      },
+      "patch": {
+        "description": "Who receives the car, where, and how it travels.",
+        "operationId": "set_consignee_v1_orders__order_id__export_patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "order_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Order Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Consignee"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExportOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Consignee",
+        "tags": [
+          "export"
+        ]
+      }
+    },
+    "/v1/orders/{order_id}/export/bl-check": {
+      "post": {
+        "description": "Read the shipping line's bill of lading draft and compare it with the\norder, before the buyer is asked to confirm it. Keeps the draft on its step;\nconfirming is still a person's.",
+        "operationId": "check_bl_draft_v1_orders__order_id__export_bl_check_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "order_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Order Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_check_bl_draft_v1_orders__order_id__export_bl_check_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DraftCheckOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Check Bl Draft",
+        "tags": [
+          "export"
+        ]
+      }
+    },
+    "/v1/orders/{order_id}/export/start": {
+      "post": {
+        "description": "Lay out the procedure for an order reserved before this existed. A\ndeposit lays it out by itself.",
+        "operationId": "start_export_v1_orders__order_id__export_start_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "order_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Order Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExportOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Start Export",
+        "tags": [
+          "export"
+        ]
+      }
+    },
+    "/v1/orders/{order_id}/export/steps/{code}": {
+      "post": {
+        "operationId": "move_step_v1_orders__order_id__export_steps__code__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "order_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Order Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "enum": [
+                "customer_documents",
+                "assign_vehicle",
+                "customs_card",
+                "book_shipping",
+                "export_inspection",
+                "export_plates",
+                "deliver_to_carrier",
+                "export_certificate",
+                "bl_draft_confirmed",
+                "bl_original",
+                "chamber_certificate",
+                "commercial_invoice",
+                "file_delivered",
+                "rta_registration",
+                "delivered"
+              ],
+              "title": "Code",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StepIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExportOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Move Step",
+        "tags": [
+          "export"
+        ]
+      }
+    },
+    "/v1/orders/{order_id}/export/steps/{code}/document": {
+      "get": {
+        "description": "The paper a step produced, for the file the buyer is sent. The path is\nthe one recorded on the step — never one the browser names.",
+        "operationId": "download_step_document_v1_orders__order_id__export_steps__code__document_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "order_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Order Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "enum": [
+                "customer_documents",
+                "assign_vehicle",
+                "customs_card",
+                "book_shipping",
+                "export_inspection",
+                "export_plates",
+                "deliver_to_carrier",
+                "export_certificate",
+                "bl_draft_confirmed",
+                "bl_original",
+                "chamber_certificate",
+                "commercial_invoice",
+                "file_delivered",
+                "rta_registration",
+                "delivered"
+              ],
+              "title": "Code",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Download Step Document",
+        "tags": [
+          "export"
+        ]
+      },
+      "post": {
+        "operationId": "upload_step_document_v1_orders__order_id__export_steps__code__document_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "order_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Order Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "enum": [
+                "customer_documents",
+                "assign_vehicle",
+                "customs_card",
+                "book_shipping",
+                "export_inspection",
+                "export_plates",
+                "deliver_to_carrier",
+                "export_certificate",
+                "bl_draft_confirmed",
+                "bl_original",
+                "chamber_certificate",
+                "commercial_invoice",
+                "file_delivered",
+                "rta_registration",
+                "delivered"
+              ],
+              "title": "Code",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_step_document_v1_orders__order_id__export_steps__code__document_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExportOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Upload Step Document",
+        "tags": [
+          "export"
+        ]
+      }
+    },
+    "/v1/orders/{order_id}/invoice": {
+      "get": {
+        "description": "The signed invoice as signed, or the draft the record makes today.",
+        "operationId": "get_invoice_v1_orders__order_id__invoice_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "order_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Order Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvoiceOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Invoice",
+        "tags": [
+          "export"
+        ]
+      }
+    },
+    "/v1/orders/{order_id}/invoice/sign": {
+      "post": {
+        "operationId": "sign_invoice_v1_orders__order_id__invoice_sign_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "order_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Order Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvoiceOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Sign Invoice",
+        "tags": [
+          "export"
+        ]
+      }
+    },
     "/v1/orders/{order_id}/payments": {
       "post": {
         "description": "Record money received. The payment that completes the deposit reserves the car.",
@@ -13914,6 +15005,101 @@
         "summary": "Acceptance",
         "tags": [
           "settings"
+        ]
+      }
+    },
+    "/v1/settings/documents": {
+      "get": {
+        "operationId": "get_document_settings_v1_settings_documents_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentSettings"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Document Settings",
+        "tags": [
+          "export"
+        ]
+      },
+      "put": {
+        "description": "What every document from now on says about the seller. A signed invoice\nkeeps what it said.",
+        "operationId": "put_document_settings_v1_settings_documents_put",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DocumentSettings"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentSettings"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Document Settings",
+        "tags": [
+          "export"
         ]
       }
     },
