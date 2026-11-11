@@ -12,6 +12,7 @@ from ..core.errors import Conflict, NotFound
 from ..db.session import tenant_session
 from ..deps import Ctx, TenantContext, require_role
 from ..events.bus import emit
+from ..lifecycle import pricing
 
 router = APIRouter(prefix="/v1/vehicles", tags=["vehicles"])
 
@@ -344,40 +345,18 @@ async def change_price(
     leaves posts and ads quoting a number the dealer no longer honours, so the
     history row and the event are part of the same transaction as the update.
     """
+    # One path for every price change — this endpoint and an approved pricing
+    # proposal (lifecycle/pricing.py) — so neither can forget the history row
+    # or the event.
     async with tenant_session(ctx.tenant_id) as conn, conn.transaction():
-        current = await conn.fetchrow(
-            "select price_minor, currency from vehicles where id = $1 for update", vehicle_id
+        row = await pricing.set_price(
+            conn,
+            tenant_id=ctx.tenant_id,
+            vehicle_id=vehicle_id,
+            amount_minor=body.amount_minor,
+            reason=body.reason,
+            actor_id=str(ctx.user.id),
         )
-        if current is None:
-            raise NotFound("no such vehicle")
-
-        row = await conn.fetchrow(
-            f"update vehicles set price_minor = $2 where id = $1 returning {_COLUMNS}",  # noqa: S608
-            vehicle_id,
-            body.amount_minor,
-        )
-        await conn.execute(
-            """insert into vehicle_price_history
-                   (tenant_id, vehicle_id, price_minor, currency, reason, actor_type, actor_id)
-               values ($1,$2,$3,$4,$5,'user',$6)""",
-            ctx.tenant_id,
-            vehicle_id,
-            body.amount_minor,
-            current["currency"],
-            body.reason,
-            str(ctx.user.id),
-        )
-        if current["price_minor"] != body.amount_minor:
-            await emit(
-                conn,
-                "vehicle.price_changed",
-                {
-                    "vehicle_id": str(vehicle_id),
-                    "before_minor": current["price_minor"],
-                    "after_minor": body.amount_minor,
-                    "currency": current["currency"],
-                },
-                tenant_id=ctx.tenant_id,
-                priority=5,
-            )
+    if row is None:
+        raise NotFound("no such vehicle")
     return _present(row)

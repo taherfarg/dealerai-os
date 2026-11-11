@@ -96,6 +96,7 @@ def create_app() -> FastAPI:
     # Before vehicles: its GET /{vehicle_id} would otherwise take "economics" for
     # an id and refuse it as one, and the route below would never be reached.
     app.include_router(acquisition.router)
+    app.include_router(acquisition.settings_router)
     app.include_router(vehicles.router)
     app.include_router(imports.router)
     app.include_router(runs.router)

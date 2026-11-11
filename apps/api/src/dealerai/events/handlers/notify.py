@@ -27,6 +27,9 @@ _HREFS: dict[str, str] = {
     "lead": "/pipeline?lead={id}",
     "task": "/tasks",
     "brief": "/dashboard",
+    "vehicle": "/inventory/{id}",
+    # The queue as a whole: the id is a day, and the link does not need it.
+    "approval_queue": "/approvals",
 }
 
 #: What reaches a phone (docs/sales/07-frontend.md § 8): somebody is waiting on
