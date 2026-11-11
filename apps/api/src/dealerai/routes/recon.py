@@ -410,15 +410,8 @@ async def decline_item(vehicle_id: UUID, item_id: UUID, ctx: Runner) -> dict[str
 _PHOTO_TYPES = frozenset({"image/jpeg", "image/png", "image/webp"})
 
 
-@router.post("/{vehicle_id}/recon/inspect", response_model=InspectionOut)
-async def inspect(
-    vehicle_id: UUID,
-    ctx: Runner,
-    files: Annotated[list[UploadFile], File()],
-    note: Annotated[str | None, Form(max_length=300)] = None,
-) -> dict[str, Any]:
-    """Read inspection photos into proposed work, priced from the dealer's own
-    rates or history. Writes no item."""
+async def photos_of(files: list[UploadFile]) -> list[tuple[bytes, str]]:
+    """The uploads as photos the reader takes, or a 422 saying which rule they broke."""
     if not 1 <= len(files) <= recon.MAX_PHOTOS:
         raise Unusable(
             f"send between 1 and {recon.MAX_PHOTOS} photos",
@@ -439,32 +432,31 @@ async def inspect(
                 ar="كل صورة يجب ألا تكون فارغة وأن تكون أصغر من ١٥ ميجابايت.",
             )
         photos.append((data, mime))
+    return photos
 
-    async with _session(ctx) as conn:
-        car = await conn.fetchrow(
-            "select make, model, model_year, mileage_km from vehicles where id = $1", vehicle_id
-        )
-        if car is None:
-            raise NotFound("no such vehicle", ar="لا توجد سيارة بهذا الرقم.")
-    described = " ".join(str(p) for p in (car["model_year"], car["make"], car["model"]) if p)
-    hint = f"The car is a {described}" + (
-        f" with {car['mileage_km']:,} km." if car["mileage_km"] else "."
-    )
-    if note:
-        hint += f" The dealer adds: {note}"
 
+async def read_photos(
+    ctx: TenantContext, photos: list[tuple[bytes, str]], hint: str, *, keep: bool
+) -> dict[str, Any]:
+    """Read photos into proposed work, each priced from the dealer's own rates
+    or history. `keep` stores the photos for whoever approves the work; an
+    appraisal has nobody to show them to, and stores nothing."""
     reading = await recon.inspect(tenant_id=ctx.tenant_id, photos=photos, hint=hint)
 
-    # Kept after the reading, as an invoice is, so the approver can see why.
-    paths: list[str | None] = []
-    for data, mime in photos:
-        try:
-            path = storage.object_path(ctx.tenant_id, "inspections", storage.extension_for(mime))
-            await storage.upload(path, data, content_type=mime)
-            paths.append(path)
-        except Exception as exc:  # noqa: BLE001 - the reading is still worth showing
-            log.warning("inspection_photo_not_stored", error=str(exc))
-            paths.append(None)
+    paths: list[str | None] = [None] * len(photos)
+    if keep:
+        # Kept after the reading, as an invoice is, so the approver can see why.
+        for index, (data, mime) in enumerate(photos):
+            try:
+                path = storage.object_path(
+                    ctx.tenant_id, "inspections", storage.extension_for(mime)
+                )
+                await storage.upload(path, data, content_type=mime)
+                paths[index] = path
+            except Exception as exc:  # noqa: BLE001 - the reading is still worth showing
+                log.warning("inspection_photo_not_stored", error=str(exc))
+        if None in paths:
+            reading.warnings.append("a photo could not be kept; the findings are still usable")
 
     findings: list[dict[str, Any]] = []
     async with _session(ctx) as conn:
@@ -482,9 +474,36 @@ async def inspect(
                     "estimate_source": source,
                 }
             )
-    if None in paths:
-        reading.warnings.append("a photo could not be kept; the findings are still usable")
     return {"findings": findings, "warnings": reading.warnings}
+
+
+def describe(
+    make: str | None, model: str | None, model_year: int | None, mileage_km: int | None
+) -> str:
+    described = " ".join(str(p) for p in (model_year, make, model) if p)
+    return f"The car is a {described}" + (f" with {mileage_km:,} km." if mileage_km else ".")
+
+
+@router.post("/{vehicle_id}/recon/inspect", response_model=InspectionOut)
+async def inspect(
+    vehicle_id: UUID,
+    ctx: Runner,
+    files: Annotated[list[UploadFile], File()],
+    note: Annotated[str | None, Form(max_length=300)] = None,
+) -> dict[str, Any]:
+    """Read inspection photos into proposed work, priced from the dealer's own
+    rates or history. Writes no item."""
+    photos = await photos_of(files)
+    async with _session(ctx) as conn:
+        car = await conn.fetchrow(
+            "select make, model, model_year, mileage_km from vehicles where id = $1", vehicle_id
+        )
+        if car is None:
+            raise NotFound("no such vehicle", ar="لا توجد سيارة بهذا الرقم.")
+    hint = describe(car["make"], car["model"], car["model_year"], car["mileage_km"])
+    if note:
+        hint += f" The dealer adds: {note}"
+    return await read_photos(ctx, photos, hint, keep=True)
 
 
 # --------------------------------------------------------------------------

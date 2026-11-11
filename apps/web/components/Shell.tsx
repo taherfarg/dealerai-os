@@ -19,6 +19,7 @@ const SALES: readonly NavItem[] = [
   { href: "/tasks", key: "nav.tasks", icon: "tasks" },
   { href: "/dashboard", key: "nav.dashboard", permission: "dashboard.manager", icon: "dashboard" },
   { href: "/inventory", key: "nav.inventory", icon: "inventory" },
+  { href: "/sourcing", key: "nav.sourcing", permission: "costs.view", icon: "sourcing" },
   { href: "/approvals", key: "nav.approvals", icon: "approvals" },
   SETTINGS,
 ];

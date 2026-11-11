@@ -11,7 +11,7 @@ import structlog
 from ...core.money import Money
 from ...core.words import Words, named, same
 from ...db.session import tenant_session
-from ...lifecycle import deals, inbound, numbers, pricing, recon
+from ...lifecycle import deals, inbound, numbers, pricing, recon, sourcing
 from ...sales.clock import zone
 from ..bus import Event, handler
 from .notify import notify
@@ -435,3 +435,34 @@ async def on_order_completed(event: Event) -> None:
             order["contact_id"],
             order["lead_id"],
         )
+
+
+#: Reads of one customer's interest before giving up on it changing under us.
+READ_ATTEMPTS = 3
+
+
+@handler("sourcing.interest_changed")
+async def on_interest_changed(event: Event) -> None:
+    """Read a customer's interest into the cars it names (L5). The model is
+    called outside any transaction; what it read is kept only if the interest
+    still says it. Changed meanwhile — the dedupe key held that event back — and
+    it is read again."""
+    if event.tenant_id is None:
+        raise ValueError("sourcing.interest_changed requires a tenant")
+    contact_id = UUID(str(event.payload["contact_id"]))
+    for _ in range(READ_ATTEMPTS):
+        async with tenant_session(event.tenant_id) as conn:
+            interest = await sourcing.remember(conn, contact_id)
+            if interest is None:
+                return
+            names = await sourcing.catalogue(conn, event.tenant_id)
+        cars = await sourcing.read_interest(
+            tenant_id=event.tenant_id, interest=interest, catalogue=names
+        )
+        async with tenant_session(event.tenant_id) as conn:
+            kept = await sourcing.store(
+                conn, event.tenant_id, contact_id, interest=interest, cars=cars
+            )
+        if kept:
+            return
+    log.warning("wants_kept_changing", contact_id=str(contact_id))

@@ -2019,3 +2019,60 @@ export function useSaveDocumentSettings() {
   });
 }
 
+
+// --------------------------------------------------------------------------
+// sourcing (Lifecycle L5) — all buy side
+// --------------------------------------------------------------------------
+
+export type BuyingList = components["schemas"]["BuyingListOut"];
+export type Wanted = components["schemas"]["WantedOut"];
+export type Bid = components["schemas"]["BidOut"];
+export type Appraisal = components["schemas"]["AppraisalOut"];
+export type AppraiseIn = components["schemas"]["AppraiseIn"];
+
+export function useBuyingList(enabled: boolean) {
+  const { api, tenantId, header } = useTenantApi();
+  return useQuery({
+    queryKey: keys.buyingList(tenantId),
+    enabled,
+    queryFn: async () => unwrap(await api.GET("/v1/sourcing/buying-list", { params: { header } })),
+  });
+}
+
+/** Values one car and works out the most to pay. Writes nothing. */
+export function useAppraise() {
+  const { api, header } = useTenantApi();
+  return useMutation({
+    mutationFn: async (body: AppraiseIn) =>
+      unwrap(await api.POST("/v1/sourcing/appraise", { params: { header }, body })),
+  });
+}
+
+export type TradeIn = {
+  make?: string;
+  model?: string;
+  model_year?: number | null;
+  mileage_km?: number | null;
+};
+
+/** Reads a trade-in's photos into priced repairs. Stores nothing. */
+export function useInspectTradeIn() {
+  const { api, header } = useTenantApi();
+  return useMutation({
+    mutationFn: async ({ files, car }: { files: File[]; car: TradeIn }) => {
+      const form = new FormData();
+      for (const file of files) form.append("files", file);
+      for (const [name, value] of Object.entries(car)) {
+        if (value !== undefined && value !== null && value !== "") form.append(name, String(value));
+      }
+      return unwrap(
+        await api.POST("/v1/sourcing/inspect", {
+          params: { header },
+          // The typed body describes the fields; the serializer sends the form.
+          body: { files: [] },
+          bodySerializer: () => form,
+        }),
+      );
+    },
+  });
+}
