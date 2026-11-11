@@ -546,14 +546,40 @@ that will publish and against the database as it is *now* rather than as it was 
 started. A car that sold mid-run is caught there; a caption quoting a price the record does not
 hold is caught there. A rejected piece keeps its copy and its reasons.
 
-### T3.7 — Content UI and approvals
-**Files:** `apps/web/.../content/`, `components/content/`, `components/agent/RunStream.tsx`
+### T3.7 — Content UI and approvals — **done (live generation blocked: see below)**
+**Files:** `routes/content.py`, `routes/runs.py`, `apps/web/app/[tenant]/content/`,
+`components/content/`
 
-Grid, detail view with inline caption editing and asset swap, approve and reject with
-reason, SSE run stream.
+Grid, detail view with inline caption editing, approve and reject with reason, SSE run stream.
 
 **Acceptance:** a user watches generation live over SSE, edits one caption, approves, and
 the item reaches `approved`. `edited_by_human` is set on the edited copy row.
+
+What was built:
+
+- `GET /v1/content/{id}` — the piece, its copy per language and its images as signed links;
+  the list gains the first image and the car.
+- `PATCH /v1/content/{id}/copy/{locale}` — a person's words, marked `edited_by_human`, held to
+  the price guard like the AI's: a caption quoting a price that is not the car's is refused,
+  naming the figure. Refused once the piece is scheduled or published.
+- `POST /v1/content/{id}/approve` and `/reject {reason}` — marketer and up. A rejection needs a
+  reason (the learning signal); an approved piece can be taken back until it is scheduled.
+- `GET /v1/runs/{id}/stream` — SSE: `task.updated`, `content.updated`, `run.updated`, then
+  `run.completed`, after which it ends. A view: it reads what the executor writes, once a second.
+- **Content** — make content for chosen cars and watch the run live; the grid by status; a
+  piece's images, its words in each language to edit, approve, reject with a reason.
+
+Tested in the browser as the owner: a run started from the page was followed live to its end
+over the stream; a caption quoting AED 199,000 for a AED 215,000 car was refused; the corrected
+one saved and marked as a person's; approved, and in the database `approved` by the owner with
+`edited_by_human` on the English row only. Arabic at phone width, right to left.
+
+**Not met live: generation itself.** `gemini-2.5-pro` — the reasoning tier, so the content
+strategist and the Director — is refused to this API key ("no longer available to new users"),
+and no Pro model is GA. Moving to Gemini 3 is not the one line `ai/models.py` expected: Gemini 3
+requires each function call's `thought_signature` to be sent back on the next turn, and the
+gateway's tool loop drops it. Until that is fixed, no content run gets past planning. Asset
+swap is not built.
 
 ### T3.8 — Calendar
 **Files:** `routes/content.py` route `/calendar`, `apps/web/.../content/calendar/`
