@@ -17,7 +17,7 @@ worker runs an agent orchestrator that dispatches a DAG of specialist agents ove
 tenant-scoped tool layer, with guards enforced in code before anything reaches a customer.
 
 **Tech stack:** Python 3.12 · FastAPI · asyncpg · Pydantic v2 · APScheduler · Playwright ·
-FFmpeg · Google GenAI SDK (`gemini-2.5-pro` / `gemini-2.5-flash` / `gemini-2.5-flash-lite`) ·
+FFmpeg · Google GenAI SDK (`gemini-3.8-flash` / `gemini-2.5-flash` / `gemini-2.5-flash-lite`) ·
 Next.js 15 · TypeScript · Tailwind · shadcn/ui · Supabase (Postgres 15, pgvector, Auth,
 Storage) · uv · ruff · mypy · pytest.
 
@@ -574,12 +574,14 @@ over the stream; a caption quoting AED 199,000 for a AED 215,000 car was refused
 one saved and marked as a person's; approved, and in the database `approved` by the owner with
 `edited_by_human` on the English row only. Arabic at phone width, right to left.
 
-**Not met live: generation itself.** `gemini-2.5-pro` — the reasoning tier, so the content
-strategist and the Director — is refused to this API key ("no longer available to new users"),
-and no Pro model is GA. Moving to Gemini 3 is not the one line `ai/models.py` expected: Gemini 3
-requires each function call's `thought_signature` to be sent back on the next turn, and the
-gateway's tool loop drops it. Until that is fixed, no content run gets past planning. Asset
-swap is not built.
+**Generation, live (2026-11-11).** `gemini-2.5-pro` is refused to new API keys and no 3.x Pro
+is GA, so the reasoning tier is `gemini-3.8-flash`, the newest GA Gemini 3. Gemini 3 signs each
+function call on its Part and refuses the next turn without the signature (400, reproduced
+live); the tool loop now sends the model's turn back whole. `npm run eval:content`: the plan is
+eight pieces, a mix, in both languages, no invented price — 4 of 6 pass. The two failures are
+one carousel whose Arabic caption had no approved call to action, rejected by its guard and so
+never rendered: the copywriter's output (`gemini-2.5-flash`), not the planning. Asset swap is
+not built.
 
 ### T3.8 — Calendar — **done**
 **Files:** `schedule.py`, `routes/content.py` (`/calendar`, `/schedule`, `/unschedule`),

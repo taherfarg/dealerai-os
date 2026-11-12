@@ -226,7 +226,7 @@ async def test_model_comes_from_the_routing_table(
     db: None, seeded: None, fake_client: FakeClient
 ) -> None:
     await complete(TaskKind.ORCHESTRATE, tenant_id=TENANT_A, system=ROLE, messages=USER)
-    assert fake_client.calls[0]["model"] == "gemini-2.5-pro"
+    assert fake_client.calls[0]["model"] == "gemini-3.8-flash"
 
 
 async def test_thinking_budget_is_off_for_classification(

@@ -86,7 +86,7 @@ Notes that matter:
         └─────────┬─────────┘   (SQL + retrieval — no model call yet)
                   ▼
         ┌───────────────────┐
-        │ 3. PLAN           │  gemini-2.5-pro, dynamic thinking, structured output → task DAG
+        │ 3. PLAN           │  gemini-3.8-flash, dynamic thinking, structured output → task DAG
         └─────────┬─────────┘
                   ▼
         ┌───────────────────┐
@@ -315,7 +315,7 @@ Hard rules that appear in **every** agent's layer 1:
 
 | Agent | Trigger | Input → Output | Tools | Model | Default autonomy | M |
 |---|---|---|---|---|---|---|
-| **Growth Director** | User goal, weekly cron, underperformance event | Goal → task DAG | grounding reads only | `gemini-2.5-pro` | Assisted | M6 |
+| **Growth Director** | User goal, weekly cron, underperformance event | Goal → task DAG | grounding reads only | `gemini-3.8-flash` | Assisted | M6 |
 | **Brand Guardian** | Every artifact, pre-publish | Artifact → pass/fail + reasons | `brand`, `check_brand_rules` | `gemini-2.5-flash-lite` + code rules | Auto | M3 |
 
 ### Content team
@@ -343,12 +343,12 @@ Hard rules that appear in **every** agent's layer 1:
 
 | Agent | Trigger | Input → Output | Tools | Model | Default autonomy | M |
 |---|---|---|---|---|---|---|
-| **Ads Manager** | Daily cron, `campaign.underperforming` | Campaign state → budget and status changes, new creative requests | `ads`, `analytics`, `content` | `gemini-2.5-pro` | Assisted, hard caps | M7 |
+| **Ads Manager** | Daily cron, `campaign.underperforming` | Campaign state → budget and status changes, new creative requests | `ads`, `analytics`, `content` | `gemini-3.8-flash` | Assisted, hard caps | M7 |
 | **Market Intelligence** | Daily cron | Sources → market signals, demand shifts, price movements | `research` | `gemini-2.5-flash` | Auto (read-only) | M8 |
 | **Competitor Intelligence** | Daily cron | Competitor set → their content, offers, ad creative | `research` | `gemini-2.5-flash` | Auto (read-only) | M8 |
 | **Inventory Intelligence** | Nightly, on stock change | Inventory → aging, gaps, pricing pressure, what to push | `inventory`, `analytics` | `gemini-2.5-flash` | Auto | M6 |
 | **Analytics Agent** | Daily cron, on request | Raw metrics → funnel, attribution, plain-language insights | `analytics` | `gemini-2.5-flash` | Auto | M6 |
-| **Learning Agent** | Weekly cron | Content plus outcomes → playbook proposals with evidence | `analytics`, `memory` | `gemini-2.5-pro` | **Always approval** | M9 |
+| **Learning Agent** | Weekly cron | Content plus outcomes → playbook proposals with evidence | `analytics`, `memory` | `gemini-3.8-flash` | **Always approval** | M9 |
 
 **The Learning Agent never writes the playbook directly.** It proposes a diff with the
 sample size and the measured effect; a human accepts or rejects. Rationale in
