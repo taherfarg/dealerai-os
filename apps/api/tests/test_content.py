@@ -25,7 +25,7 @@ from conftest import TENANT_A, USER_A, reseed
 from dealerai import agents as _agents  # noqa: F401  registers the agents
 from dealerai import tools as _tools  # noqa: F401  registers the tools
 from dealerai.agents.content import image, strategist
-from dealerai.agents.content.copywriter import _facts
+from dealerai.agents.content.copywriter import Copy, _facts, copy_schema
 from dealerai.ai import gateway
 from dealerai.config import get_settings
 from dealerai.media import compositor, storage
@@ -271,6 +271,32 @@ def test_a_three_decimal_currency_is_not_off_by_ten() -> None:
 def test_the_discount_floor_is_never_shown_to_the_copywriter() -> None:
     facts = _facts({"price_minor": 31000000, "min_price_minor": 28000000, "currency": "AED"})
     assert "28" not in facts
+
+
+def test_the_call_to_action_is_one_the_dealer_approved_or_nothing() -> None:
+    """A live run wrote its own Arabic call to action beside the approved one;
+    the guard rejected the piece after it was paid for. The schema now leaves
+    the model nothing else to write."""
+    approved = ("راسلنا لحجز معاينة",)
+    schema = copy_schema(approved)
+    assert schema.__name__ == "Copy" and issubclass(schema, Copy)
+    # One value is `const` in the JSON schema, which google-genai sends to
+    # Gemini as a one-item enum; two or more are an enum already.
+    cta = schema.model_json_schema()["properties"]["cta"]
+    assert cta.get("enum", [cta.get("const")]) == list(approved)
+    both = copy_schema(("DM to book a viewing", "Visit our showroom"))
+    assert both.model_json_schema()["properties"]["cta"]["enum"] == [
+        "DM to book a viewing",
+        "Visit our showroom",
+    ]
+    fine = schema.model_validate({**COPY, "cta": "راسلنا لحجز معاينة"})
+    assert fine.cta == "راسلنا لحجز معاينة"
+    with pytest.raises(ValueError):
+        schema.model_validate({**COPY, "cta": "راسلنا الآن لحجز معاينة"})
+
+
+def test_a_dealer_with_no_approved_ctas_is_written_freely() -> None:
+    assert copy_schema(()) is Copy
 
 
 def test_verified_selling_points_are_offered() -> None:
