@@ -31,7 +31,7 @@ MAX_BYTES = 20 * 1024 * 1024
 
 #: The subset of documents.kind that a dealership uploads by hand. The column
 #: allows more, written by other parts of the system.
-KINDS = ("policy", "export_policy", "faq", "spec_sheet", "price_list", "other")
+KINDS = ("policy", "export_policy", "faq", "spec_sheet", "price_list", "brand_guide", "other")
 
 _RETURNING = "id, kind, title, status, error, created_at"
 

@@ -9,7 +9,15 @@ import { useLocale, useT } from "@/lib/i18n-client";
 import { counted } from "@/lib/words";
 
 /** routes/documents.KINDS — what a dealership uploads by hand. */
-const KINDS = ["policy", "export_policy", "faq", "spec_sheet", "price_list", "other"] as const;
+const KINDS = [
+  "policy",
+  "export_policy",
+  "faq",
+  "spec_sheet",
+  "price_list",
+  "brand_guide",
+  "other",
+] as const;
 const FIELD = "field px-3";
 
 /**

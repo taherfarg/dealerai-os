@@ -926,6 +926,45 @@
         "title": "Body_preview_v1_vehicles_import_preview_post",
         "type": "object"
       },
+      "Body_read_brand_v1_brand_read_post": {
+        "properties": {
+          "captions": {
+            "default": "",
+            "maxLength": 40000,
+            "title": "Captions",
+            "type": "string"
+          },
+          "logo": {
+            "anyOf": [
+              {
+                "contentMediaType": "application/octet-stream",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logo"
+          },
+          "posts": {
+            "anyOf": [
+              {
+                "items": {
+                  "contentMediaType": "application/octet-stream",
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Posts"
+          }
+        },
+        "title": "Body_read_brand_v1_brand_read_post",
+        "type": "object"
+      },
       "Body_read_receipt_v1_orders__order_id__payments_read_post": {
         "properties": {
           "file": {
@@ -1030,6 +1069,203 @@
           "file"
         ],
         "title": "Body_upload_step_document_v1_orders__order_id__export_steps__code__document_post",
+        "type": "object"
+      },
+      "BrandConfirmation": {
+        "description": "The brand as a person read it and accepted it — the draft, edited or not.",
+        "properties": {
+          "colors": {
+            "$ref": "#/components/schemas/Colours"
+          },
+          "cta_styles": {
+            "items": {
+              "$ref": "#/components/schemas/Cta"
+            },
+            "maxItems": 12,
+            "title": "Cta Styles",
+            "type": "array"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "hashtag_rules": {
+            "$ref": "#/components/schemas/HashtagRules"
+          },
+          "logo_asset_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logo Asset Id"
+          },
+          "photography_style": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Photography Style"
+          },
+          "tone": {
+            "$ref": "#/components/schemas/Tone"
+          },
+          "typography": {
+            "$ref": "#/components/schemas/Typography"
+          }
+        },
+        "required": [
+          "colors"
+        ],
+        "title": "BrandConfirmation",
+        "type": "object"
+      },
+      "BrandOut": {
+        "properties": {
+          "colors": {
+            "additionalProperties": true,
+            "title": "Colors",
+            "type": "object"
+          },
+          "confirmed": {
+            "title": "Confirmed",
+            "type": "boolean"
+          },
+          "confirmed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirmed At"
+          },
+          "confirmed_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirmed By"
+          },
+          "cta_styles": {
+            "items": {},
+            "title": "Cta Styles",
+            "type": "array"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "draft": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Draft"
+          },
+          "draft_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Draft At"
+          },
+          "hashtag_rules": {
+            "additionalProperties": true,
+            "title": "Hashtag Rules",
+            "type": "object"
+          },
+          "logo_asset_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logo Asset Id"
+          },
+          "photography_style": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Photography Style"
+          },
+          "tone": {
+            "additionalProperties": true,
+            "title": "Tone",
+            "type": "object"
+          },
+          "typography": {
+            "additionalProperties": true,
+            "title": "Typography",
+            "type": "object"
+          }
+        },
+        "required": [
+          "confirmed",
+          "confirmed_at",
+          "confirmed_by",
+          "display_name",
+          "colors",
+          "typography",
+          "tone",
+          "cta_styles",
+          "hashtag_rules",
+          "photography_style",
+          "logo_asset_id",
+          "draft",
+          "draft_at"
+        ],
+        "title": "BrandOut",
         "type": "object"
       },
       "Brief": {
@@ -1695,6 +1931,63 @@
           "found"
         ],
         "title": "CheckOut",
+        "type": "object"
+      },
+      "Colours": {
+        "properties": {
+          "accent": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accent"
+          },
+          "bg": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bg"
+          },
+          "primary": {
+            "title": "Primary",
+            "type": "string"
+          },
+          "secondary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Secondary"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          }
+        },
+        "required": [
+          "primary"
+        ],
+        "title": "Colours",
         "type": "object"
       },
       "CommitOut": {
@@ -2919,6 +3212,31 @@
         "title": "CostlyCar",
         "type": "object"
       },
+      "Cta": {
+        "properties": {
+          "locale": {
+            "enum": [
+              "en",
+              "ar",
+              "fr"
+            ],
+            "title": "Locale",
+            "type": "string"
+          },
+          "text": {
+            "maxLength": 90,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text",
+          "locale"
+        ],
+        "title": "Cta",
+        "type": "object"
+      },
       "CustomerDetail": {
         "properties": {
           "band": {
@@ -3797,6 +4115,46 @@
         "title": "ExtractionOut",
         "type": "object"
       },
+      "Face": {
+        "properties": {
+          "family": {
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Family",
+            "type": "string"
+          },
+          "style": {
+            "anyOf": [
+              {
+                "maxLength": 20,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Style"
+          },
+          "weight": {
+            "anyOf": [
+              {
+                "maximum": 900.0,
+                "minimum": 100.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weight"
+          }
+        },
+        "required": [
+          "family"
+        ],
+        "title": "Face",
+        "type": "object"
+      },
       "FindingOut": {
         "properties": {
           "area": {
@@ -3941,6 +4299,19 @@
           }
         },
         "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "HashtagRules": {
+        "properties": {
+          "max": {
+            "default": 8,
+            "maximum": 30.0,
+            "minimum": 0.0,
+            "title": "Max",
+            "type": "integer"
+          }
+        },
+        "title": "HashtagRules",
         "type": "object"
       },
       "Headline": {
@@ -10711,6 +11082,100 @@
         "title": "TimelinePage",
         "type": "object"
       },
+      "Tone": {
+        "properties": {
+          "emoji": {
+            "anyOf": [
+              {
+                "enum": [
+                  "none",
+                  "sparse",
+                  "frequent"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Emoji"
+          },
+          "formality": {
+            "anyOf": [
+              {
+                "maxLength": 20,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Formality"
+          },
+          "person": {
+            "anyOf": [
+              {
+                "maxLength": 20,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Person"
+          },
+          "voice": {
+            "anyOf": [
+              {
+                "maxLength": 30,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Voice"
+          }
+        },
+        "title": "Tone",
+        "type": "object"
+      },
+      "Typography": {
+        "properties": {
+          "arabic": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Face"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "body": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Face"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "heading": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Face"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "title": "Typography",
+        "type": "object"
+      },
       "UsageOut": {
         "properties": {
           "budget_usd": {
@@ -12119,6 +12584,199 @@
         "summary": "Reject",
         "tags": [
           "approvals"
+        ]
+      }
+    },
+    "/v1/brand": {
+      "get": {
+        "operationId": "get_brand_v1_brand_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrandOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Brand",
+        "tags": [
+          "brand"
+        ]
+      }
+    },
+    "/v1/brand/confirm": {
+      "post": {
+        "description": "A person accepts the brand: what agents read from now on. The only way\nthe profile reaches the confirmed state.",
+        "operationId": "confirm_brand_v1_brand_confirm_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BrandConfirmation"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrandOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Confirm Brand",
+        "tags": [
+          "brand"
+        ]
+      }
+    },
+    "/v1/brand/draft": {
+      "delete": {
+        "operationId": "discard_draft_v1_brand_draft_delete",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrandOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Discard Draft",
+        "tags": [
+          "brand"
+        ]
+      }
+    },
+    "/v1/brand/read": {
+      "post": {
+        "description": "Read the logo, past posts and past captions into a draft. Changes\nnothing any agent reads.",
+        "operationId": "read_brand_v1_brand_read_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_read_brand_v1_brand_read_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrandOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Brand",
+        "tags": [
+          "brand"
         ]
       }
     },

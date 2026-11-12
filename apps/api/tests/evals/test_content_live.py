@@ -20,7 +20,7 @@ from typing import Any
 import asyncpg
 import pytest
 
-from conftest import TENANT_A
+from conftest import TENANT_A, USER_A
 from dealerai import agents as _agents  # noqa: F401  registers the agents
 from dealerai import tools as _tools  # noqa: F401  registers the tools
 from dealerai.config import get_settings
@@ -96,8 +96,8 @@ async def _seed(su: asyncpg.Connection) -> uuid.UUID:
         )
     await su.execute(
         """insert into brand_profiles (tenant_id, display_name, tone, cta_styles,
-                                       required_disclaimers, colors)
-           values ($1,'Alpha Motors',$2,$3,$4,$5)
+                                       required_disclaimers, colors, confirmed_at, confirmed_by)
+           values ($1,'Alpha Motors',$2,$3,$4,$5, now(), $6)
            on conflict (tenant_id) do nothing""",
         TENANT_A,
         # `su` is a bare connection, without the pool's jsonb codec.
@@ -113,6 +113,8 @@ async def _seed(su: asyncpg.Connection) -> uuid.UUID:
         ),
         json.dumps({}),
         json.dumps({"primary": "#0A2540", "secondary": "#C8A15A", "accent": "#E5484D"}),
+        # A configured dealer: somebody confirmed this brand (0027).
+        USER_A,
     )
     return vehicle_id
 

@@ -328,18 +328,22 @@ async def _confirm_brand(**fields: Any) -> None:
     try:
         await conn.execute(
             """insert into brand_profiles
-                 (tenant_id, display_name, forbidden_terms, cta_styles, required_disclaimers)
-               values ($1,$2,$3,$4,$5)
+                 (tenant_id, display_name, forbidden_terms, cta_styles, required_disclaimers,
+                  confirmed_at, confirmed_by)
+               values ($1,$2,$3,$4,$5, now(), $6)
                on conflict (tenant_id) do update set
                  display_name = excluded.display_name,
                  forbidden_terms = excluded.forbidden_terms,
                  cta_styles = excluded.cta_styles,
-                 required_disclaimers = excluded.required_disclaimers""",
+                 required_disclaimers = excluded.required_disclaimers,
+                 confirmed_at = excluded.confirmed_at,
+                 confirmed_by = excluded.confirmed_by""",
             TENANT_A,
             fields.get("display_name", "Alpha Motors"),
             fields.get("forbidden_terms", []),
             json.dumps(fields.get("cta_styles", [])),
             json.dumps(fields.get("required_disclaimers", {})),
+            USER_A,
         )
     finally:
         await conn.close()

@@ -397,7 +397,7 @@ T1.3, which needs a Supabase project.
 
 ## Milestone M3 — Content factory (weeks 5–8)
 
-### T3.1 — Brand ingestion
+### T3.1 — Brand ingestion — **done**
 **Files:** `routes/brand.py`, `agents/content/brand_ingest.py`, `ai/prompts/brand_ingest.md`,
 `apps/web/.../brand/`
 
@@ -407,6 +407,36 @@ confirmation**.
 
 **Acceptance:** ingesting the design partner's assets produces a palette within ΔE 5 of the
 real brand colours, and the profile cannot reach a confirmed state without a human action.
+
+**Built.** Settings → Brand: a logo, up to six past posts and pasted captions in; a **draft**
+out, which writes nothing any agent reads; `POST /v1/brand/confirm` the only way in.
+
+* **The palette is counted, not asked for** (`core/color.py`): quantised from the pixels,
+  transparency ignored, colours a person could not tell apart merged, the logo weighted as one
+  voice against any number of photographs. ΔE is CIEDE2000, checked to four decimals against
+  Sharma, Wu & Dalal's reference pairs. The model only says which counted colour is the primary,
+  secondary or accent — its schema lists the counted colours and nothing else.
+* **Habits are counted**: emoji share and the usual number of hashtags, from the captions.
+* **Calls to action are quoted**: one the captions do not contain is not proposed, and the
+  language is the one its letters are in. They become the only CTAs the copywriter may write.
+* **The voice and the typefaces are judged** by the model, and left empty when it cannot tell.
+* **The brand guide** is a `brand_guide` document in Knowledge — the existing chunk-and-embed
+  pipeline.
+* **Confirmed means a person and a time** (`0027_brand_confirmation.sql`): "confirmed" used to
+  be "has a display name", which every tenant is created with. Postgres now refuses a confirmed
+  profile with nobody's name on it; `get_brand_profile` and the Director's ground facts read it.
+
+**Acceptance.** ΔE: a logo saved as a soft-edged JPEG on white still gives its colours within
+ΔE 5 (`test_brand_ingest.py::test_a_blurred_jpeg_logo_stays_within_delta_e_5`); a flat one, exactly. Live
+(`npm run eval:brand`, three runs of three): the badge's navy is the primary within ΔE 5 and
+the gold mark among the others, every call to action quoted from the captions in English and
+Arabic. In the browser, as the owner: a drawn logo and trilingual captions read into navy,
+three quoted calls to action in three languages and a "straightforward, we" voice; the white
+wordmark proposed as secondary was changed to the gold, and the brand confirmed in his name.
+Human action: `test_nothing_but_a_person_can_confirm_a_brand` — a write that sets a confirmed
+time without a person is refused by Postgres itself. **Still to do against the acceptance:**
+the design partner's own logo, uploaded on the Brand screen and compared with the colours on
+Pollux's sign. Not a registered agent: a Director that could plan it could re-brand a dealer.
 
 ### T3.2 — Agent runtime — **done**
 **Files:** `agents/base.py`, `agents/registry.py`, `orchestrator/planner.py`,

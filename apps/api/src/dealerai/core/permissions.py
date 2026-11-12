@@ -40,6 +40,8 @@ _ADMIN = frozenset(
         # The export file — § L7. A commercial invoice is somebody's signature.
         "orders.sign",
         "settings.documents",
+        # T3.1: what every post is written and drawn in. A person confirms it.
+        "settings.brand",
     }
 )
 

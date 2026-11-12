@@ -17,6 +17,7 @@ export const SECTIONS: readonly NavItem[] = [
   { href: "/settings/pricing", key: "settings.pricing", permission: "settings.pricing" },
   { href: "/settings/recon", key: "settings.recon", permission: "settings.recon" },
   { href: "/settings/documents", key: "settings.documents", permission: "settings.documents" },
+  { href: "/settings/brand", key: "settings.brand", permission: "settings.brand" },
   { href: "/settings/notifications", key: "notifications.title" },
 ];
 
