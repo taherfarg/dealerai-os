@@ -11,11 +11,11 @@ vehicle up, and a second lookup is a second chance to describe a different car.
 
 from __future__ import annotations
 
-from typing import Any, ClassVar
+from typing import Any, ClassVar, Literal
 from uuid import UUID
 
 import structlog
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, create_model
 
 from ...ai.gateway import SystemLayers, complete
 from ...ai.models import TaskKind
@@ -41,6 +41,28 @@ class Copy(BaseModel):
     )
     headline: str = Field(max_length=70, description="The words that go on the image itself.")
     subhead: str = Field(default="", max_length=90)
+
+
+def copy_schema(ctas: tuple[str, ...]) -> type[Copy]:
+    """What the model may return: when the dealer approved calls to action for
+    this language, `cta` is one of them, word for word.
+
+    Listing them in the prompt was not enough — a live run wrote its own Arabic
+    call to action beside the one approved, and the brand guard rejected the
+    piece after it had been written, planned and paid for. A schema the model
+    cannot leave makes that outcome impossible rather than unlikely. Still
+    named Copy: it is the same answer, narrowed.
+    """
+    if not ctas:
+        return Copy
+    return create_model(
+        "Copy",
+        __base__=Copy,
+        cta=(
+            Literal[ctas],
+            Field(description="One of the dealer's approved calls to action, copied exactly."),
+        ),
+    )
 
 
 class Input(BaseModel):
@@ -71,6 +93,7 @@ class Copywriter:
             )
 
         profile = await _brand(ctx.tenant_id)
+        rules = _rules(profile, inp.locale)
         result = await complete(
             TaskKind.COPYWRITE,
             tenant_id=ctx.tenant_id,
@@ -84,7 +107,7 @@ class Copywriter:
                 f"## Language\nWrite in {inp.locale}.\n\n"
                 f"## The vehicle — every fact you may state\n{_facts(inp.vehicle)}"
             ),
-            output_schema=Copy,
+            output_schema=copy_schema(rules.allowed_ctas),
             run_id=ctx.run_id,
             task_id=ctx.task_id,
             trace_name=f"copywriter:{inp.locale}",
@@ -96,9 +119,7 @@ class Copywriter:
         # The brand guard again, here, where it can still be fixed cheaply. It
         # runs once more over the finished piece in the image agent — this is
         # the early catch, not the enforcement.
-        findings = brand_guard.check(
-            f"{copy.hook} {copy.caption} {copy.cta}", _rules(profile, inp.locale)
-        )
+        findings = brand_guard.check(f"{copy.hook} {copy.caption} {copy.cta}", rules)
         if findings:
             log.info(
                 "copy_has_brand_problems",
