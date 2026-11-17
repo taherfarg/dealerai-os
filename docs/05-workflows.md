@@ -350,7 +350,7 @@ Daily 08:00 → sync yesterday's metrics into ad_metrics_daily
 JOIN OUR FUNNEL: platform "leads" is replaced with our own
    leads.source_content_item_id → ad_entities → real qualified leads and deals
    ↓
-[Ads Manager]  gemini-2.5-pro
+[Ads Manager]  gemini-3.8-flash
    per campaign, evaluates: CPL vs target, frequency, CTR trend, spend pacing
    ↓
    proposes actions:
