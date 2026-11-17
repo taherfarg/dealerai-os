@@ -112,6 +112,82 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/brand": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Brand */
+        get: operations["get_brand_v1_brand_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/brand/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm Brand
+         * @description A person accepts the brand: what agents read from now on. The only way
+         *     the profile reaches the confirmed state.
+         */
+        post: operations["confirm_brand_v1_brand_confirm_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/brand/draft": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Discard Draft */
+        delete: operations["discard_draft_v1_brand_draft_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/brand/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Read Brand
+         * @description Read the logo, past posts and past captions into a draft. Changes
+         *     nothing any agent reads.
+         */
+        post: operations["read_brand_v1_brand_read_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/channels": {
         parameters: {
             query?: never;
@@ -2817,6 +2893,18 @@ export interface components {
             /** File */
             file: string;
         };
+        /** Body_read_brand_v1_brand_read_post */
+        Body_read_brand_v1_brand_read_post: {
+            /**
+             * Captions
+             * @default
+             */
+            captions: string;
+            /** Logo */
+            logo?: string | null;
+            /** Posts */
+            posts?: string[] | null;
+        };
         /** Body_read_receipt_v1_orders__order_id__payments_read_post */
         Body_read_receipt_v1_orders__order_id__payments_read_post: {
             /** File */
@@ -2858,6 +2946,63 @@ export interface components {
         Body_upload_step_document_v1_orders__order_id__export_steps__code__document_post: {
             /** File */
             file: string;
+        };
+        /**
+         * BrandConfirmation
+         * @description The brand as a person read it and accepted it — the draft, edited or not.
+         */
+        BrandConfirmation: {
+            colors: components["schemas"]["Colours"];
+            /** Cta Styles */
+            cta_styles?: components["schemas"]["Cta"][];
+            /** Display Name */
+            display_name?: string | null;
+            hashtag_rules?: components["schemas"]["HashtagRules"];
+            /** Logo Asset Id */
+            logo_asset_id?: string | null;
+            /** Photography Style */
+            photography_style?: string | null;
+            tone?: components["schemas"]["Tone"];
+            typography?: components["schemas"]["Typography"];
+        };
+        /** BrandOut */
+        BrandOut: {
+            /** Colors */
+            colors: {
+                [key: string]: unknown;
+            };
+            /** Confirmed */
+            confirmed: boolean;
+            /** Confirmed At */
+            confirmed_at: string | null;
+            /** Confirmed By */
+            confirmed_by: string | null;
+            /** Cta Styles */
+            cta_styles: unknown[];
+            /** Display Name */
+            display_name: string | null;
+            /** Draft */
+            draft: {
+                [key: string]: unknown;
+            } | null;
+            /** Draft At */
+            draft_at: string | null;
+            /** Hashtag Rules */
+            hashtag_rules: {
+                [key: string]: unknown;
+            };
+            /** Logo Asset Id */
+            logo_asset_id: string | null;
+            /** Photography Style */
+            photography_style: string | null;
+            /** Tone */
+            tone: {
+                [key: string]: unknown;
+            };
+            /** Typography */
+            typography: {
+                [key: string]: unknown;
+            };
         };
         /** Brief */
         Brief: {
@@ -3069,6 +3214,19 @@ export interface components {
             name: string;
             /** Ok */
             ok: boolean | null;
+        };
+        /** Colours */
+        Colours: {
+            /** Accent */
+            accent?: string | null;
+            /** Bg */
+            bg?: string | null;
+            /** Primary */
+            primary: string;
+            /** Secondary */
+            secondary?: string | null;
+            /** Text */
+            text?: string | null;
         };
         /** CommitOut */
         CommitOut: {
@@ -3384,6 +3542,16 @@ export interface components {
              */
             vehicle_id: string;
         };
+        /** Cta */
+        Cta: {
+            /**
+             * Locale
+             * @enum {string}
+             */
+            locale: "en" | "ar" | "fr";
+            /** Text */
+            text: string;
+        };
         /** CustomerDetail */
         CustomerDetail: {
             /** Band */
@@ -3616,6 +3784,15 @@ export interface components {
             /** Warnings */
             warnings: string[];
         };
+        /** Face */
+        Face: {
+            /** Family */
+            family: string;
+            /** Style */
+            style?: string | null;
+            /** Weight */
+            weight?: number | null;
+        };
         /** FindingOut */
         FindingOut: {
             /** Area */
@@ -3669,6 +3846,14 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** HashtagRules */
+        HashtagRules: {
+            /**
+             * Max
+             * @default 8
+             */
+            max: number;
         };
         /**
          * Headline
@@ -5827,6 +6012,23 @@ export interface components {
             /** Next Offset */
             next_offset: number | null;
         };
+        /** Tone */
+        Tone: {
+            /** Emoji */
+            emoji?: ("none" | "sparse" | "frequent") | null;
+            /** Formality */
+            formality?: string | null;
+            /** Person */
+            person?: string | null;
+            /** Voice */
+            voice?: string | null;
+        };
+        /** Typography */
+        Typography: {
+            arabic?: components["schemas"]["Face"] | null;
+            body?: components["schemas"]["Face"] | null;
+            heading?: components["schemas"]["Face"] | null;
+        };
         /** UsageOut */
         UsageOut: {
             /** Budget Usd */
@@ -6331,6 +6533,138 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ApprovalOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_brand_v1_brand_get: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BrandOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    confirm_brand_v1_brand_confirm_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BrandConfirmation"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BrandOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    discard_draft_v1_brand_draft_delete: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BrandOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_brand_v1_brand_read_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_read_brand_v1_brand_read_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BrandOut"];
                 };
             };
             /** @description Validation Error */

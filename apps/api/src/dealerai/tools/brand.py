@@ -17,7 +17,7 @@ from .registry import tool
 GROUP = "brand"
 
 _PROFILE = """
-select t.name, t.country, t.locales, t.currency,
+select t.name, t.country, t.locales, t.currency, b.confirmed_at,
        b.display_name, b.colors, b.typography, b.tone, b.cta_styles,
        b.hashtag_rules, b.forbidden_terms, b.required_disclaimers,
        b.photography_style, b.usps, b.target_markets, b.buyer_personas
@@ -59,7 +59,9 @@ async def get_brand_profile(ctx: TenantContext) -> dict[str, Any]:
     data = dict(row)
     disclaimers = data.get("required_disclaimers") or {}
     return {
-        "confirmed": data["display_name"] is not None,
+        # A person and a time (0027): a display name alone is what every
+        # tenant is created with, and was never anybody's confirmation.
+        "confirmed": data["confirmed_at"] is not None,
         "name": data["display_name"] or data["name"],
         "country": data["country"],
         "locales": data["locales"],

@@ -71,4 +71,5 @@ export const keys = {
   exportFile: (tenantId: string, orderId: string) => ["export-file", tenantId, orderId] as const,
   invoice: (tenantId: string, orderId: string) => ["invoice", tenantId, orderId] as const,
   documentSettings: (tenantId: string) => ["document-settings", tenantId] as const,
+  brand: (tenantId: string) => ["brand", tenantId] as const,
 };

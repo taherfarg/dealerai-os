@@ -2217,3 +2217,64 @@ export function useSchedule() {
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["content", tenantId] }),
   });
 }
+
+// --------------------------------------------------------------------------
+// The brand — docs/09 § T3.1
+// --------------------------------------------------------------------------
+
+export type Brand = components["schemas"]["BrandOut"];
+export type BrandConfirmation = components["schemas"]["BrandConfirmation"];
+
+export function useBrand() {
+  const { api, tenantId, header } = useTenantApi();
+  return useQuery({
+    queryKey: keys.brand(tenantId),
+    queryFn: async () => unwrap(await api.GET("/v1/brand", { params: { header } })),
+  });
+}
+
+function useBrandWrite<In>(run: (input: In) => Promise<Brand>) {
+  const { tenantId } = useTenantApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: run,
+    onSuccess: (brand) => queryClient.setQueryData(keys.brand(tenantId), brand),
+  });
+}
+
+/** Reads the logo, past posts and captions into a draft. Changes nothing agents read. */
+export function useReadBrand() {
+  const { api, header } = useTenantApi();
+  return useBrandWrite(
+    async ({ logo, posts, captions }: { logo: File | null; posts: File[]; captions: string }) => {
+      const form = new FormData();
+      if (logo) form.append("logo", logo);
+      for (const post of posts) form.append("posts", post);
+      form.append("captions", captions);
+      return unwrap(
+        await api.POST("/v1/brand/read", {
+          params: { header },
+          // The typed body describes the fields; the serializer sends the form.
+          body: { captions },
+          bodySerializer: () => form,
+        }),
+      );
+    },
+  );
+}
+
+/** A person accepts the brand. The only way it becomes what agents read. */
+export function useConfirmBrand() {
+  const { api, header } = useTenantApi();
+  return useBrandWrite(async (body: BrandConfirmation) =>
+    unwrap(await api.POST("/v1/brand/confirm", { params: { header }, body })),
+  );
+}
+
+export function useDiscardBrandDraft() {
+  const { api, header } = useTenantApi();
+  return useBrandWrite(async () =>
+    unwrap(await api.DELETE("/v1/brand/draft", { params: { header } })),
+  );
+}
+
