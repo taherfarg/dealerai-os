@@ -578,10 +578,11 @@ one saved and marked as a person's; approved, and in the database `approved` by 
 is GA, so the reasoning tier is `gemini-3.8-flash`, the newest GA Gemini 3. Gemini 3 signs each
 function call on its Part and refuses the next turn without the signature (400, reproduced
 live); the tool loop now sends the model's turn back whole. `npm run eval:content`: the plan is
-eight pieces, a mix, in both languages, no invented price — 4 of 6 pass. The two failures are
-one carousel whose Arabic caption had no approved call to action, rejected by its guard and so
-never rendered: the copywriter's output (`gemini-2.5-flash`), not the planning. Asset swap is
-not built.
+eight pieces, a mix, in both languages, no invented price — **6 of 6 pass** (2026-11-12). The
+first run passed 4: one carousel's Arabic caption carried a call to action the copywriter wrote
+itself beside the approved one, and the guard rejected the piece after it was paid for. The
+copywriter's output schema now allows only the dealer's approved calls to action for the
+language it writes in (`copy_schema`), so it cannot. Asset swap is not built.
 
 ### T3.8 — Calendar — **done**
 **Files:** `schedule.py`, `routes/content.py` (`/calendar`, `/schedule`, `/unschedule`),
